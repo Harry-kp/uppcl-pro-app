@@ -9,12 +9,16 @@ mock.module("expo-secure-store", () => ({
   deleteItemAsync: async (k: string) => void store.delete(k),
 }));
 
+mock.module("react-native", () => ({ Linking: { openURL: async () => {} } }));
+mock.module("expo-router", () => ({ router: { push: () => {} } }));
+
 import { ProxyError, type DashboardResponse } from "@shared/api";
 import { payAmountError, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { derivePostpaid, derivePrepaid } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
+const { isInAppUrl } = await import("../src/links");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -166,5 +170,16 @@ describe("vault (sealed on-device store)", () => {
     const sealed = sealJson(k, { a: "1" });
     const flipped = sealed.slice(0, -2) + (sealed.endsWith("00") ? "11" : "00");
     expect(() => openJson(k, flipped)).toThrow();
+  });
+});
+
+describe("in-app web page (deep-linkable, so allowlisted)", () => {
+  test("opens the app's own links", () => {
+    expect(isInAppUrl("https://github.com/Harry-kp/uppcl-pro-app/issues/new?title=x")).toBe(true);
+    expect(isInAppUrl("https://uppcl.sem.jio.com/uppclsmart/signup")).toBe(true);
+  });
+  test("refuses anything else", () => {
+    for (const u of ["https://evil.example/login", "http://github.com/", "javascript:alert(1)", "https://github.com.evil.example/", "", undefined])
+      expect(isInAppUrl(u)).toBe(false);
   });
 });

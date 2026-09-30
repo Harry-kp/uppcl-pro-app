@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useColors } from "../src/theme";
+import { isInAppUrl } from "../src/links";
 import { BackHeader } from "../src/ui";
 
 /** A web page inside the app, for phones with no browser (see src/links.ts). */
@@ -11,7 +12,9 @@ export default function WebPage() {
   const c = useColors();
   const { url } = useLocalSearchParams<{ url: string }>();
   const [loading, setLoading] = useState(true);
-  const host = (() => { try { return new URL(url).host.replace(/^www\./, ""); } catch { return ""; } })();
+  useEffect(() => { if (!isInAppUrl(url)) { if (router.canGoBack()) router.back(); else router.replace("/"); } }, [url]);
+  if (!isInAppUrl(url)) return null;
+  const host = new URL(url).host.replace(/^www\./, "");
   return (
     <SafeAreaView edges={["top", "bottom"]} style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={styles.head}><BackHeader title={host} /></View>
