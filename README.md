@@ -16,18 +16,14 @@ heading to, your daily usage, your bills as PDFs, and a one-tap "no power" compl
 
 ## Screenshots
 
-Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
+<p align="center">
+  <img src="docs/screenshots/01-bill-answered-first.png" width="24%" alt="Postpaid home: amount due and a Pay button"> <img src="docs/screenshots/02-prepaid-days-left.png" width="24%" alt="Prepaid home: days of balance left"> <img src="docs/screenshots/03-pay-in-one-tap.png" width="24%" alt="Paying a bill in the app"> <img src="docs/screenshots/04-usage-verdict.png" width="24%" alt="Usage: is this normal?">
+</p>
+<p align="center">
+  <img src="docs/screenshots/05-bills-and-payments.png" width="24%" alt="Bills and payments with PDFs"> <img src="docs/screenshots/06-no-power-complaint.png" width="24%" alt="One-tap no-power complaint"> <img src="docs/screenshots/07-dark-mode.png" width="24%" alt="Dark mode"> <img src="docs/screenshots/08-hindi.png" width="24%" alt="Hindi">
+</p>
 
-| Screen | File | Status |
-|---|---|---|
-| Home, prepaid (days left, recharge advice) | `docs/screenshots/home-prepaid.png` | TODO |
-| Home, postpaid (bill due, month projection) | `docs/screenshots/home-postpaid.png` | TODO |
-| Usage | `docs/screenshots/usage.png` | TODO |
-| Bills + in-app PDF | `docs/screenshots/bills.png` | TODO |
-| Complaints (no-power SMS, status) | `docs/screenshots/complaints.png` | TODO |
-| Pay bill | `docs/screenshots/pay.png` | TODO |
-| Home-screen widget | `docs/screenshots/widget.png` | TODO |
-| Hindi + dark mode | `docs/screenshots/hindi-dark.png` | TODO |
+<sub>Shown with invented test data (Settings → Developer → test scenarios in a dev build), never a real account.</sub>
 
 ## Features
 
