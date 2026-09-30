@@ -488,9 +488,7 @@ async function fetcher<T>(key: string): Promise<T> {
 
   // Route to the correct UPPCL endpoint
   if (key === "/dashboard") return fetchDashboard(site, cid, did, tid) as Promise<T>;
-  if (key === "/sites") return sites() as Promise<T>;
   if (key === "/me") return uppcl_post("user/search", { skip: 0, limit: 10 }) as Promise<T>;
-  if (key === "/balance") return fetchBalance(cid, tid) as Promise<T>;
   if (key === "/balance/outstanding") return uppcl_post("site/outstandingBalance", { connectionId: cid, tenantId: tid }) as Promise<T>;
   if (key === "/preferences") return uppcl_post("userpreference/search", { skip: 0, limit: 10 }) as Promise<T>;
   if (key === "/session") return uppcl_post("auth/session-check", {}) as Promise<T>;
@@ -594,12 +592,6 @@ async function fetcher<T>(key: string): Promise<T> {
     return wssPost("v2/InstaPayment/getArrearAmountStatus", { accountID: cid, discom: wssDiscom(site) }) as Promise<T>;
   }
 
-  if (key.startsWith("/appliances")) {
-    // Appliance-level disaggregation ("DaData"). Empty until UPPCL's model has data.
-    const start = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-01`;
-    const end = today.toISOString().split("T")[0];
-    return uppcl_post("dadata/v2/search", { deviceId: did, compare: "month", fromDate: start, toDate: end, tenantId: tid }) as Promise<T>;
-  }
 
   if (key.startsWith("/dadata")) {
     const limit = parseInt(params.get("limit") ?? "10");
@@ -611,53 +603,6 @@ async function fetcher<T>(key: string): Promise<T> {
   }
 
   throw new ProxyError(404, `Unknown key: ${key}`, undefined, "app", "app");
-}
-
-// ─── Balance with fallback chain ──────────────────────────────────────────────
-
-async function fetchBalance(cid: string, tid: string): Promise<unknown> {
-  // 1) Live meter balance
-  const live = (await uppcl_post("site/prepaidBalance?fetchCache=false", { connectionId: cid })) as { data?: unknown };
-  if (live.data) {
-    return { source: "prepaidBalance", note: "Live meter balance — authoritative.", data: live.data };
-  }
-
-  // 2) Latest daily bill
-  const end = new Date().toISOString().split("T")[0];
-  const start = daysAgo(7).toISOString().split("T")[0];
-  const bills = (await uppcl_post("bill/search", { skip: 0, limit: 5, tenantId: tid, connectionId: cid, from: start, to: end })) as { data?: Array<{ dailyBill?: Record<string, string>; billDate?: string }> };
-  if (bills.data?.length) {
-    const latest = bills.data[0];
-    const db = latest.dailyBill ?? {};
-    return {
-      source: "latest-daily-bill",
-      note: "Derived from yesterday's bill closing balance.",
-      data: {
-        connectionId: cid,
-        prepaidBalanceAmount: db.closing_bal,
-        prepaidBalanceUpdateDate: db.usage_date ?? latest.billDate,
-        lastDailyCharge: db.daily_chg,
-      },
-    };
-  }
-
-  // 3) Outstanding
-  const outs = (await uppcl_post("site/outstandingBalance", { connectionId: cid, tenantId: tid })) as { data?: { outstandingAmount?: string; consumerId?: string; msi?: string } };
-  if (outs.data?.outstandingAmount != null) {
-    const amt = parseFloat(outs.data.outstandingAmount) || 0;
-    return {
-      source: "outstandingBalance",
-      note: "Billing-system credit as of last invoice — may be stale.",
-      data: {
-        connectionId: outs.data.consumerId,
-        msi: outs.data.msi,
-        outstandingAmount: outs.data.outstandingAmount,
-        prepaidBalanceAmount: amt < 0 ? (-amt).toFixed(2) : "0.00",
-      },
-    };
-  }
-
-  return { source: null, data: null, note: "No source produced data — try re-login." };
 }
 
 // ─── Dashboard composite ──────────────────────────────────────────────────────
@@ -804,21 +749,6 @@ export interface Site {
   meterType: string;
 }
 
-export interface BalanceResponse {
-  source: "prepaidBalance" | "latest-daily-bill" | "outstandingBalance" | null;
-  note: string;
-  data: {
-    connectionId?: string;
-    prepaidBalanceAmount?: string;
-    prepaidBalanceUpdateDate?: string;
-    meterStatus?: string;
-    recharge?: string;
-    msi?: string;
-    outstandingAmount?: string;
-    lastDailyCharge?: string;
-  } | null;
-}
-
 export interface DailyBill {
   _id: string;
   connectionId: string;
@@ -933,16 +863,10 @@ export const useHealth = () =>
 export const useDashboard = () =>
   useSWR<DashboardResponse>("/dashboard", fetcher, swrOpts);
 
-export const useBalance = () =>
-  useSWR<BalanceResponse>("/balance", fetcher, swrOpts);
-
 export const useOutstanding = () =>
   useSWR<UpstreamEnvelope<{ consumerId: string; outstandingAmount: string; msi: string }>>(
     "/balance/outstanding", fetcher, swrOpts
   );
-
-export const useSites = () =>
-  useSWR<UpstreamEnvelope<Site[]>>("/sites", fetcher, swrOpts);
 
 export const useMe = () =>
   useSWR<UpstreamEnvelope<MeUser[]>>("/me", fetcher, swrOpts);
@@ -1037,7 +961,6 @@ export interface DowntimeAnnouncement {
   [k: string]: unknown;
 }
 
-export interface ApplianceRow { [k: string]: unknown }
 
 /** UPPCL's feature-flag + discom config tree (bootstrap API). */
 export const useTenantPreferences = () =>
@@ -1046,10 +969,6 @@ export const useTenantPreferences = () =>
 /** Active maintenance / downtime announcement (null when none). */
 export const useDowntime = () =>
   useSWR<UpstreamEnvelope<DowntimeAnnouncement | null>>("/downtime", fetcher, swrOpts);
-
-/** Appliance-level disaggregation (empty until UPPCL's model has enough data). */
-export const useApplianceData = () =>
-  useSWR<UpstreamEnvelope<ApplianceRow[]>>("/appliances", fetcher, swrOpts);
 
 /* ── Official /wss bill-portal data (richer than the jio platform) ── */
 

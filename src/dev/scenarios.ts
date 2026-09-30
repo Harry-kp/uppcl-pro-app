@@ -166,7 +166,7 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
     case "/history/yearly": return env(monthly(Number(q.get("year") ?? new Date().getFullYear())));
     case "/me": return env([{ _id: "test-user", phone: "9000000001", phoneCountryCode: "+91", username: "9000000001", name: "Asha Verma" }]);
     case "/tenant-preferences": return env({ discomDetails: { whatsappNumber: "9000000099", email: "help@example.org", address: "Test discom office, Meerut 250001" } });
-    case "/tickets": case "/alerts": case "/alarms": case "/sites": return env(path === "/sites" ? [d.site] : []);
+    case "/tickets": case "/alerts": case "/alarms": return env([]);
     case "/tips": return env([{ tipEnglish: "Set the fridge to 3–4 °C; colder only wastes power.", tipHindi: "फ़्रिज को 3–4 °C पर रखें; ज़्यादा ठंडा करने से बिजली बेकार जाती है।" }]);
     case "/downtime": return env(active === "prepaid_low" ? { title: "Planned cut", body: "Maintenance on the Test Nagar feeder, Sat 10 am – 1 pm." } : null);
     case "/wss/consumer": return { status: "SUCCESS", ConsumerDetails: { kno: d.site.connectionId, name: "Asha Verma", mobileNo: "9000000001", email: "asha@example.com",
