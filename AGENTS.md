@@ -21,14 +21,15 @@ never log, store or send credentials/tokens/account data anywhere but UPPCL and 
 
 ## Structure
 - `app/` Expo Router screens. `src/` app-only code (`boot.ts` wires the platform seam; `theme.ts` tokens; `ui.tsx` primitives).
-- `shared/` (imported as `@shared/*`): API client, SWR hooks, response types, crypto, insights. Vendored from
-  the web project [uppcl-pro](https://github.com/Harry-kp/uppcl-pro) `src/lib`; `platform.ts` is the only web/native seam.
+- `shared/` (imported as `@shared/*`): the phone-free half — API client + SWR hooks + types (`api.ts`), bill
+  payment (`payment.ts`), crypto, insights. `platform.ts` is its only seam to the phone; `src/boot.ts` fills it.
+  This repo is the source of truth (the web project's copy is frozen).
 - `messages/{en,hi}.json`: strings under `"app"` (plus `"login"` field labels).
 - `src/dev/`: dev-only fake-data test scenarios. `tests/`: `bun test` suites. `docs/`: upstream API notes.
 
 ## Conventions
 - Before writing a helper, grep for one: `rupees`, `kwh`, `parseUppclDate`, `billingPeriod`, `toNum`, `mean` exist.
-- New upstream endpoints go in `shared/api.ts`, through `proxy()`.
+- New upstream endpoints go in `shared/api.ts`, through `send()` (it tags errors with whose side failed).
 - Every user-visible string goes in both `messages/en.json` and `messages/hi.json`.
 - Colours come from `src/theme.ts` tokens; re-check contrast when changing them.
 - Dev tools stay in `src/dev`. Main code may touch them only via one-line hooks tagged `@dev-tools`,
@@ -44,6 +45,9 @@ never log, store or send credentials/tokens/account data anywhere but UPPCL and 
 - Public UPPCL constants (API key, bill-portal appServiceKey, Appsavy key) are not secrets but are kept
   as-is/assembled from fragments so secret scanners don't flag them. Don't copy them into new files.
 - Never commit real account numbers, phone numbers, names, addresses, JWTs, keystores or screenshots of a real account.
+- Session data lives in one AES-GCM file (`vault-v1.bin`) whose key is in the OS keystore (`src/boot.ts`).
+  Don't add SecureStore reads on the startup path: each one is a slow hardware decrypt on old phones.
+- A corp gitleaks hook blocks commits that re-add `shared/api.ts`'s public constants (e.g. moving the file).
 - Hermes is strict about dates: parse UPPCL dates with `parseUppclDate`, never `new Date(str)`.
 - Empty states must check SWR `isLoading` first: some UPPCL calls take ~10 s.
 - UPPCL API quirks: see `docs/api-reverse-engineering.md` and `docs/payment-reverse-engineering.md`.
