@@ -1,5 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
+  - name: Problem with your bill, meter, recharge or connection
+    url: https://consumer.uppcl.org/wss/
+    about: That's UPPCL's side. Call 1912 or use UPPCL's consumer portal; this app can't change your account.
   - name: Security problem
     url: https://github.com/Harry-kp/uppcl-pro-app/security/advisories/new
     about: Report privately, not in a public issue.

@@ -22,6 +22,14 @@ body:
         (UPPCL SMART, bill portal, 1912 portal, or the app) and UPPCL's own message.
       render: text
   - type: dropdown
+    id: official
+    attributes:
+      label: Does the same thing work in the official UPPCL SMART app or website?
+      description: If it fails there too, it's UPPCL's side and only they can fix it.
+      options: ["Yes, it works there", "No, it fails there too", "Didn't check"]
+    validations:
+      required: true
+  - type: dropdown
     id: account
     attributes:
       label: Account type
@@ -30,9 +38,13 @@ body:
     id: version
     attributes:
       label: App version
-      description: bottom of Settings, or the APK name (e.g. v0.1.0)
+      description: Settings → About, or the APK name (e.g. v0.1.0)
+    validations:
+      required: true
   - type: input
     id: phone
     attributes:
       label: Phone and Android version
       placeholder: e.g. Redmi Note 12, Android 14
+    validations:
+      required: true

@@ -2,6 +2,8 @@
 
 **Your electricity, made simple.** · बिजली की हर बात, आसान
 
+**[⬇ Download the latest APK](https://github.com/Harry-kp/uppcl-pro-app/releases/latest)** · Android 7+ · [how to install](#install)
+
 > **Unofficial — not affiliated with UPPCL.** UPPCL Pro is an independent open-source app. It is not made
 > by, endorsed by, or connected to UPPCL, its discoms (PVVNL, MVVNL, DVVNL, PuVVNL, KESCo) or Jio. It talks
 > to UPPCL's own public systems using APIs that were reverse-engineered from their web apps
@@ -55,8 +57,8 @@ heading to, your daily usage, your bills as PDFs, and a one-tap "no power" compl
 - The app talks **directly from your phone** to UPPCL SMART (`uppcl.sem.jio.com`, the smart-meter
   system) and to UPPCL's consumer portal (`consumer.uppcl.org`, bills, PDFs, payment). There is no
   UPPCL Pro server in between and no server stores your password.
-- You sign in with your UPPCL SMART username and password. The session token is kept in the Android
-  keystore (`expo-secure-store`) on your phone.
+- You sign in with your UPPCL SMART username and password. The session is kept on your phone in an
+  encrypted file (AES-GCM) whose key lives in the Android keystore.
 - **One exception: complaint status.** The 1912 complaint portal needs cookie handling that a phone app's
   networking can't do, so the complaint lookup goes through a small server route of the companion web
   project [uppcl-pro](https://github.com/Harry-kp/uppcl-pro), deployed at
@@ -84,7 +86,8 @@ heading to, your daily usage, your bills as PDFs, and a one-tap "no power" compl
 - No analytics, no ads, no tracking, no UPPCL Pro account.
 - Your data goes only between your phone and UPPCL's servers, plus your mobile number to the complaint
   route described above. The update check asks `api.github.com` for the latest release (no account data).
-  "Report a problem" only opens GitHub in your browser; nothing is sent until you submit the issue there,
+  "Report a problem" only opens GitHub (in your browser, or inside the app if the phone has none); nothing
+  is sent until you submit the issue there,
   and issues are public, so remove anything personal first.
 - Everything the app keeps (session, cached screens, budget, and your password only if you enabled alerts)
   stays on your phone. Signing out clears the session, the cached screens and the saved password.
@@ -102,6 +105,16 @@ sign-up and forgot username / password.
    allow it, then install.
 4. Updates: the app tells you when a newer version is out; install the newer APK over the old one.
    Your sign-in is kept.
+
+**Check it's really this app.** Every official APK is signed with this key (SHA-256 certificate fingerprint):
+
+```
+42:5E:6D:CC:C8:67:2D:27:CD:F7:28:F7:BE:24:86:60:AD:D6:17:CC:39:5E:F8:59:C9:13:95:D7:FF:22:C5:CC
+```
+
+Android refuses to install an update signed with a different key over this one. If a site offers
+"UPPCL Pro" signed differently, it isn't this app. To check a download yourself:
+`apksigner verify --print-certs uppcl-pro-vX.Y.Z.apk`.
 
 ## Build from source
 
