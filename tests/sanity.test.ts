@@ -9,7 +9,8 @@ mock.module("expo-secure-store", () => ({
   deleteItemAsync: async (k: string) => void store.delete(k),
 }));
 
-import { payAmountError, ProxyError, type DashboardResponse, type PayBillHome } from "@shared/api";
+import { ProxyError, type DashboardResponse } from "@shared/api";
+import { payAmountError, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { derivePostpaid, derivePrepaid } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";

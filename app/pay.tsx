@@ -11,10 +11,11 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
 import { mutate } from "swr";
+import { useDashboard } from "@shared/api";
 import {
-  getPaymentReceipt, getPayBillDetails, payAmountError, startBillPayment, useDashboard,
+  getPaymentReceipt, getPayBillDetails, payAmountError, startBillPayment,
   type PayBillHome, type PaymentReceipt, type PayType,
-} from "@shared/api";
+} from "@shared/payment";
 import { platform } from "@shared/platform";
 import { billingPeriod, parseUppclDate, rupees } from "@shared/utils";
 import { UPPCL_SMART_URL } from "../src/boot";
