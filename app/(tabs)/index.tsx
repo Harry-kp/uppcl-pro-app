@@ -23,12 +23,13 @@ import { useI18n } from "../../src/i18n";
 import { font, radius, useColors } from "../../src/theme";
 import { Button, Card, Centered, Glow, Insight, Pill, Screen, Txt } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
+import { openLink } from "../../src/links";
 
 /** Prepaid recharge happens on UPPCL's page, which asks for the account number: copy it first and say so. */
 async function openPay(accountNo: string, copiedMessage: string): Promise<void> {
   await Clipboard.setStringAsync(accountNo).catch(() => {});
   if (Platform.OS === "android") ToastAndroid.show(copiedMessage, ToastAndroid.LONG);
-  await Linking.openURL(UPPCL_SMART_URL);
+  openLink(UPPCL_SMART_URL);
 }
 
 export default function Home() {
@@ -165,7 +166,7 @@ function QuickActions({ data, onBill, billBusy, hasDues }: { data: DashboardResp
       {/* Prepaid has no bill PDF, so its tiles are the two ways to report a cut. */}
       {onBill && <Action icon="receiptLong" label={billBusy ? t("opening") : t("qa_bill")} onPress={onBill} disabled={billBusy} />}
       <Action icon="sms" label={t("qa_no_power")} onPress={sms} />
-      {!onBill && <Action icon="call" label={t("call_1912")} onPress={() => Linking.openURL(`tel:${HELPLINE_TEL}`)} />}
+      {!onBill && <Action icon="call" label={t("call_1912")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />}
       {/* When a bill is due, the hero's Pay button is the one; the tile is for paying ahead. */}
       {data.site.connectionType === "postpaid" && !hasDues && <Action icon="currencyRupee" label={t("qa_pay")} onPress={() => router.push("/pay")} />}
     </View>

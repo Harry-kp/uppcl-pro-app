@@ -6,7 +6,7 @@
  * (pgresponse?refNo=…) → receipt. See docs/payment-reverse-engineering.md.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
@@ -24,6 +24,7 @@ import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
 import { Button, Insight, Segmented, Txt, familyFor } from "../src/ui";
 import { Icon } from "../src/icons";
+import { openLink } from "../src/links";
 
 type Gateway = { url: string; message: string; trackId: string };
 
@@ -105,7 +106,7 @@ export default function Pay() {
     return (
       <SheetFrame title={t("pay_title")}>
         <ErrorNote error={loadError} />
-        <Button label={t("pay_on_smart")} kind="soft" onPress={() => Linking.openURL(UPPCL_SMART_URL)} />
+        <Button label={t("pay_on_smart")} kind="soft" onPress={() => openLink(UPPCL_SMART_URL)} />
       </SheetFrame>
     );
   }

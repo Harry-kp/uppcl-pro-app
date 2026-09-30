@@ -9,6 +9,7 @@ import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
 import { Button, Card, Pill, Screen, Txt, familyFor } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
+import { openLink } from "../../src/links";
 
 export default function Complaints() {
   const c = useColors();
@@ -52,8 +53,8 @@ export default function Complaints() {
       <Action icon="sms" title={t("no_power")} desc={t("no_power_desc")} primary disabled={!sms} onPress={() => sms && Linking.openURL(sms)} />
       {/* The other two ways to report sit side by side, so the SMS stays the obvious first choice. */}
       <View style={styles.pair}>
-        <Action compact icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => Linking.openURL(`tel:${HELPLINE_TEL}`)} />
-        {!!wa && <Action compact icon="chat" title={t("whatsapp")} desc={t("whatsapp_short")} onPress={() => Linking.openURL(`https://wa.me/${wa.length === 10 ? `91${wa}` : wa}`)} />}
+        <Action compact icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />
+        {!!wa && <Action compact icon="chat" title={t("whatsapp")} desc={t("whatsapp_short")} onPress={() => openLink(`https://wa.me/${wa.length === 10 ? `91${wa}` : wa}`)} />}
       </View>
 
       <View style={{ marginTop: 12 }}>
@@ -130,10 +131,10 @@ export default function Complaints() {
         <>
           <Txt v="heading" style={{ marginTop: 12 }}>{t("contact_title")}</Txt>
           <Card style={{ padding: 0, gap: 0 }}>
-            {!!care && <Contact first icon="call" label={t("customer_care")} value={care} onPress={() => Linking.openURL(`tel:${care}`)} />}
-            {!!discom.email && <Contact first={!care} icon="mail" label={t("email")} value={discom.email} onPress={() => Linking.openURL(`mailto:${discom.email}`)} />}
+            {!!care && <Contact first icon="call" label={t("customer_care")} value={care} onPress={() => openLink(`tel:${care}`)} />}
+            {!!discom.email && <Contact first={!care} icon="mail" label={t("email")} value={discom.email} onPress={() => openLink(`mailto:${discom.email}`)} />}
             {!!discom.address && <Contact first={!care && !discom.email} icon="home" label={t("billing_office")} value={discom.address} lines={3}
-              onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(discom.address!)}`)} />}
+              onPress={() => openLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(discom.address!)}`)} />}
           </Card>
         </>
       )}

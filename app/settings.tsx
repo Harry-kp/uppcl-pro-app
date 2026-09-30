@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Alert, AppState, Linking, Pressable, StyleSheet, Switch, TextInput, View, Platform } from "react-native";
+import { Alert, AppState, Pressable, StyleSheet, Switch, TextInput, View, Platform } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -18,6 +18,7 @@ import { font, getThemeChoice, setThemeChoice, useColors, type ThemeChoice } fro
 import { BackHeader, Button, Card, Choices, Screen, Sheet, Txt, familyFor } from "../src/ui";
 import { rupees } from "@shared/utils";
 import { Icon, type IconName } from "../src/icons";
+import { openLink } from "../src/links";
 
 export default function Settings() {
   const c = useColors();
@@ -154,21 +155,14 @@ export default function Settings() {
 
       {__DEV__ && <DevSettingsSection />} {/* @dev-tools */}
 
-      <View style={{ gap: 2, marginTop: 8 }}>
-        <Txt v="caption" color="muted">{t("unofficial")}</Txt>
-        <Txt v="caption" color="muted">{t("version", { v: APP_VERSION })} · {update ? t("update_available", { v: update.version }) : t("up_to_date")}</Txt>
-        {update && (
-          <Pressable accessibilityRole="link" onPress={() => Linking.openURL(update.apkUrl ?? update.pageUrl)} style={styles.link}>
-            <Txt v="label" color="primary" weight="semibold">{t("update_now")}</Txt>
-          </Pressable>
-        )}
-        <Pressable accessibilityRole="link" onPress={() => reportProblem()} style={styles.link}>
-          <Txt v="label" color="primary">{t("report_problem")}</Txt>
-        </Pressable>
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`https://github.com/${REPO}`)} style={styles.link}>
-          <Txt v="label" color="primary">{t("source")}</Txt>
-        </Pressable>
-      </View>
+      <Group title={t("about")}>
+        <Row first icon={update ? "download" : "checkCircle"} label={t("version", { v: APP_VERSION })}
+          value={update ? t("update_available", { v: update.version }) : t("up_to_date")} valueTone={update ? undefined : "ok"}
+          onPress={update ? () => openLink(update.apkUrl ?? update.pageUrl) : undefined} />
+        <Row icon="chat" label={t("report_problem")} onPress={() => reportProblem()} />
+        <Row icon="info" label={t("source")} onPress={() => openLink(`https://github.com/${REPO}`)} />
+      </Group>
+      <Txt v="caption" color="muted" style={{ marginTop: 4 }}>{t("unofficial")}</Txt>
 
       <Sheet visible={sheet === "lang"} title={t("language")} onClose={() => setSheet(null)}>
         <Choices value={lang} onChange={(v) => { setLang(v); setSheet(null); }} options={[{ value: "en", label: t("english") }, { value: "hi", label: t("hindi") }]} />
@@ -289,6 +283,5 @@ const styles = StyleSheet.create({
   budgetRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   lead: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   copy: { borderRadius: 999, paddingHorizontal: 16, minHeight: 48, minWidth: 80, alignItems: "center", justifyContent: "center" },
-  link: { minHeight: 48, justifyContent: "center", alignSelf: "flex-start" },
   input: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, minHeight: 50 },
 });

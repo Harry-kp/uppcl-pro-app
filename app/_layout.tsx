@@ -87,6 +87,7 @@ function Gate() {
             <Stack.Screen name="pay" options={{ presentation: "transparentModal", animation: "fade", contentStyle: { backgroundColor: "transparent" } }} />
             <Stack.Screen name="quick/[action]" options={{ animation: "none" }} />
           </Stack.Protected>
+          <Stack.Screen name="web" options={{ animation: "slide_from_bottom" }} />
           <Stack.Protected guard={!signedIn}>
             <Stack.Screen name="login" />
           </Stack.Protected>

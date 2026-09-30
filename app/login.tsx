@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { UPPCL_SMART_URL } from "../src/boot";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { mutate } from "swr";
@@ -11,6 +11,7 @@ import { AppIcon, Button, Glow, Insight, Txt, familyFor } from "../src/ui";
 import { Icon } from "../src/icons";
 import en from "../messages/en.json";
 import hi from "../messages/hi.json";
+import { openLink } from "../src/links";
 
 export default function Login() {
   const c = useColors();
@@ -102,11 +103,11 @@ export default function Login() {
             <Button label={busy ? L.signing_in : L.sign_in} onPress={submit} busy={busy} disabled={!username.trim() || !password} />
             {/* Resets and sign-ups happen on UPPCL's own site, straight to the right page: we never handle passwords beyond sign-in. */}
             <View style={styles.links}>
-              <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${UPPCL_SMART_URL}forgot-password`)} style={styles.forgot}>
+              <Pressable accessibilityRole="link" onPress={() => openLink(`${UPPCL_SMART_URL}forgot-password`)} style={styles.forgot}>
                 <Txt v="label" color="primary" weight="semibold">{t("forgot_password_short")}</Txt>
               </Pressable>
               <Txt v="label" color="muted">·</Txt>
-              <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${UPPCL_SMART_URL}forgot-username`)} style={styles.forgot}>
+              <Pressable accessibilityRole="link" onPress={() => openLink(`${UPPCL_SMART_URL}forgot-username`)} style={styles.forgot}>
                 <Txt v="label" color="primary" weight="semibold">{t("forgot_username")}</Txt>
               </Pressable>
             </View>
@@ -115,7 +116,7 @@ export default function Login() {
             <View style={[styles.newUser, { backgroundColor: c.pill }]}>
               <Txt v="body" weight="semibold">{t("no_account_title")}</Txt>
               <Txt v="caption" color="muted">{t("no_account_body")}</Txt>
-              <Button label={t("no_account_cta")} kind="soft" onPress={() => Linking.openURL(`${UPPCL_SMART_URL}signup`)} />
+              <Button label={t("no_account_cta")} kind="soft" onPress={() => openLink(`${UPPCL_SMART_URL}signup`)} />
             </View>
 
             <View style={styles.privacy}>

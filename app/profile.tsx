@@ -1,11 +1,12 @@
 /** "Your details": what UPPCL has on record for this connection. Read-only in this app for now. */
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { useDashboard, useMe, useWssConsumer } from "@shared/api";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
 import { BackHeader, Card, Insight, Screen, Txt } from "../src/ui";
 import { Icon } from "../src/icons";
+import { openLink } from "../src/links";
 
 /** Official consumer portal: where contact details and paperless billing are changed today. */
 const UPPCL_CONSUMER_URL = "https://consumer.uppcl.org/wss/";
@@ -76,7 +77,7 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
           <Icon name="info" size={20} color={c.muted} />
           <Txt v="caption" color="muted" style={{ flex: 1 }}>{t("not_supported_yet")}</Txt>
         </View>
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(UPPCL_CONSUMER_URL)}
+        <Pressable accessibilityRole="link" onPress={() => openLink(UPPCL_CONSUMER_URL)}
           style={({ pressed }) => [styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
           <Icon name="person" size={20} color={c.primary} />
           <Txt v="body" weight="semibold" color="primary" style={{ flex: 1 }}>{t("change_on_official")}</Txt>

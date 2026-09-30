@@ -4,7 +4,7 @@
  *  - report a problem: open a pre-filled GitHub issue (the user reviews it in the browser first).
  */
 import { useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import useSWR from "swr";
 import Constants from "expo-constants";
 import { keystore } from "./boot";
@@ -12,6 +12,7 @@ import { useI18n } from "./i18n";
 import { useColors } from "./theme";
 import { Button, Txt } from "./ui";
 import { Icon } from "./icons";
+import { openLink } from "./links";
 
 export const REPO = "Harry-kp/uppcl-pro-app";
 export const APP_VERSION = Constants.expoConfig?.version ?? "0.0.0";
@@ -57,7 +58,7 @@ export function UpdateCard() {
       </View>
       <Txt v="caption" color="muted">{t("update_desc")}</Txt>
       <View style={styles.actions}>
-        <View style={{ flex: 1 }}><Button label={t("update_now")} onPress={() => Linking.openURL(update.apkUrl ?? update.pageUrl)} /></View>
+        <View style={{ flex: 1 }}><Button label={t("update_now")} onPress={() => openLink(update.apkUrl ?? update.pageUrl)} /></View>
         <Pressable accessibilityRole="button" onPress={() => { keystore.setItem(SKIP_KEY, update.version); setSkipped(update.version); }} style={styles.later}>
           <Txt v="label" color="primary" weight="semibold">{t("later")}</Txt>
         </Pressable>
@@ -75,7 +76,7 @@ export function reportProblem(details: string[] = []) {
     "_Please remove anything personal (account number, phone, address) before submitting — issues are public._",
   ].join("\n");
   const title = details.length ? `Error: ${details.find((l) => /said|Error/.test(l)) ?? details[0]}`.slice(0, 120) : "";
-  void Linking.openURL(`https://github.com/${REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`);
+  void openLink(`https://github.com/${REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`);
 }
 
 const styles = StyleSheet.create({
