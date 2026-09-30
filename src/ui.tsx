@@ -106,8 +106,8 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 }
 
 export function Button({
-  label, onPress, kind = "primary", busy, disabled,
-}: { label: string; onPress: () => void; kind?: "primary" | "soft"; busy?: boolean; disabled?: boolean }) {
+  label, onPress, kind = "primary", busy, disabled, icon,
+}: { label: string; onPress: () => void; kind?: "primary" | "soft"; busy?: boolean; disabled?: boolean; icon?: IconName }) {
   const c = useColors();
   const bg = kind === "primary" ? c.primary : c.pill;
   const fg = kind === "primary" ? c.onPrimary : c.pillText;
@@ -119,7 +119,13 @@ export function Button({
       disabled={disabled || busy}
       style={({ pressed }) => [styles.button, { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }]}
     >
-      {busy ? <ActivityIndicator color={fg} /> : <Txt v="heading" style={{ color: fg, textAlign: "center" }}>{label}</Txt>}
+      {busy ? <ActivityIndicator color={fg} /> : (
+        // A trailing icon says where the tap goes (e.g. "opens UPPCL's site").
+        <View style={styles.buttonRow}>
+          <Txt v="heading" style={{ color: fg, textAlign: "center", flexShrink: 1 }}>{label}</Txt>
+          {icon && <Icon name={icon} size={18} color={fg} />}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -246,6 +252,7 @@ const styles = StyleSheet.create({
   scroll: { padding: space.gutter, gap: space.gap, paddingBottom: 32 },
   section: { gap: 8, marginTop: 8 },
   card: { borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 10 },
+  buttonRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   button: { borderRadius: radius.button, paddingVertical: 13, paddingHorizontal: 16, minHeight: 48, justifyContent: "center" },
   pill: { borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4 },
   seg: { flexDirection: "row", borderRadius: 14, padding: 3 },
