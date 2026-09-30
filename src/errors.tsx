@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import { ProxyError, type ErrorSource } from "@shared/api";
+import { reportProblem } from "./github";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
 import { Button, Txt } from "./ui";
@@ -65,9 +66,15 @@ export function ErrorNote({ error, onRetry, compact, stale }: { error: unknown; 
       {open && (
         <View style={[styles.details, { backgroundColor: c.surface, borderColor: c.line }]}>
           {lines.map((l) => <Txt key={l} v="caption" color="muted">{l}</Txt>)}
-          <Pressable accessibilityRole="button" onPress={async () => { await Clipboard.setStringAsync(lines.join("\n")); setCopied(true); setTimeout(() => setCopied(false), 1500); }} style={styles.fold}>
-            <Txt v="label" color="primary" weight="semibold">{copied ? t("copied") : t("err_copy")}</Txt>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 16, flexWrap: "wrap" }}>
+            <Pressable accessibilityRole="button" onPress={async () => { await Clipboard.setStringAsync(lines.join("\n")); setCopied(true); setTimeout(() => setCopied(false), 1500); }} style={styles.fold}>
+              <Txt v="label" color="primary" weight="semibold">{copied ? t("copied") : t("err_copy")}</Txt>
+            </Pressable>
+            {/* Our bug → report it; UPPCL's → still useful, so people see it's known. */}
+            <Pressable accessibilityRole="button" onPress={() => reportProblem(lines.slice(0, -1))} style={styles.fold}>
+              <Txt v="label" color="primary" weight="semibold">{t("report_github")}</Txt>
+            </Pressable>
+          </View>
         </View>
       )}
     </View>

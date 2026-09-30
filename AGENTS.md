@@ -16,6 +16,8 @@ never log, store or send credentials/tokens/account data anywhere but UPPCL and 
 - Release: bump `expo.version` (and `android.versionCode` for a new version) in `app.json`, push tag
   `vX.Y.Z` matching it. `.github/workflows/release.yml` builds, signs and uploads the APK; re-pushing the
   same tag or re-running the workflow overwrites the asset.
+  The in-app update check (`src/github.tsx`) reads the latest Release: keep tags `vX.Y.Z` = app.json version,
+  exactly one `.apk` asset per release, and bump the version for any build users should be offered.
 
 ## Structure
 - `app/` Expo Router screens. `src/` app-only code (`boot.ts` wires the platform seam; `theme.ts` tokens; `ui.tsx` primitives).

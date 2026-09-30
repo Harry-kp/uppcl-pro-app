@@ -44,6 +44,8 @@ Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
 - **Alerts (opt-in).** Low prepaid balance, new bill, bill due soon, planned power cuts.
 - **Home-screen widget.** Days of balance left, or your bill due.
 - **App shortcuts.** Long-press the icon: no-power SMS, latest bill, pay.
+- **Update check.** The app looks at this repo's latest GitHub Release and offers the newer APK.
+- **Report a problem.** Opens a pre-filled GitHub issue (with the error details) for you to review and submit.
 - **Hindi and English**, **light and dark mode**.
 - **Errors say whose side they're on.** When something fails the app tells you whether it was UPPCL SMART,
   the bill portal, the 1912 portal or the app, and **Details → Copy details** gives you text to paste
@@ -82,7 +84,9 @@ Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
 
 - No analytics, no ads, no tracking, no Meter Pro account.
 - Your data goes only between your phone and UPPCL's servers, plus your mobile number to the complaint
-  route described above.
+  route described above. The update check asks `api.github.com` for the latest release (no account data).
+  "Report a problem" only opens GitHub in your browser; nothing is sent until you submit the issue there,
+  and issues are public, so remove anything personal first.
 - Everything the app keeps (session, cached screens, budget, and your password only if you enabled alerts)
   stays on your phone. Signing out clears the session, the cached screens and the saved password.
 
@@ -92,7 +96,8 @@ Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
 2. Download `meter-pro-vX.Y.Z.apk` (each release also lists its SHA-256 checksum).
 3. Open it. Android will ask you to allow installing apps from this source (your browser or Files app);
    allow it, then install.
-4. Updates: install the newer APK over the old one. Your sign-in is kept.
+4. Updates: the app tells you when a newer version is out; install the newer APK over the old one.
+   Your sign-in is kept.
 
 ## Build from source
 

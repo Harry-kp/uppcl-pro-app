@@ -16,6 +16,7 @@ import { saveSnapshot } from "../../src/widget";
 import { openPay } from "../../src/pay";
 import { getBudget } from "../../src/alerts";
 import { keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
+import { UpdateCard } from "../../src/github";
 
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -40,6 +41,7 @@ export default function Home() {
   return (
     <Screen onRefresh={() => mutate()} refreshing={isValidating}>
       <Greeting data={data} />
+      <UpdateCard />
       {error && <ErrorNote error={error} stale compact />}
       <PlannedCut />
       {data.site.connectionType === "postpaid" ? <Postpaid data={data} /> : <Prepaid data={data} />}

@@ -97,5 +97,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Meter Pro $TAG" --generate-notes --verify-tag
+          notes="Android APK: download \`meter-pro-$TAG.apk\`, allow installs from your browser/Files app, install. SHA-256 in \`meter-pro-$TAG.apk.sha256\`.
+
+          This APK may be rebuilt and replaced under the same version while it stabilises. The in-app update check only offers a *newer version number*, so a rebuilt APK of the same version is not offered automatically: reinstall it from here."
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Meter Pro $TAG" --notes "$notes" --generate-notes --verify-tag
           gh release upload "$TAG" "meter-pro-$TAG.apk" "meter-pro-$TAG.apk.sha256" --clobber

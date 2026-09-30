@@ -11,6 +11,7 @@ import { alertsEnabled, disableAlerts, enableAlerts, getBudget, sendTestNotifica
 import { clearSnapshot, WIDGET_NAME } from "../src/widget";
 import { getWidgetInfo, requestPinWidget } from "react-native-android-widget";
 import { clearPersistentCache } from "../src/cache";
+import { APP_VERSION, REPO, reportProblem, useUpdate } from "../src/github";
 import { DevSettingsSection } from "../src/dev"; // @dev-tools
 import { useI18n } from "../src/i18n";
 import { font, getThemeChoice, setThemeChoice, useColors, type ThemeChoice } from "../src/theme";
@@ -33,6 +34,7 @@ export default function Settings() {
   const [alertError, setAlertError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeChoice>(getThemeChoice);
   const [sheet, setSheet] = useState<"lang" | "theme" | "budget" | null>(null);
+  const update = useUpdate();
   const [widgetPlaced, setWidgetPlaced] = useState(false);
   const [, rerender] = useState(0);
   useEffect(() => { if (!sheet) rerender((n) => n + 1); }, [sheet]); // budget value after its sheet closes
@@ -153,8 +155,16 @@ export default function Settings() {
 
       <View style={{ gap: 2, marginTop: 8 }}>
         <Txt v="caption" color="muted">{t("unofficial")}</Txt>
-        <Txt v="caption" color="muted">{t("version", { v: Constants.expoConfig?.version ?? "" })}</Txt>
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL("https://github.com/Harry-kp/uppcl-pro")} style={styles.link}>
+        <Txt v="caption" color="muted">{t("version", { v: APP_VERSION })} · {update ? t("update_available", { v: update.version }) : t("up_to_date")}</Txt>
+        {update && (
+          <Pressable accessibilityRole="link" onPress={() => Linking.openURL(update.apkUrl ?? update.pageUrl)} style={styles.link}>
+            <Txt v="label" color="primary" weight="semibold">{t("update_now")}</Txt>
+          </Pressable>
+        )}
+        <Pressable accessibilityRole="link" onPress={() => reportProblem()} style={styles.link}>
+          <Txt v="label" color="primary">{t("report_problem")}</Txt>
+        </Pressable>
+        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`https://github.com/${REPO}`)} style={styles.link}>
           <Txt v="label" color="primary">{t("source")}</Txt>
         </Pressable>
       </View>
