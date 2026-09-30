@@ -31,7 +31,16 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      # Tag builds aren't the default branch, where setup-gradle only *reads* its cache by default; without
+      # this every release started cold (~1 GB of dependencies, all Kotlin/Java recompiled).
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      # C++ (Hermes/Expo native modules, two ABIs) is most of the build; ccache reuses unchanged objects.
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: android-release
+          max-size: 2G
 
       - name: Tag matches app.json version
         run: |
@@ -79,8 +88,10 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
         # ARM only: every Android phone in use; x86 is emulators and doubles size + build time.
-        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Porg.gradle.jvmargs=-Xmx4g
+        run: ./gradlew assembleRelease --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Porg.gradle.jvmargs=-Xmx4g
 
       - name: Verify signature and package
         run: |
