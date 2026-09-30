@@ -61,13 +61,15 @@ export function Bars({
         )}
         {w === 0 && <View style={{ height }} />}
         {details && w > 0 && (
-          // One transparent full-height column per bar: easy to hit even when bars are thin.
-          <View style={{ position: "absolute", left: 0, top: 0, width: w, height, flexDirection: "row" }}>
-            {values.map((_, i) => (
-              <Pressable key={i} style={{ flex: 1 }} onPress={() => setPicked(i)}
-                accessibilityRole="button" accessibilityLabel={details[i]} accessibilityState={{ selected: i === selected }} />
-            ))}
-          </View>
+          // One overlay; the tap's x picks the bar (full-height hit area even for thin bars, one view instead of n).
+          <Pressable style={{ position: "absolute", left: 0, top: 0, width: w, height }}
+            onPress={(e) => setPicked(Math.min(n - 1, Math.max(0, Math.floor(e.nativeEvent.locationX / slot))))}
+            accessibilityRole="adjustable" accessibilityLabel={selected !== null ? details[selected] : summary}
+            accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+            onAccessibilityAction={(e) => {
+              const cur = selected ?? n - 1;
+              setPicked(Math.min(n - 1, Math.max(0, cur + (e.nativeEvent.actionName === "increment" ? 1 : -1))));
+            }} />
         )}
       </View>
       {details && (
