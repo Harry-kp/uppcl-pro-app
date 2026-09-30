@@ -37,7 +37,8 @@ export default function Login() {
       await mutate("/health");
     } catch (e) {
       const kind = (e as { kind?: string }).kind;
-      if (kind === "network") { setOffline(true); setError(t("login_offline")); }
+      // A timeout is UPPCL being slow, not the user's internet: don't send them to check airplane mode.
+      if (kind === "network") { setOffline(true); setError(t(/timeout/i.test(String((e as { reason?: string }).reason)) ? "login_slow" : "login_offline")); }
       else setError((e as Error).message);
     } finally {
       setBusy(false);

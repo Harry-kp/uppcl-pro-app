@@ -45,8 +45,10 @@ function istEnd(d: Date): string {
 }
 
 /** Human date like "01 Jun 2025" — the format bill/billHistory expects for from/to. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function humanDate(d: Date): string {
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  // Not toLocaleDateString: newer ICU (Hermes) writes "Sept"; UPPCL's own site sends "Sep" (moment "DD MMM YYYY").
+  return `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -99,7 +101,7 @@ export async function send(upstream: "uppcl" | "bootstrap" | "wss" | "complaints
     const isNetwork = name === "TypeError" || name === "AbortError"
       || /fetch failed|network|unknownhost|unable to resolve|timed? ?out|timeout|econn|ssl|socket|failed to connect|connection/i.test(text);
     if (!isNetwork) throw e;
-    const msg = name === "AbortError" ? "timeout: no answer in 30 s" : (e as Error).message || "network request failed";
+    const msg = name === "AbortError" ? "timeout: no answer in time" : (e as Error).message || "network request failed";
     throw new ProxyError(0, msg, undefined, upstream === "bootstrap" ? "uppcl" : upstream, "network");
   }
 }
@@ -173,9 +175,12 @@ async function proxy(
   let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { parsed = text; }
   // UPPCL's `message` is sometimes an object ({ message } / { error }), which used to print as "[object Object]".
-  const m = typeof parsed === "object" && parsed && "message" in parsed ? (parsed as { message: unknown }).message : text;
-  const inner = m && typeof m === "object" ? ((m as { message?: unknown; error?: unknown }).message ?? (m as { error?: unknown }).error ?? JSON.stringify(m)) : m;
-  const msg = String(inner ?? "").slice(0, 200);
+  let m: unknown = typeof parsed === "object" && parsed && "message" in parsed ? (parsed as { message: unknown }).message : text;
+  for (let i = 0; i < 4 && m && typeof m === "object"; i++) {
+    const o = m as { message?: unknown; error?: unknown };
+    m = o.message ?? o.error ?? JSON.stringify(m); // nested { message: { message: … } }: dig to the text
+  }
+  const msg = String(m ?? "").slice(0, 200);
   throw new ProxyError(r.status, msg, parsed);
 }
 
@@ -190,10 +195,18 @@ async function uppcl_post(
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function login(username: string, password: string): Promise<void> {
+  // UPPCL SMART's sign-in can take far longer than its data calls; don't give up at the usual 30 s.
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 60_000);
+  try { return await loginSteps(username, password, abort.signal); } finally { clearTimeout(timer); }
+}
+
+async function loginSteps(username: string, password: string, signal: AbortSignal): Promise<void> {
   // 1. Fetch ALTCHA challenge
   const altchaR = await send("uppcl", "altcha/createAltCaptcha", {
     headers: { apikey: UPPCL_API_KEY, tenantid: tenantHeader(DEFAULT_TENANT) },
     cache: "no-store",
+    signal,
   });
   if (!altchaR.ok) throw new ProxyError(altchaR.status, "Failed to fetch ALTCHA challenge");
   const challenge: AltchaChallenge = await altchaR.json();
@@ -212,6 +225,7 @@ export async function login(username: string, password: string): Promise<void> {
     },
     body: JSON.stringify({ username, password, roleType: "user" }),
     cache: "no-store",
+    signal,
   });
 
   if (r.status === 200) {
