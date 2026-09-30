@@ -1,0 +1,34 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+
+  pii-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/scan-pii.sh
+        env:
+          PII_PATTERNS: ${{ secrets.PII_PATTERNS }}
+
+  # Proves the dev test tools (src/dev + lines tagged @dev-tools) can be deleted in one step.
+  dev-tools-removable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: |
+          cp -a . "$RUNNER_TEMP/stripped"
+          "$RUNNER_TEMP/stripped/scripts/remove-dev-tools.sh"

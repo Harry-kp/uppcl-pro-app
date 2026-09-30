@@ -1,0 +1,53 @@
+/**
+ * Instant open: SWR's cache survives app restarts, so the last data shows immediately while
+ * UPPCL (often ~10 s) answers in the background. Stored in the app's private document folder;
+ * deleted on sign-out. "/health" (signed-in state) is never persisted — the keystore decides that.
+ */
+import { AppState } from "react-native";
+import { File, Paths } from "expo-file-system";
+import type { Cache, State } from "swr";
+
+const file = new File(Paths.document, "swr-cache-v1.json");
+const SKIP = (key: string) => key === "/health" || key.startsWith("$");
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let current: Map<string, State> | null = null;
+
+function save() {
+  if (!current) return;
+  try {
+    const entries = [...current.entries()]
+      .filter(([k, v]) => !SKIP(k) && v?.data !== undefined)
+      .map(([k, v]) => [k, { data: v.data }]);
+    file.write(JSON.stringify(entries));
+  } catch {
+    // Cache is a convenience; never break the app over it.
+  }
+}
+
+export function persistentCache(): Cache {
+  let entries: [string, State][] = [];
+  try {
+    if (file.exists) entries = JSON.parse(file.textSync());
+  } catch {
+    entries = [];
+  }
+  const map = new Map<string, State>(entries);
+  current = map;
+  const set = map.set.bind(map);
+  map.set = (k, v) => {
+    const r = set(k, v);
+    if (!SKIP(k)) {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(save, 2000); // debounce: a refresh updates many keys at once
+    }
+    return r;
+  };
+  AppState.addEventListener("change", (s) => { if (s !== "active") save(); });
+  return map as unknown as Cache;
+}
+
+export function clearPersistentCache() {
+  current?.clear();
+  try { if (file.exists) file.delete(); } catch { /* already gone */ }
+}

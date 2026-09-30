@@ -1,0 +1,38 @@
+name: Bug report
+description: Something doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please don't paste your account number, phone number, name, address or password.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Error details
+      description: |
+        On the error, tap **Details → Copy details** and paste it here. It says which system failed
+        (UPPCL SMART, bill portal, 1912 portal, or the app) and UPPCL's own message.
+      render: text
+  - type: dropdown
+    id: account
+    attributes:
+      label: Account type
+      options: [Prepaid, Postpaid, Not sure]
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: bottom of Settings, or the APK name (e.g. v0.1.0)
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+      placeholder: e.g. Redmi Note 12, Android 14
