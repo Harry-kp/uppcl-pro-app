@@ -28,12 +28,20 @@ export function describeError(e: unknown) {
 }
 
 /** Title + one line in plain words, and a "Details" fold with what support needs. */
+/** Failures the user closed this session, by what failed; a different failure (or a restart) shows again. */
+const dismissed = new Set<string>();
+
 export function ErrorNote({ error, onRetry, compact, stale }: { error: unknown; onRetry?: () => void; compact?: boolean; stale?: boolean }) {
   const c = useColors();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const d = describeError(error);
+  // Only banners over content that's still shown can be closed; a full-screen error would leave nothing behind.
+  const closable = stale || compact;
+  const key = `${d.system}|${d.status ?? ""}|${d.reason}`;
+  const [closed, setClosed] = useState(() => dismissed.has(key));
+  if (closable && (closed || dismissed.has(key))) return null;
   const title = stale ? t("err_stale_title") : d.kind === "network" ? t("err_network_title", { system: d.system })
     : d.kind === "session" ? t("err_session_title")
     : d.kind === "upstream" ? t("err_upstream_title", { system: d.system })
@@ -58,6 +66,12 @@ export function ErrorNote({ error, onRetry, compact, stale }: { error: unknown; 
           <Txt v="body" weight="semibold">{title}</Txt>
           <Txt v="caption" color="muted">{body}</Txt>
         </View>
+        {closable && (
+          <Pressable accessibilityRole="button" accessibilityLabel={t("close")} hitSlop={12}
+            onPress={() => { dismissed.add(key); setClosed(true); }} style={styles.close}>
+            <Icon name="close" size={20} color={c.muted} />
+          </Pressable>
+        )}
       </View>
       {!compact && onRetry && <Button label={t("retry")} kind="soft" onPress={onRetry} />}
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)} style={styles.fold}>
@@ -82,6 +96,7 @@ export function ErrorNote({ error, onRetry, compact, stale }: { error: unknown; 
 }
 
 const styles = StyleSheet.create({
+  close: { width: 32, height: 32, marginTop: -4, marginRight: -6, alignItems: "center", justifyContent: "center" },
   box: { borderRadius: 16, padding: 12, gap: 8 },
   head: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   fold: { minHeight: 40, justifyContent: "center", alignSelf: "flex-start" },

@@ -87,6 +87,7 @@
     "credited": "Credited",
     "paid": "Paid",
     "unpaid": "Unpaid",
+    "close": "Close",
     "list_loading": "Loading…",
     "list_unavailable": "Couldn't get this from UPPCL right now.",
     "none_statements": "No monthly statements yet.",
