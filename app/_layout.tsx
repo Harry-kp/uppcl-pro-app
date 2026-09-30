@@ -8,6 +8,7 @@ import * as QuickActions from "expo-quick-actions";
 import { useQuickActionRouting, type RouterAction } from "expo-quick-actions/router";
 import * as SplashScreen from "expo-splash-screen";
 import * as LocalAuthentication from "expo-local-authentication";
+import * as Font from "expo-font";
 import { useFonts } from "expo-font";
 import { AnekLatin_400Regular, AnekLatin_500Medium, AnekLatin_600SemiBold, AnekLatin_700Bold, AnekLatin_800ExtraBold } from "@expo-google-fonts/anek-latin";
 import { AnekDevanagari_400Regular, AnekDevanagari_600SemiBold, AnekDevanagari_700Bold } from "@expo-google-fonts/anek-devanagari";
@@ -28,12 +29,18 @@ import { View } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
+const LATIN = { AnekLatin_400Regular, AnekLatin_500Medium, AnekLatin_600SemiBold, AnekLatin_700Bold, AnekLatin_800ExtraBold };
+const DEVANAGARI = { AnekDevanagari_400Regular, AnekDevanagari_600SemiBold, AnekDevanagari_700Bold };
+
 export default function Root() {
-  const [loaded] = useFonts({
-    AnekLatin_400Regular, AnekLatin_500Medium, AnekLatin_600SemiBold, AnekLatin_700Bold, AnekLatin_800ExtraBold,
-    AnekDevanagari_400Regular, AnekDevanagari_600SemiBold, AnekDevanagari_700Bold,
-  });
-  useEffect(() => { if (loaded) SplashScreen.hideAsync(); }, [loaded]);
+  // Only the fonts the first screen needs block the splash; the other script loads right after (P2).
+  const hindiFirst = keystore.getItem("app_lang") === "hi";
+  const [loaded] = useFonts(hindiFirst ? { ...LATIN, ...DEVANAGARI } : LATIN);
+  useEffect(() => {
+    if (!loaded) return;
+    SplashScreen.hideAsync();
+    if (!hindiFirst) void Font.loadAsync(DEVANAGARI).catch(() => {}); // ready before anyone switches to Hindi
+  }, [loaded, hindiFirst]);
   if (!loaded) return null;
   return (
     <SafeAreaProvider>
