@@ -348,6 +348,8 @@
     "rp_change": "Choose something else",
     "rp_planned": "UPPCL has planned work in your area: {notice}. Power should come back when it ends.",
     "rp_already_open": "You already have an open complaint ({type}, {t}). A new one won't speed it up: open it to call the engineer.",
+    "day_title": "{date}, hour by hour",
+    "day_busiest": "Most of the day's power went between {from} and {to} ({pct}%).",
     "cx_fixed_in": "fixed in {t}",
     "cx_open_for": "open for {t}",
     "cx_timeline": "What happened",

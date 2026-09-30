@@ -15,7 +15,7 @@ mock.module("expo-router", () => ({ router: { push: () => {} } }));
 import { ProxyError, type DashboardResponse } from "@shared/api";
 import { payAmountError, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
-import { derivePostpaid, derivePrepaid, monthFromDaily } from "@shared/insights";
+import { busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
 const { isInAppUrl } = await import("../src/links");
@@ -119,6 +119,16 @@ describe("insights", () => {
     const r = derivePostpaid(dash({ site: { connectionId: "9000012345", sanctionedLoad: "4" }, consumption_30d: { kwh: 21, avg_daily_kwh: 7, effective_rate: null, daily } } as never), { outstandingAmount: "0" } as never, at(2026, 9, 20));
     expect(r.peakKw).toBe(3.1);
     expect(r.demandPct).toBe(78);
+  });
+
+  test("hour by hour: 15-min readings summed per local hour; the busiest 3-hour stretch", () => {
+    const at15 = (h: number, q: number) => new Date(2026, 8, 29, h, q * 15).toISOString();
+    const rows = [...Array(24).keys()].flatMap((h) => [0, 1, 2, 3].map((q) => row(at15(h, q), h >= 19 && h < 22 ? 0.5 : 0.05)));
+    const hours = hourlyUnits(rows as never);
+    expect(hours[20]).toBeCloseTo(2, 5);
+    expect(hours[3]).toBeCloseTo(0.2, 5);
+    expect(busiestHours(hours)).toEqual({ start: 19, share: Math.round((6 / (6 + 21 * 0.2)) * 100) });
+    expect(busiestHours(Array(24).fill(0))).toBeNull();
   });
 
   test("derivePostpaid: rate source is named honestly", () => {

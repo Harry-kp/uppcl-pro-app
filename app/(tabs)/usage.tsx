@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { useConsumption, useDashboard, useLatestInvoice, useSavingTip, useYearlyHistory, type MonthlyInvoice } from "@shared/api";
-import { derivePostpaid, monthFromDaily } from "@shared/insights";
+import { useConsumption, useDashboard, useDayReadings, useLatestInvoice, useSavingTip, useYearlyHistory, type MonthlyInvoice } from "@shared/api";
+import { busiestHours, derivePostpaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { mean, stddev, toNum } from "@shared/stats";
 import { FALLBACK_RATE, kwh, rupees } from "@shared/utils";
 import { Bars } from "../../src/Bars";
@@ -128,6 +128,7 @@ export default function Usage() {
         </>
       )}
 
+      <DayProfile />
       <SavingTip />
 
       {/* Advanced: detailed patterns and meter data, for those who want them. */}
@@ -136,6 +137,37 @@ export default function Usage() {
         <Icon name="chevronRight" size={18} color={c.primary} />
       </Pressable>
     </Screen>
+  );
+}
+
+/**
+ * The latest full day, hour by hour (UPPCL's 15-minute readings), with the one line that matters: which
+ * stretch of the day used the most. Hidden when the meter's data source doesn't offer day readings.
+ */
+function DayProfile() {
+  const { t, locale } = useI18n();
+  const { data: dash } = useDashboard();
+  const latest = [...(dash?.consumption_30d.daily ?? [])].map((r) => String(r.energyImportKWH?.measureTime ?? "")).filter(Boolean).sort().pop();
+  const day = latest ? latest.slice(0, 10) : null;
+  const { data } = useDayReadings(day);
+  const hours = useMemo(() => hourlyUnits(data?.data ?? []), [data]);
+  const peak = busiestHours(hours);
+  if (!day || !data?.data?.length || !peak) return null;
+  const clock = (h: number) => new Date(2000, 0, 1, h).toLocaleTimeString(locale, { hour: "numeric" });
+  const date = new Date(`${day}T00:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short" });
+  return (
+    <Card>
+      <Txt v="heading">{t("day_title", { date })}</Txt>
+      <Txt v="label" color="muted">{t("day_busiest", { from: clock(peak.start), to: clock((peak.start + 3) % 24), pct: peak.share })}</Txt>
+      <Bars
+        values={hours}
+        highlight={[0, 1, 2].map((k) => peak.start + k).reduce((a, b) => (hours[b] > hours[a] ? b : a))}
+        average={false}
+        labels={hours.map((_, h) => clock(h))}
+        details={hours.map((v, h) => `${clock(h)}–${clock((h + 1) % 24)} · ${kwh(v, 2)} ${t("units")}`)}
+        summary={t("day_busiest", { from: clock(peak.start), to: clock((peak.start + 3) % 24), pct: peak.share })}
+      />
+    </Card>
   );
 }
 

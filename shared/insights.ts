@@ -180,3 +180,26 @@ export function schemeFromAddress(address: string | undefined): string | null {
   const m = (address ?? "").match(/\$(True|False)[^,]*?[Ee]ligible [Ff]or ([^,]+)/);
   return m && m[1].toLowerCase() === "true" ? m[2].trim() : null;
 }
+
+/** 15-minute (or hourly) readings → units per hour of the day, local time. 24 zeros when there's nothing. */
+export function hourlyUnits(rows: ConsumptionRow[]): number[] {
+  const out = Array<number>(24).fill(0);
+  for (const r of rows) {
+    const t = new Date(String(r.energyImportKWH?.measureTime ?? ""));
+    const v = toNum(r.energyImportKWH?.value);
+    if (!Number.isNaN(t.getTime()) && Number.isFinite(v)) out[t.getHours()] += v;
+  }
+  return out;
+}
+
+/** The `width`-hour stretch that used the most power, and its share of the day (0–100). */
+export function busiestHours(hours: number[], width = 3): { start: number; share: number } | null {
+  const total = hours.reduce((a, b) => a + b, 0);
+  if (total <= 0) return null;
+  let best = 0, start = 0;
+  for (let h = 0; h <= 24 - width; h++) {
+    const sum = hours.slice(h, h + width).reduce((a, b) => a + b, 0);
+    if (sum > best) { best = sum; start = h; }
+  }
+  return { start, share: Math.round((best / total) * 100) };
+}

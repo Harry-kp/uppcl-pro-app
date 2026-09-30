@@ -472,6 +472,20 @@ async function fetcher<T>(key: string): Promise<T> {
     return uppcl_post("savingTip/getOne", { appliance }) as Promise<T>;
   }
 
+  if (key.startsWith("/day")) {
+    // One day in 15-minute steps (what UPPCL SMART's "day" view uses). The body depends on the meter's data
+    // source; only "jeu" and "hes" are known (Oct 2026). Others answer null, and the card stays hidden.
+    const date = params.get("date") ?? "";
+    const [y, m, d] = date.split("-").map(Number);
+    const from = new Date(y, m - 1, d, 0, 0, 0), to = new Date(y, m - 1, d, 23, 59, 59);
+    const src = String((site as Record<string, unknown>).dataSource ?? "");
+    const body = src === "jeu" ? { deviceId: did, groupBy: "day", uom: "kWh", date, fromDate: ist(from), toDate: ist(to), consumerId: cid, periodicity: "IN" }
+      : src === "hes" ? { deviceId: did, groupBy: "day", uom: "kWh", date, from: ist(new Date(from.getTime() - 1000)), to: ist(to) }
+      : null;
+    if (!body) return { data: null } as T;
+    return uppcl_post("eventsummary/v2/search?skip=0&limit=1000", body) as Promise<T>;
+  }
+
   if (key === "/tenant-preferences") {
     return proxy("bootstrap", "tenant/searchPreference", { tenantId: tid }) as Promise<T>;
   }
@@ -772,6 +786,10 @@ export const useBillHistory = (limit = 12, enabled = true) =>
 
 export const usePayments = (limit = 50) =>
   useSWR<UpstreamEnvelope<Payment[]>>(`/payments?limit=${limit}`, fetcher, swrOpts);
+
+/** One day in 15-minute readings (null data when the meter's source isn't supported). `date` is YYYY-MM-DD. */
+export const useDayReadings = (date: string | null) =>
+  useSWR<UpstreamEnvelope<ConsumptionRow[] | null>>(date ? `/day?date=${date}` : null, fetcher, swrOpts);
 
 export const useConsumption = (days = 30) =>
   useSWR<UpstreamEnvelope<ConsumptionRow[]>>(`/consumption?days=${days}`, fetcher, swrOpts);
