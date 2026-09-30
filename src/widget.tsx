@@ -28,12 +28,17 @@ function readSnapshot(): WidgetSnapshot | null {
 }
 
 /** Save and push to any widgets on the home screen. Safe to call often. */
+let lastSaved = "";
 export function saveSnapshot(snap: WidgetSnapshot): void {
-  try { file.write(JSON.stringify(snap)); } catch { /* widget is a convenience */ }
+  const json = JSON.stringify(snap);
+  if (json === lastSaved) return; // Home re-renders often; redraw the widget only when what it shows changed
+  lastSaved = json;
+  try { file.write(json); } catch { /* widget is a convenience */ }
   void requestWidgetUpdate({ widgetName: WIDGET_NAME, renderWidget: () => widgetView(snap) }).catch(() => {});
 }
 
 export function clearSnapshot(): void {
+  lastSaved = "";
   try { if (file.exists) file.delete(); } catch { /* already gone */ }
   void requestWidgetUpdate({ widgetName: WIDGET_NAME, renderWidget: () => widgetView(null) }).catch(() => {});
 }

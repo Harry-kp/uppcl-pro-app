@@ -12,9 +12,11 @@ const SKIP = (key: string) => key === "/health" || key.startsWith("$");
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let current: Map<string, State> | null = null;
+let dirty = false;
 
 function save() {
-  if (!current) return;
+  if (!current || !dirty) return;
+  dirty = false;
   try {
     const entries = [...current.entries()]
       .filter(([k, v]) => !SKIP(k) && v?.data !== undefined)
@@ -36,8 +38,10 @@ export function persistentCache(): Cache {
   current = map;
   const set = map.set.bind(map);
   map.set = (k, v) => {
+    const changed = map.get(k)?.data !== v?.data; // SWR also sets keys for isValidating/error flips
     const r = set(k, v);
-    if (!SKIP(k)) {
+    if (changed && !SKIP(k)) {
+      dirty = true;
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(save, 2000); // debounce: a refresh updates many keys at once
     }
