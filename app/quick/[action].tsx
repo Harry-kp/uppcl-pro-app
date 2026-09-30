@@ -1,9 +1,9 @@
 /** Target of the app-icon shortcuts (see useAppShortcuts in app/_layout.tsx): do the job, then land on its tab. */
 import { useEffect, useRef } from "react";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { downloadBillPdf, getLatestInvoice, useDashboard, type MonthlyInvoice } from "@shared/api";
-import { COMPLAINT_SMS_NUMBER, noPowerSms } from "@shared/outage";
+import { COMPLAINT_SMS_NUMBER, noPowerSmsUrl } from "@shared/outage";
 import { useI18n } from "../../src/i18n";
 import { Centered, Txt } from "../../src/ui";
 
@@ -21,7 +21,7 @@ export default function QuickAction() {
     } else if (action === "sms" && data) {
       done.current = true;
       router.replace("/complaints");
-      void Linking.openURL(`sms:${COMPLAINT_SMS_NUMBER}?body=${encodeURIComponent(noPowerSms(data.site))}`);
+      void Linking.openURL(noPowerSmsUrl(data.site, Platform.OS === "ios"));
     } else if (action === "bill") {
       done.current = true;
       router.replace("/bills");

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, TextInput, View, Platform } from "react-native";
 import { router } from "expo-router";
 import { useDashboard, useMe, useMyComplaints, useTenantPreferences, useTickets, useWssConsumer, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSms } from "@shared/outage";
+import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
@@ -41,7 +41,7 @@ export default function Complaints() {
 
   // One tap: UPPCL's SMS shortcode with the outage complaint already written.
   const sms = dash
-    ? `sms:${COMPLAINT_SMS_NUMBER}?body=${encodeURIComponent(noPowerSms(dash.site))}`
+    ? noPowerSmsUrl(dash.site, Platform.OS === "ios")
     : null;
 
   return (

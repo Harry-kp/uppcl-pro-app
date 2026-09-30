@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Alert, AppState, Linking, Pressable, StyleSheet, Switch, TextInput, View } from "react-native";
+import { Alert, AppState, Linking, Pressable, StyleSheet, Switch, TextInput, View, Platform } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -138,8 +138,9 @@ export default function Settings() {
           <Row icon="fingerprint" label={t("fingerprint")}
             right={<Switch value={bio} onValueChange={toggleBio} trackColor={{ true: c.primary, false: c.track }} thumbColor={c.surface} accessibilityLabel={t("fingerprint")} />} />
         )}
-        <Row icon="widgets" label={t("widget_row")} value={widgetPlaced ? t("widget_on") : undefined} valueTone={widgetPlaced ? "ok" : undefined}
-          onPress={widgetPlaced ? undefined : addWidget} />
+        {/* Home-screen widgets are Android-only for now. */}
+        {Platform.OS === "android" && <Row icon="widgets" label={t("widget_row")} value={widgetPlaced ? t("widget_on") : undefined} valueTone={widgetPlaced ? "ok" : undefined}
+          onPress={widgetPlaced ? undefined : addWidget} />}
       </Group>
 
       {/* Destructive action on its own, away from preferences (UX-027). */}

@@ -11,6 +11,11 @@ export function noPowerSms(site: { connectionId: string; tenantId?: string }): s
   return `NO POWER ${site.connectionId} ${site.tenantId?.toUpperCase() ?? ""}`.trim();
 }
 
+/** A ready-to-send complaint SMS link. iOS wants `sms:<n>&body=`; Android (and the web) `sms:<n>?body=`. */
+export function noPowerSmsUrl(site: { connectionId: string; tenantId?: string }, ios = false): string {
+  return `sms:${COMPLAINT_SMS_NUMBER}${ios ? "&" : "?"}body=${encodeURIComponent(noPowerSms(site))}`;
+}
+
 export interface OutageContext {
   /** ISO timestamp of the most recent daily-bill usage_date we have. */
   lastReportAt: string | null;

@@ -1,0 +1,63 @@
+name: iOS build (optional)
+# Manual only: Actions → "iOS build (optional)" → Run workflow → tag (e.g. v0.1.0).
+# There is no Apple Developer account yet, so nothing here is signed:
+#   - uppcl-pro-<tag>-simulator.zip  → unzip, drag UPPCLPro.app onto a running iOS Simulator (Xcode)
+#   - uppcl-pro-<tag>-unsigned.ipa   → re-sign + install with Sideloadly/AltStore using a free Apple ID
+# Both are attached to the existing GitHub Release for that tag (the Android APK is untouched).
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, e.g. v0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      TAG: ${{ github.event.inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+
+      - name: Prebuild ios/
+        run: bunx expo prebuild --platform ios
+
+      - name: Locate workspace
+        run: |
+          ws=$(ls -d ios/*.xcworkspace | head -1)
+          scheme=$(basename "$ws" .xcworkspace)
+          echo "WS=$ws" >> "$GITHUB_ENV"; echo "SCHEME=$scheme" >> "$GITHUB_ENV"
+          echo "workspace $ws scheme $scheme"
+
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO | tail -40
+          app=$(find build/sim/Build/Products -maxdepth 2 -name '*.app' | head -1)
+          (cd "$(dirname "$app")" && zip -qry "$GITHUB_WORKSPACE/uppcl-pro-$TAG-simulator.zip" "$(basename "$app")")
+
+      - name: Build unsigned device IPA
+        run: |
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -40
+          app=$(find build/device/Build/Products -maxdepth 2 -name '*.app' | head -1)
+          mkdir -p Payload && cp -R "$app" Payload/
+          zip -qry "uppcl-pro-$TAG-unsigned.ipa" Payload
+
+      - name: Attach to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || { echo "Release $TAG not found — run the Android release first"; exit 1; }
+          gh release upload "$TAG" "uppcl-pro-$TAG-simulator.zip" "uppcl-pro-$TAG-unsigned.ipa" --clobber

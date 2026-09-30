@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
-import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSms } from "@shared/outage";
+import { Linking, Pressable, StyleSheet, View, Platform } from "react-native";
+import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { router, useFocusEffect } from "expo-router";
 import {
   downloadBillPdf, useBills, useDashboard, useMe, useDowntime, useLatestInvoice, useOutstanding, usePayments, useUsageStats,
@@ -152,7 +152,7 @@ function Greeting({ data }: { data: DashboardResponse }) {
  */
 function QuickActions({ data, onBill, billBusy, hasDues }: { data: DashboardResponse; onBill?: () => void; billBusy?: boolean; hasDues?: boolean }) {
   const { t } = useI18n();
-  const sms = () => Linking.openURL(`sms:${COMPLAINT_SMS_NUMBER}?body=${encodeURIComponent(noPowerSms(data.site))}`);
+  const sms = () => Linking.openURL(noPowerSmsUrl(data.site, Platform.OS === "ios"));
   return (
     <View style={styles.actions}>
       {/* Prepaid has no bill PDF, so its tiles are the two ways to report a cut. */}
