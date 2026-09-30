@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Meter Pro for UPPCL: unofficial Android app (Expo SDK 57, React Native, Expo Router) for UPPCL smart
+UPPCL Pro: unofficial Android app (Expo SDK 57, React Native, Expo Router) for UPPCL smart
 meters. The phone calls UPPCL directly with reverse-engineered APIs. No backend of our own, no database;
 never log, store or send credentials/tokens/account data anywhere but UPPCL and the OS keystore.
 

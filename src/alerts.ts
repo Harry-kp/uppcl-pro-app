@@ -22,7 +22,7 @@ import hi from "../messages/hi.json";
 import { keystore } from "./boot";
 import { saveSnapshot } from "./widget";
 
-const TASK = "meter-pro-alerts";
+const TASK = "uppcl-pro-alerts";
 const CREDS_KEY = "app_alert_creds";
 const SEEN = { low: "app_alert_low_day", bill: "app_alert_bill_id", due: "app_alert_due_day", cut: "app_alert_cut", budget: "app_alert_budget_month" } as const;
 const BUDGET_KEY = "app_budget";
@@ -49,7 +49,7 @@ export function alertsEnabled(): boolean {
 
 async function ensureChannel() {
   await Notifications.setNotificationChannelAsync(CHANNEL, {
-    name: "Meter Pro alerts", importance: Notifications.AndroidImportance.DEFAULT, lightColor: "#3B47A8",
+    name: "UPPCL Pro alerts", importance: Notifications.AndroidImportance.DEFAULT, lightColor: "#3B47A8",
   });
 }
 

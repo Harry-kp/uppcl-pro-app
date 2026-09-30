@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. Meter Pro is a small, solo-maintained project, so small focused PRs land fastest.
+Thanks for helping. UPPCL Pro is a small, solo-maintained project, so small focused PRs land fastest.
 
 ## Setup
 

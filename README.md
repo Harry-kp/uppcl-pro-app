@@ -1,15 +1,18 @@
-# Meter Pro for UPPCL
+# UPPCL Pro
 
-An **unofficial** Android companion app for UPPCL smart electricity meters (Uttar Pradesh, India).
-It shows what the official apps bury: how many days your prepaid balance will last, what this month's
-postpaid bill is heading to, your daily usage, your bills as PDFs, and a one-tap "no power" complaint.
+**Your electricity, made simple.** · बिजली की हर बात, आसान
+
+> **Unofficial — not affiliated with UPPCL.** UPPCL Pro is an independent open-source app. It is not made
+> by, endorsed by, or connected to UPPCL, its discoms (PVVNL, MVVNL, DVVNL, PuVVNL, KESCo) or Jio. It talks
+> to UPPCL's own public systems using APIs that were reverse-engineered from their web apps
+> (see [docs/](docs/)), which can change or break at any time.
+
+An Android companion app for UPPCL smart electricity meters (Uttar Pradesh, India). It shows what the
+official apps bury: how many days your prepaid balance will last, what this month's postpaid bill is
+heading to, your daily usage, your bills as PDFs, and a one-tap "no power" complaint.
 
 > **iOS support is on the way.** The app is built with Expo / React Native, so an iPhone build is planned.
 > Today only Android APKs are published.
-
-Meter Pro is not made by, endorsed by, or affiliated with UPPCL, its discoms (PVVNL, MVVNL, DVVNL,
-PuVVNL, KESCo) or Jio. It talks to UPPCL's own public systems using APIs that were reverse-engineered
-from their web apps (see [docs/](docs/)). They can change or break at any time.
 
 ## Screenshots
 
@@ -37,7 +40,7 @@ Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
   your account; you just press send. Or call 1912.
 - **Complaint status.** Your 1912 complaints, their status and the officer assigned.
 - **Pay your bill in the app (NEW, still being verified).** Uses UPPCL's own bill-portal payment flow,
-  which hands you to BillDesk (UPPCL's payment gateway) to pay. Meter Pro never sees card or UPI details.
+  which hands you to BillDesk (UPPCL's payment gateway) to pay. UPPCL Pro never sees card or UPI details.
   This path is new: until it's confirmed on many accounts, check the receipt, and use the official
   UPPCL site if anything looks off.
 - **Bill budget alert.** Set a monthly budget; get told when the month is heading over it.
@@ -55,12 +58,12 @@ Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
 
 - The app talks **directly from your phone** to UPPCL SMART (`uppcl.sem.jio.com`, the smart-meter
   system) and to UPPCL's consumer portal (`consumer.uppcl.org`, bills, PDFs, payment). There is no
-  Meter Pro server in between and no server stores your password.
+  UPPCL Pro server in between and no server stores your password.
 - You sign in with your UPPCL SMART username and password. The session token is kept in the Android
   keystore (`expo-secure-store`) on your phone.
 - **One exception: complaint status.** The 1912 complaint portal needs cookie handling that a phone app's
   networking can't do, so the complaint lookup goes through a small server route of the companion web
-  project, [uppcl-pro](https://github.com/Harry-kp/uppcl-pro), deployed at
+  project [uppcl-pro](https://github.com/Harry-kp/uppcl-pro), deployed at
   `https://uppcl-pro.vercel.app/api/complaints`. It is sent your registered mobile number (no password,
   no token) and forwards it to the 1912 portal. That route is stateless: it doesn't store or log it.
   If that deployment is down, complaint status is unavailable; everything else keeps working.
@@ -82,7 +85,7 @@ Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
 
 ## Privacy
 
-- No analytics, no ads, no tracking, no Meter Pro account.
+- No analytics, no ads, no tracking, no UPPCL Pro account.
 - Your data goes only between your phone and UPPCL's servers, plus your mobile number to the complaint
   route described above. The update check asks `api.github.com` for the latest release (no account data).
   "Report a problem" only opens GitHub in your browser; nothing is sent until you submit the issue there,
@@ -92,8 +95,13 @@ Images go in [`docs/screenshots/`](docs/screenshots/). TODO: add these.
 
 ## Install
 
-1. On your Android phone, open the [latest release](https://github.com/Harry-kp/meter-pro/releases/latest).
-2. Download `meter-pro-vX.Y.Z.apk` (each release also lists its SHA-256 checksum).
+**First time? You need a UPPCL SMART login.** UPPCL Pro signs in with the same username and password as
+UPPCL's official UPPCL SMART app. If you don't have one, [sign up on UPPCL SMART](https://uppcl.sem.jio.com/uppclsmart/signup)
+first. The app's sign-in screen also links to
+sign-up and forgot username / password.
+
+1. On your Android phone, open the [latest release](https://github.com/Harry-kp/uppcl-pro-app/releases/latest).
+2. Download `uppcl-pro-vX.Y.Z.apk` (each release also lists its SHA-256 checksum).
 3. Open it. Android will ask you to allow installing apps from this source (your browser or Files app);
    allow it, then install.
 4. Updates: the app tells you when a newer version is out; install the newer APK over the old one.

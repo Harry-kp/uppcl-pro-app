@@ -1,5 +1,5 @@
 {
-  "name": "meter-pro",
+  "name": "uppcl-pro-app",
   "version": "0.1.0",
   "private": true,
   "main": "index.js",
@@ -48,5 +48,5 @@
     "typescript": "^5"
   },
   "license": "MIT",
-  "repository": "github:Harry-kp/meter-pro"
+  "repository": "github:Harry-kp/uppcl-pro-app"
 }

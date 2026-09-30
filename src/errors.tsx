@@ -14,7 +14,7 @@ import { Button, Txt } from "./ui";
 import { Icon } from "./icons";
 
 const SYSTEM: Record<ErrorSource, string> = {
-  uppcl: "UPPCL SMART", wss: "UPPCL bill portal", complaints: "UPPCL 1912 complaint portal", app: "Meter Pro",
+  uppcl: "UPPCL SMART", wss: "UPPCL bill portal", complaints: "UPPCL 1912 complaint portal", app: "UPPCL Pro",
 };
 
 export function describeError(e: unknown) {
@@ -48,7 +48,7 @@ export function ErrorNote({ error, onRetry, compact, stale }: { error: unknown; 
     d.status ? `${t("err_status")}: HTTP ${d.status}` : d.kind === "network" ? `${t("err_status")}: ${t("err_no_answer")}` : null,
     `${d.kind === "upstream" || d.kind === "session" ? t("err_uppcl_said") : t("err_app_said")}: ${d.reason}`, // no answer = UPPCL said nothing
     `${t("err_time")}: ${new Date(d.at).toLocaleString("en-IN")}`,
-    `Meter Pro ${Constants.expoConfig?.version ?? ""}`,
+    `UPPCL Pro ${Constants.expoConfig?.version ?? ""}`,
   ].filter(Boolean) as string[];
   return (
     <View style={[styles.box, { backgroundColor: c.accentSoft }]}>

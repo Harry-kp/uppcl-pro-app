@@ -92,7 +92,7 @@ export default function Settings() {
     await logout();
     await mutate(() => true, undefined, { revalidate: false }); // drop every cached response
     clearPersistentCache(); // and the copy kept for instant open
-    clearSnapshot(); // widget shows "Open Meter Pro to set up"
+    clearSnapshot(); // widget shows "Open UPPCL Pro to set up"
     keystore.removeItem(NAME_KEY); // the next person to sign in isn't greeted with this name
     await mutate("/health");
     router.replace("/");

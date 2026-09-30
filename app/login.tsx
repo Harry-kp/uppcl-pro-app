@@ -94,10 +94,23 @@ export default function Login() {
             {error && <Txt v="label" color="critical">{error}</Txt>}
 
             <Button label={busy ? L.signing_in : L.sign_in} onPress={submit} busy={busy} disabled={!username.trim() || !password} />
-            {/* Resets happen on UPPCL's own site: we never handle passwords beyond sign-in. */}
-            <Pressable accessibilityRole="link" onPress={() => Linking.openURL(UPPCL_SMART_URL)} style={styles.forgot}>
-              <Txt v="label" color="primary" weight="semibold">{t("forgot_password")}</Txt>
-            </Pressable>
+            {/* Resets and sign-ups happen on UPPCL's own site, straight to the right page: we never handle passwords beyond sign-in. */}
+            <View style={styles.links}>
+              <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${UPPCL_SMART_URL}forgot-password`)} style={styles.forgot}>
+                <Txt v="label" color="primary" weight="semibold">{t("forgot_password_short")}</Txt>
+              </Pressable>
+              <Txt v="label" color="muted">·</Txt>
+              <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${UPPCL_SMART_URL}forgot-username`)} style={styles.forgot}>
+                <Txt v="label" color="primary" weight="semibold">{t("forgot_username")}</Txt>
+              </Pressable>
+            </View>
+
+            {/* First-time users often have no UPPCL SMART login yet: tell them what it is and where to get one. */}
+            <View style={[styles.newUser, { backgroundColor: c.pill }]}>
+              <Txt v="body" weight="semibold">{t("no_account_title")}</Txt>
+              <Txt v="caption" color="muted">{t("no_account_body")}</Txt>
+              <Button label={t("no_account_cta")} kind="soft" onPress={() => Linking.openURL(`${UPPCL_SMART_URL}signup`)} />
+            </View>
 
             <View style={styles.privacy}>
               <Icon name="lock" size={16} color={c.muted} />
@@ -122,6 +135,8 @@ const styles = StyleSheet.create({
   input: { paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
   eye: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   forgot: { minHeight: 48, justifyContent: "center", alignSelf: "center" },
+  links: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  newUser: { borderRadius: 16, padding: 14, gap: 8 },
   privacy: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   footer: { marginTop: "auto", textAlign: "center" },
 });

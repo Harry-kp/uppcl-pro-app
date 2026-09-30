@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "meter-pro",
+      "name": "uppcl-pro-app",
       "dependencies": {
         "@expo-google-fonts/anek-devanagari": "^0.4.1",
         "@expo-google-fonts/anek-latin": "^0.4.2",

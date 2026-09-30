@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Meter Pro for UPPCL",
-    "slug": "meter-pro",
-    "scheme": "meterpro",
+    "name": "UPPCL Pro",
+    "slug": "uppcl-pro",
+    "scheme": "uppclpro",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
-      "package": "com.harrykp.meterpro",
+      "package": "com.harrykp.uppclpro",
       "versionCode": 1,
       "permissions": [
         "USE_BIOMETRIC",
@@ -20,7 +20,7 @@
       }
     },
     "ios": {
-      "bundleIdentifier": "com.harrykp.meterpro",
+      "bundleIdentifier": "com.harrykp.uppclpro",
       "supportsTablet": false
     },
     "plugins": [
@@ -30,7 +30,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Unlock Meter Pro with Face ID."
+          "faceIDPermission": "Unlock UPPCL Pro with Face ID."
         }
       ],
       [
@@ -66,7 +66,7 @@
           "widgets": [
             {
               "name": "Meter",
-              "label": "Meter Pro",
+              "label": "UPPCL Pro",
               "description": "Days of balance left, or your bill due",
               "minWidth": "110dp",
               "minHeight": "110dp",

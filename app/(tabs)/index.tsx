@@ -31,7 +31,7 @@ export default function Home() {
     <Screen>
       {/* Nothing loaded yet, but Settings (language, sign out) must stay reachable. */}
       <View style={styles.greeting}>
-        <Txt v="title" style={{ flex: 1 }}>Meter Pro</Txt>
+        <Txt v="title" style={{ flex: 1 }}>UPPCL Pro</Txt>
         <GearButton />
       </View>
       <ErrorNote error={error} onRetry={() => mutate()} />
