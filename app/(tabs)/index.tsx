@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Linking, Pressable, StyleSheet, View, Platform } from "react-native";
+import { Linking, Pressable, StyleSheet, View, Platform, ToastAndroid } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -13,7 +14,6 @@ import { toNum } from "@shared/stats";
 import { billingPeriod, rupees, kwh } from "@shared/utils";
 import { Bars } from "../../src/Bars";
 import { saveSnapshot } from "../../src/widget";
-import { openPay } from "../../src/pay";
 import { getBudget } from "../../src/alerts";
 import { keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
 import { UpdateCard } from "../../src/github";
@@ -23,6 +23,13 @@ import { useI18n } from "../../src/i18n";
 import { font, radius, useColors } from "../../src/theme";
 import { Button, Card, Centered, Glow, Insight, Pill, Screen, Txt } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
+
+/** Prepaid recharge happens on UPPCL's page, which asks for the account number: copy it first and say so. */
+async function openPay(accountNo: string, copiedMessage: string): Promise<void> {
+  await Clipboard.setStringAsync(accountNo).catch(() => {});
+  if (Platform.OS === "android") ToastAndroid.show(copiedMessage, ToastAndroid.LONG);
+  await Linking.openURL(UPPCL_SMART_URL);
+}
 
 export default function Home() {
   const { data, error, isLoading, mutate, isValidating } = useDashboard();
