@@ -25,6 +25,10 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag }}
       - uses: oven-sh/setup-bun@v2
+      - name: Use the newest Xcode on the runner
+        run: |
+          x=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$x" && xcodebuild -version
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
 
@@ -40,20 +44,34 @@ jobs:
 
       - name: Build for iOS Simulator
         run: |
+          set -o pipefail
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO | tail -40
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO > sim.log 2>&1 \
+            || { grep -nE "error:|failed|Error" sim.log | tail -60; tail -80 sim.log; exit 1; }
           app=$(find build/sim/Build/Products -maxdepth 2 -name '*.app' | head -1)
+          [ -n "$app" ] || { echo "no .app produced"; exit 1; }
           (cd "$(dirname "$app")" && zip -qry "$GITHUB_WORKSPACE/uppcl-pro-$TAG-simulator.zip" "$(basename "$app")")
 
       - name: Build unsigned device IPA
         run: |
+          set -o pipefail
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' \
-            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -40
+            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" > device.log 2>&1 \
+            || { grep -nE "error:|failed|Error" device.log | tail -60; tail -80 device.log; exit 1; }
           app=$(find build/device/Build/Products -maxdepth 2 -name '*.app' | head -1)
+          [ -n "$app" ] || { echo "no .app produced"; exit 1; }
           mkdir -p Payload && cp -R "$app" Payload/
           zip -qry "uppcl-pro-$TAG-unsigned.ipa" Payload
+
+      - name: Keep full build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: "*.log"
+          if-no-files-found: ignore
 
       - name: Attach to the GitHub Release
         env:
