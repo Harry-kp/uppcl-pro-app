@@ -3,7 +3,7 @@
  * Pure functions shared by the web dashboard (src/app/page.tsx) and the mobile
  * app, so both always show the same days-left, recharge advice and projections.
  */
-import type { DashboardResponse, DailyBill, Payment, ConsumptionRow, MonthlyInvoice, UsageStats } from "./api";
+import type { DashboardResponse, DailyBill, Payment, ConsumptionRow, MonthlyInvoice } from "./api";
 import { mean, stddev, toNum } from "./stats";
 import { daysBetween, billedMonthKwh, billingPeriod, FALLBACK_RATE } from "./utils";
 
@@ -91,7 +91,7 @@ export function monthFromDaily(daily: ConsumptionRow[], monthStart: Date): numbe
   return (rows.reduce((a, r) => a + toNum(r.energyImportKWH?.value), 0) * len) / Math.min(rows.length, len);
 }export function derivePostpaid(
   data: DashboardResponse,
-  opts: { outstandingAmount?: string; inv?: MonthlyInvoice; stats?: UsageStats; yearly?: ConsumptionRow[] },
+  opts: { outstandingAmount?: string; inv?: MonthlyInvoice; yearly?: ConsumptionRow[] },
   now: number = Date.now(),
 ) {
   const { inv } = opts;
@@ -156,8 +156,9 @@ export function monthFromDaily(daily: ConsumptionRow[], monthStart: Date): numbe
   const pfSeries = powerFactorSeries(monthlyRows);
   const pfLatest = pfSeries[pfSeries.length - 1]?.v ?? null;
 
-  // Peak demand vs sanctioned load.
-  const peakKw = toNum(opts.stats?.maximumPower);
+  // Peak demand vs sanctioned load: the highest daily peak (eventsummary `power`, kW) of the last 30 days.
+  // (UPPCL's consumptionAggregation, which used to feed this, always answers empty.)
+  const peakKw = Math.max(0, ...dailyRows.map((r) => toNum(r.power?.value)));
   const sanctioned = toNum(data.site.sanctionedLoad);
   const demandPct = sanctioned > 0 && peakKw > 0 ? Math.round((peakKw / sanctioned) * 100) : null;
 

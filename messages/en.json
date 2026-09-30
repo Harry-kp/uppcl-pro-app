@@ -440,7 +440,7 @@
     "pf_desc": "Below 0.90 can add a penalty to your bill",
     "healthy": "Healthy",
     "penalty_risk": "Penalty risk",
-    "peak_demand": "Peak demand this month",
+    "peak_demand": "Highest load in the last 30 days",
     "peak_desc": "Your sanctioned load is {kw} kW. Staying under 85% avoids demand penalties.",
     "no_messages": "No messages or alarms from UPPCL.",
     "more_details": "Meter details",

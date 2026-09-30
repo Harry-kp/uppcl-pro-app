@@ -387,8 +387,6 @@ async function fetcher<T>(key: string): Promise<T> {
   if (key === "/dashboard") return fetchDashboard(site, cid, did, tid) as Promise<T>;
   if (key === "/me") return uppcl_post("user/search", { skip: 0, limit: 10 }) as Promise<T>;
   if (key === "/balance/outstanding") return uppcl_post("site/outstandingBalance", { connectionId: cid, tenantId: tid }) as Promise<T>;
-  if (key === "/preferences") return uppcl_post("userpreference/search", { skip: 0, limit: 10 }) as Promise<T>;
-  if (key === "/session") return uppcl_post("auth/session-check", {}) as Promise<T>;
 
   // Parameterized endpoints
   const url = new URL(key, "http://x");
@@ -428,13 +426,6 @@ async function fetcher<T>(key: string): Promise<T> {
   if (key.startsWith("/payments")) {
     const limit = parseInt(params.get("limit") ?? "50");
     return uppcl_post("payment/v2/search", { skip: 0, limit, tenantId: tid, consumer_id: cid }) as Promise<T>;
-  }
-
-  if (key.startsWith("/consumption/stats")) {
-    // Avg / max consumption + peak power for a month (eventsummary/consumptionAggregation).
-    const month = params.get("month") ?? pad2(today.getMonth() + 1);
-    const year = params.get("year") ?? String(today.getFullYear());
-    return uppcl_post("eventsummary/consumptionAggregation", { deviceId: did, tenantId: tid, groupBy: "month", uom: "KWH", month, year }) as Promise<T>;
   }
 
   if (key.startsWith("/consumption")) {
@@ -489,15 +480,6 @@ async function fetcher<T>(key: string): Promise<T> {
     return wssPost("v2/InstaPayment/getArrearAmountStatus", { accountID: cid, discom: wssDiscom(site) }) as Promise<T>;
   }
 
-
-  if (key.startsWith("/dadata")) {
-    const limit = parseInt(params.get("limit") ?? "10");
-    return uppcl_post("dadata/v2/search", { deviceId: did, tenantId: tid, skip: 0, limit }) as Promise<T>;
-  }
-
-  if (key === "/budget") {
-    return uppcl_post("connectionbudget/search", { tenantId: tid, connectionId: cid, skip: 0, limit: 10 }) as Promise<T>;
-  }
 
   throw new ProxyError(404, `Unknown key: ${key}`, undefined, "app", "app");
 }
@@ -797,12 +779,6 @@ export interface MonthlyInvoice {
   payment_amt: string;
 }
 
-export interface UsageStats {
-  averageConsumption: string;
-  maximumConsumption: string;
-  maximumPower: string;
-}
-
 export interface MeterAlarm { [k: string]: unknown }
 export interface Notification { [k: string]: unknown }
 export interface Ticket { [k: string]: unknown }
@@ -817,11 +793,6 @@ export const useInvoices = (months = 18, enabled = true) =>
   useSWR<UpstreamEnvelope<MonthlyInvoice[]>>(enabled ? `/bills/invoices?months=${months}` : null, fetcher, swrOpts);
 
 /** Avg/max consumption + peak power for a month. */
-export const useUsageStats = (month?: string, year?: string) =>
-  useSWR<UpstreamEnvelope<UsageStats>>(
-    `/consumption/stats${month && year ? `?month=${month}&year=${year}` : ""}`, fetcher, swrOpts
-  );
-
 export const useMeterAlarms = () =>
   useSWR<UpstreamEnvelope<MeterAlarm[]>>("/alarms", fetcher, swrOpts);
 

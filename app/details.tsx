@@ -6,7 +6,7 @@
 import { useMemo, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import {
-  useConsumption, useDashboard, useLatestInvoice, useMeterAlarms, useNotifications, useUsageStats, useWssMeter, useYearlyHistory,
+  useConsumption, useDashboard, useLatestInvoice, useMeterAlarms, useNotifications, useWssMeter, useYearlyHistory,
   type MonthlyInvoice,
 } from "@shared/api";
 import { derivePostpaid } from "@shared/insights";
@@ -23,7 +23,6 @@ export default function MeterDetails() {
   const { t, locale } = useI18n();
   const { data: dash } = useDashboard();
   const { data: wssMeter } = useWssMeter();
-  const { data: stats } = useUsageStats();
   const { data: invoice } = useLatestInvoice();
   const { data: yearly } = useYearlyHistory();
   const { data: daily } = useConsumption(90);
@@ -35,8 +34,8 @@ export default function MeterDetails() {
   const q = useMemo(() => {
     if (!dash) return null;
     const inv = (invoice?.data as MonthlyInvoice | undefined)?.invoice_id ? (invoice!.data as MonthlyInvoice) : undefined;
-    return derivePostpaid(dash, { inv, stats: stats?.data, yearly: yearly?.data });
-  }, [dash, invoice, stats, yearly]);
+    return derivePostpaid(dash, { inv, yearly: yearly?.data });
+  }, [dash, invoice, yearly]);
 
   // Weekday pattern over 90 days (moved here from Usage: a pattern, not an everyday answer).
   const weekday = useMemo(() => {

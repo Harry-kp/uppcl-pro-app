@@ -114,6 +114,13 @@ describe("insights", () => {
     expect(monthFromDaily([], new Date(2026, 8, 1))).toBe(0);
   });
 
+  test("derivePostpaid: peak load is the highest daily peak (kW) against the sanctioned load", () => {
+    const daily = [1.2, 3.1, 2.4].map((kw, i) => ({ ...row(iso(2026, 9, i + 1), 7), power: { unit: "KW", value: kw, measureTime: iso(2026, 9, i + 1) } }));
+    const r = derivePostpaid(dash({ site: { connectionId: "9000012345", sanctionedLoad: "4" }, consumption_30d: { kwh: 21, avg_daily_kwh: 7, effective_rate: null, daily } } as never), { outstandingAmount: "0" } as never, at(2026, 9, 20));
+    expect(r.peakKw).toBe(3.1);
+    expect(r.demandPct).toBe(78);
+  });
+
   test("derivePostpaid: rate source is named honestly", () => {
     const yearly = [row(iso(2026, 8, 1), 180)];
     const inv = { bill_dt: iso(2026, 9, 2), bill_amt: "1260", payment_dt: iso(2026, 9, 10) };

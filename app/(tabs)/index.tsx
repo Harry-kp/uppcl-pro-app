@@ -4,7 +4,7 @@ import * as Clipboard from "expo-clipboard";
 import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { router, useFocusEffect } from "expo-router";
 import {
-  downloadBillPdf, useBills, useDashboard, useMe, useDowntime, useLatestInvoice, useOutstanding, usePayments, useUsageStats,
+  downloadBillPdf, useBills, useDashboard, useMe, useDowntime, useLatestInvoice, useOutstanding, usePayments,
   useMyComplaints, useWssArrears, useWssConsumer, useYearlyHistory,
   type DashboardResponse, type MonthlyInvoice,
 } from "@shared/api";
@@ -352,7 +352,6 @@ function Postpaid({ data }: { data: DashboardResponse }) {
   const { t, locale, lang } = useI18n();
   const { data: outstanding, error: outstandingError } = useOutstanding();
   const { data: invoiceResp } = useLatestInvoice();
-  const { data: stats } = useUsageStats();
   const { data: yearly } = useYearlyHistory();
   const { data: wssArrears } = useWssArrears();
   const { data: wssConsumer } = useWssConsumer();
@@ -361,8 +360,8 @@ function Postpaid({ data }: { data: DashboardResponse }) {
 
   const inv = (invoiceResp?.data as MonthlyInvoice | undefined)?.invoice_id ? (invoiceResp!.data as MonthlyInvoice) : undefined;
   const d = useMemo(
-    () => derivePostpaid(data, { outstandingAmount: outstanding?.data?.outstandingAmount, inv, stats: stats?.data, yearly: yearly?.data }),
-    [data, outstanding, inv, stats, yearly],
+    () => derivePostpaid(data, { outstandingAmount: outstanding?.data?.outstandingAmount, inv, yearly: yearly?.data }),
+    [data, outstanding, inv, yearly],
   );
 
   const overdue = d.daysToDue !== null && d.daysToDue < 0 && !d.billPaid;

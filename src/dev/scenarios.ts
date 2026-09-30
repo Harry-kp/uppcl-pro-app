@@ -162,7 +162,6 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
     case "/bills": return env(d.dailyBills.slice(-Number(q.get("days") ?? 90)));
     case "/payments": return env(d.payments);
     case "/consumption": return env(consumption(Number(q.get("days") ?? 30)));
-    case "/consumption/stats": return env({ averageConsumption: "6.9", maximumConsumption: "12.4", maximumPower: "2.4" });
     case "/history/yearly": return env(monthly(Number(q.get("year") ?? new Date().getFullYear())));
     case "/me": return env([{ _id: "test-user", phone: "9000000001", phoneCountryCode: "+91", username: "9000000001", name: "Asha Verma" }]);
     case "/tenant-preferences": return env({ discomDetails: { whatsappNumber: "9000000099", email: "help@example.org", address: "Test discom office, Meerut 250001" } });
