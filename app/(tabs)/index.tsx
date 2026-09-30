@@ -312,7 +312,7 @@ function Prepaid({ data }: { data: DashboardResponse }) {
 function Postpaid({ data }: { data: DashboardResponse }) {
   const c = useColors();
   const { t, locale, lang } = useI18n();
-  const { data: outstanding } = useOutstanding();
+  const { data: outstanding, error: outstandingError } = useOutstanding();
   const { data: invoiceResp } = useLatestInvoice();
   const { data: stats } = useUsageStats();
   const { data: yearly } = useYearlyHistory();
@@ -434,6 +434,8 @@ function Postpaid({ data }: { data: DashboardResponse }) {
         )}
       </Card>
 
+      {/* No answer on dues must not read as "nothing due" (the hero then shows an estimate, not ₹0 due). */}
+      {!!outstandingError && !outstanding && <Insight tone="warn" icon="warning" text={t("due_unknown")} />}
       {warnings.map((w) => <Insight key={w.id} tone={w.tone} icon={w.icon} text={w.text} />)}
 
       <QuickActions data={data} onBill={inv ? download : () => router.push("/bills")} billBusy={downloading} hasDues={d.hasDues} />

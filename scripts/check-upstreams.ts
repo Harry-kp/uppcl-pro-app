@@ -30,4 +30,4 @@ await timed("UPPCL SMART (reachable?)", async () => `HTTP ${(await fetch(`${UPPC
 await timed("bill portal · GetDiscom", () => wss("v2/api/GetDiscom", { kno, discomName: "PVVNL" }));
 await timed("bill portal · getConsumerDetails", () => wss("v2/api/getConsumerDetails", { kno, discomName: "PVVNL" }));
 await timed("bill portal · GetPayBillDetails", () => wss("v2/InstaPayment/GetPayBillDetails", { kno, discomName: "PVVNL" }));
-await timed("1912 portal (appsavy.com)", async () => `HTTP ${(await fetch("https://appsavy.com/", { signal: AbortSignal.timeout(15_000) })).status}`);
+await timed("1912 portal (1912.uppcl.org)", async () => `HTTP ${(await fetch("https://1912.uppcl.org/UI/Form?FormId=4235", { signal: AbortSignal.timeout(15_000) })).status}`);

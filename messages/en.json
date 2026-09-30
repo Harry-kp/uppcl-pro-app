@@ -87,6 +87,7 @@
     "credited": "Credited",
     "paid": "Paid",
     "unpaid": "Unpaid",
+    "due_unknown": "UPPCL isn't saying right now whether a bill is due. If you're expecting one, check its due date on the bill or on UPPCL SMART.",
     "close": "Close",
     "list_loading": "Loading…",
     "list_unavailable": "Couldn't get this from UPPCL right now.",

@@ -127,7 +127,7 @@ iPhone support is on the way.
 
 ## Your data stays with you
 
-- **No UPPCL Pro server.** Your phone talks straight to UPPCL. Nobody in between sees your password.
+- **No UPPCL Pro server.** Your phone talks straight to UPPCL, for everything. Nobody in between sees your password.
 - **Nothing leaves your phone except to UPPCL.** No analytics, no ads, no account with us.
 - **Signing out wipes it.** Session, saved screens and (if you turned alerts on) your saved password.
 
@@ -140,11 +140,8 @@ iPhone support is on the way.
   (`consumer.uppcl.org`: bills, PDFs, payment) directly from your phone.
 - You sign in with your UPPCL SMART username and password. The session is kept on your phone in an
   encrypted file (AES-GCM) whose key lives in the Android keystore.
-- **One exception: complaint status.** The 1912 portal needs cookie handling a phone app can't do, so that
-  lookup goes through a small stateless route of the companion web project
-  [uppcl-pro](https://github.com/Harry-kp/uppcl-pro) (`https://uppcl-pro.vercel.app/api/complaints`). It gets
-  your registered mobile number (no password, no token), forwards it to the 1912 portal, and stores and logs
-  nothing. If it's down, only complaint status is affected.
+- **Complaint status** comes from UPPCL's 1912 portal (`1912.uppcl.org`), also called directly from your phone.
+  It is sent your registered mobile number (no password, no token) to look your complaints up.
 - **Alerts** (off by default) have to sign in again in the background when your session expires. If you turn
   them on, your UPPCL username and password are stored encrypted in the Android keystore, on your phone
   only, and removed when you turn alerts off or sign out. The checks run on the phone.

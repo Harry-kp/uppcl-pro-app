@@ -15,14 +15,13 @@ const BASES: Record<Upstream, string> = {
   uppcl: `${UPPCL_BASE}/accounts/api`,
   bootstrap: `${UPPCL_BASE}/bootstrap/api`,
   wss: `${WSS_BASE}/uppclwss`,
-  // The 1912 complaint portal needs server-side cookie juggling across redirects,
-  // which RN's fetch can't do — keep using the deployed web route (anonymous, no user creds).
-  complaints: "https://uppcl-pro.vercel.app/api/complaints",
+  // UPPCL's 1912 complaint portal (Appsavy). Its session cookies ride the native cookie jar.
+  complaints: "https://1912.uppcl.org",
 };
 
 function baseHeaders(upstream: Upstream): Record<string, string> {
   if (upstream === "wss") return wssHeaders();
-  if (upstream === "complaints") return {};
+  if (upstream === "complaints") return { origin: "https://1912.uppcl.org", referer: "https://1912.uppcl.org/UI/Form?FormId=4235" };
   return uppclBrowserHeaders();
 }
 

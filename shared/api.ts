@@ -11,6 +11,7 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
+import { complaints } from "./complaints";
 import {
   getSession,
   saveSession,
@@ -171,9 +172,10 @@ async function proxy(
   const text = await r.text();
   let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { parsed = text; }
-  const msg = typeof parsed === "object" && parsed && "message" in parsed
-    ? (parsed as { message: string }).message
-    : text.slice(0, 200);
+  // UPPCL's `message` is sometimes an object ({ message } / { error }), which used to print as "[object Object]".
+  const m = typeof parsed === "object" && parsed && "message" in parsed ? (parsed as { message: unknown }).message : text;
+  const inner = m && typeof m === "object" ? ((m as { message?: unknown; error?: unknown }).message ?? (m as { error?: unknown }).error ?? JSON.stringify(m)) : m;
+  const msg = String(inner ?? "").slice(0, 200);
   throw new ProxyError(r.status, msg, parsed);
 }
 
@@ -342,15 +344,8 @@ function ids(site: SiteRecord): { cid: string; did: string; tid: string } {
  */
 async function fetcher<T>(key: string): Promise<T> {
   const mocked = platform.mock?.(key); if (mocked !== undefined) return mocked as T; // @dev-tools seam
-  // Complaints go to our server-side route (anonymous, no user creds)
-  if (key.startsWith("/complaints")) {
-    const r = await send("complaints", key.slice("/complaints".length), { cache: "no-store" });
-    if (!r.ok) {
-      const body = await r.json().catch(() => null);
-      throw new ProxyError(r.status, body?.error ?? `HTTP ${r.status}`, body, "complaints");
-    }
-    return r.json() as Promise<T>;
-  }
+  // Complaints: UPPCL's 1912 portal, anonymous (no user creds), straight from the phone.
+  if (key.startsWith("/complaints")) return complaints(key.slice("/complaints".length)) as Promise<T>;
 
   // Health is client-side only
   if (key === "/health") {

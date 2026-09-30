@@ -62,7 +62,6 @@ export default function Bills() {
   return (
     <Screen onRefresh={refresh} refreshing={refreshing}>
       <Txt v="title">{postpaid ? t("bills_title_post") : t("bills_title")}</Txt>
-      {!!(invoices.error || history.error || payments.error) && <ErrorNote error={invoices.error || history.error || payments.error} stale compact />}
       {busy && <Txt v="label" color="muted">{t("opening_pdf")}</Txt>}
       {/* Upstream's raw message ("not available for this connection") blames the account when the portal is just down. */}
       {!!pdfError && <ErrorNote error={pdfError} compact />}
@@ -108,7 +107,7 @@ export default function Bills() {
         </Card>
       )}
 
-      <Section title={t("statements")}>
+      <Section title={t("statements")} error={stmts.error} stale={statements.length > 0}>
         {statements.length === 0 ? (
           <Txt v="label" color="muted" style={styles.empty}>{emptyText(stmts, "none_statements")}</Txt>
         ) : statements.slice(0, allBills ? 12 : 6).map((inv, i) => {
@@ -132,7 +131,7 @@ export default function Bills() {
         {!allBills && statements.length > 6 && <More label={t("show_all", { n: statements.length })} onPress={() => setAllBills(true)} />}
       </Section>
 
-      <Section title={postpaid ? t("payments") : t("recharges")}>
+      <Section title={postpaid ? t("payments") : t("recharges")} error={payments.error} stale={payList.length > 0}>
         {(payments.data?.data ?? []).length === 0 ? (
           <Txt v="label" color="muted" style={styles.empty}>{emptyText(payments, "none_recharges")}</Txt>
         ) : payList.slice(0, allPayments ? 10 : 3).map((p, i) => (
@@ -163,11 +162,14 @@ export default function Bills() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** `error`: this list's own failure, shown under its title — other lists on the page may be perfectly fresh. */
+function Section({ title, error, stale, children }: { title: string; error?: unknown; stale?: boolean; children: ReactNode }) {
   return (
     <View style={{ gap: 8, marginTop: 6 }}>
       <Txt v="heading">{title}</Txt>
-      <Card style={{ padding: 0, gap: 0 }}>{children}</Card>
+      {!!error && <ErrorNote error={error} stale={stale} compact={stale} />}
+      {/* Failed with nothing saved: the note above is the whole story, no empty card under it. */}
+      {!(error && !stale) && <Card style={{ padding: 0, gap: 0 }}>{children}</Card>}
     </View>
   );
 }
