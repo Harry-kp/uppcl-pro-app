@@ -29,6 +29,12 @@ export default function MeterDetails() {
   const { data: notes, isLoading: notesLoading, error: notesError } = useNotifications();
   const { data: alarms, isLoading: alarmsLoading, error: alarmsError } = useMeterAlarms();
   const wm = wssMeter?.data;
+  const site = dash?.site as (Record<string, unknown> & { meterType?: string; meterPhase?: string }) | undefined;
+  // UPPCL codes the meter as e.g. meterPhase "1-PH-SMTMTR"; meterType ("E") means nothing to a person.
+  const ph = String(site?.meterPhase ?? "");
+  const meterKind = /(^|\D)1\s*-?\s*ph/i.test(ph) ? t(/smt|smart/i.test(ph) ? "meter_1ph_smart" : "meter_1ph")
+    : /(^|\D)3\s*-?\s*ph/i.test(ph) ? t(/smt|smart/i.test(ph) ? "meter_3ph_smart" : "meter_3ph") : "";
+  const since = (v: unknown) => parseUppclDate(typeof v === "string" ? v : null)?.toLocaleDateString(locale, { month: "short", year: "numeric" }) ?? null;
   const readAt = parseUppclDate(wm?.previousReadDateTime);
 
   const q = useMemo(() => {
@@ -72,6 +78,9 @@ export default function MeterDetails() {
               </Cell>
             )}
             {!!dash?.site.sanctionedLoad && <Cell label={t("sanctioned_load")} value={`${kwh(toNum(dash.site.sanctionedLoad), 0)} kW`} />}
+            {/* From the connection record UPPCL SMART already sends (site/search); nothing extra is fetched. */}
+            {!!meterKind && <Cell label={t("meter_kind")} value={meterKind} />}
+            {!!since(site?.meterInstallationDate) && <Cell label={t("meter_installed")} value={since(site?.meterInstallationDate)!} />}
             {!!wm?.previousReadingKWH && (
               <Cell label={t("last_reading")} value={`${kwh(toNum(wm.previousReadingKWH), 0)} kWh`}
                 sub={readAt ? readAt.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : undefined} />
