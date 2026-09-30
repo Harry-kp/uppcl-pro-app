@@ -3,14 +3,14 @@
  * With `details`, every bar is tappable and the line under the chart reads that day
  * ("Sat, 27 Sep · 6.4 kWh"); it starts on the latest day, so the value is visible without a tap.
  */
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import Svg, { Line, Rect, Text as SvgText } from "react-native-svg";
 import { font, useColors } from "./theme";
 import { Txt } from "./ui";
 import { useI18n } from "./i18n";
 
-export function Bars({
+export const Bars = memo(function Bars({
   values, labels, details, hint, highlightLast = true, highlight, flagged = [], good = [], average = true, height = 120, summary,
 }: {
   values: number[]; labels?: string[]; details?: string[]; hint?: string; highlightLast?: boolean; highlight?: number; flagged?: number[]; good?: number[]; average?: boolean; height?: number; summary: string;
@@ -77,4 +77,15 @@ export function Bars({
       )}
     </View>
   );
+}, sameProps);
+
+/** Callers build their arrays inline, so compare them by value: re-render only when what's drawn changes. */
+function sameProps(a: Record<string, unknown>, b: Record<string, unknown>) {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    const x = a[k], y = b[k];
+    if (x === y) continue;
+    if (!Array.isArray(x) || !Array.isArray(y) || x.length !== y.length || x.some((v, i) => v !== y[i])) return false;
+  }
+  return true;
 }

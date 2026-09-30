@@ -1,5 +1,5 @@
 /** Small design-system primitives. Every colour comes from theme.ts. */
-import { useEffect, useState, type ReactNode } from "react";
+import { memo, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
   type StyleProp, type TextStyle, type ViewStyle,
@@ -181,12 +181,15 @@ export function Insight({ text, tone = "accent", icon }: { text: string; tone?: 
  * Place first inside a container. Sized from onLayout in pixels: percentage
  * sizes on react-native-svg left a hard-edged box on Android.
  */
-export function Glow() {
+export const Glow = memo(function Glow() {
   const c = useColors();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}
-      onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      onLayout={(e) => {
+        const { width: w, height: h } = e.nativeEvent.layout;
+        setSize((s) => (s && s.w === w && s.h === h ? s : { w, h })); // same size → no SVG redraw
+      }}>
       {size && (
         <Svg width={size.w} height={size.h}>
           <Defs>
@@ -200,7 +203,7 @@ export function Glow() {
       )}
     </View>
   );
-}
+});
 
 /** The launcher icon (lamp-amber bolt on Dusk ink) — same in both themes; the hairline keeps its edge on dark backgrounds. */
 export function AppIcon({ size = 64 }: { size?: number }) {
