@@ -77,7 +77,19 @@ export function derivePrepaid(
   };
 }
 
-export function derivePostpaid(
+
+
+/**
+ * A month's kWh from daily readings, for when UPPCL's monthly rollup isn't in yet. Daily readings lag a day or
+ * two, so the days we have are scaled to the whole month rather than silently dropping the last ones. 0 if none.
+ */
+export function monthFromDaily(daily: ConsumptionRow[], monthStart: Date): number {
+  const end = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+  const len = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  const rows = daily.filter((r) => { const d = new Date(r.energyImportKWH?.measureTime ?? ""); return d >= monthStart && d < end; });
+  if (!rows.length) return 0;
+  return (rows.reduce((a, r) => a + toNum(r.energyImportKWH?.value), 0) * len) / Math.min(rows.length, len);
+}export function derivePostpaid(
   data: DashboardResponse,
   opts: { outstandingAmount?: string; inv?: MonthlyInvoice; stats?: UsageStats; yearly?: ConsumptionRow[] },
   now: number = Date.now(),
@@ -116,20 +128,21 @@ export function derivePostpaid(
   const lastBillAmt = Math.abs(toNum(inv?.bill_amt));
   const monthlyRows = opts.yearly ?? [];
   const billMonthKwh = billDt ? billedMonthKwh(monthlyRows, billDt) : 0;
-  const effectiveRate = billMonthKwh > 0 && lastBillAmt > 0
-    ? lastBillAmt / billMonthKwh
-    : (data.consumption_30d.effective_rate || FALLBACK_RATE);
+  const rateFrom: "bill" | "recent" | "typical" = billMonthKwh > 0 && lastBillAmt > 0 ? "bill"
+    : data.consumption_30d.effective_rate ? "recent" : "typical"; // the copy must say which, never claim "your last bill"
+  const effectiveRate = rateFrom === "bill" ? lastBillAmt / billMonthKwh
+    : rateFrom === "recent" ? data.consumption_30d.effective_rate! : FALLBACK_RATE;
 
   // Last month has ended but its bill isn't out yet (UPPCL bills in the first days of the month):
   // until it arrives, that bill — not the new month's ₹0 — is what the user is waiting for.
   const prevStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const lastBilledFrom = billDt ? billingPeriod(billDt).from : null;
   let pendingBill: { month: Date; kwh: number; amount: number; vsLast: number } | null = null;
-  if (!hasDues && lastBilledFrom && lastBilledFrom < prevStart) {
-    const dailyPrev = dailyRows
-      .filter((r) => { const d = new Date(r.energyImportKWH?.measureTime ?? ""); return d >= prevStart && d < cycleStart; })
-      .reduce((s, r) => s + toNum(r.energyImportKWH?.value), 0);
-    const kwh = billedMonthKwh(monthlyRows, cycleStart) || dailyPrev; // monthly rollup, else the daily sum
+  // No invoice (UPPCL's bill history is down): early in the month, last month's bill is still the likely one to come.
+  // ponytail: day ≤ 20 is a heuristic (bills land in the first ~10 days); a real invoice always wins.
+  const lastMonthUnbilled = lastBilledFrom ? lastBilledFrom < prevStart : today.getDate() <= 20;
+  if (!hasDues && lastMonthUnbilled) {
+    const kwh = billedMonthKwh(monthlyRows, cycleStart) || monthFromDaily(dailyRows, prevStart); // monthly rollup, else daily readings
     if (kwh > 0) {
       const amount = kwh * effectiveRate;
       pendingBill = { month: prevStart, kwh, amount, vsLast: lastBillAmt > 0 ? Math.round(((amount - lastBillAmt) / lastBillAmt) * 100) : 0 };
@@ -153,7 +166,7 @@ export function derivePostpaid(
 
   return {
     series, labels, avgDailyKwh, outstandingAmt, hasDues, daysToDue, cycleProgress,
-    cycleKwh, effectiveRate, projectedKwh, projectedBill, projVsLast, pfLatest,
+    cycleKwh, effectiveRate, rateFrom, projectedKwh, projectedBill, projVsLast, pfLatest,
     peakKw, sanctioned, demandPct, lastBillAmt, billPaid, pendingBill,
   };
 }

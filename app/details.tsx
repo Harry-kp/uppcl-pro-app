@@ -27,8 +27,8 @@ export default function MeterDetails() {
   const { data: invoice } = useLatestInvoice();
   const { data: yearly } = useYearlyHistory();
   const { data: daily } = useConsumption(90);
-  const { data: notes } = useNotifications();
-  const { data: alarms } = useMeterAlarms();
+  const { data: notes, isLoading: notesLoading, error: notesError } = useNotifications();
+  const { data: alarms, isLoading: alarmsLoading, error: alarmsError } = useMeterAlarms();
   const wm = wssMeter?.data;
   const readAt = parseUppclDate(wm?.previousReadDateTime);
 
@@ -136,9 +136,12 @@ export default function MeterDetails() {
       <Section title={t("messages_title")}>
         <Card style={{ padding: 0, gap: 0 }}>
           {messages.length === 0 ? (
+            // "No messages" (green tick) only once UPPCL has answered; not while loading or failing.
             <View style={styles.row}>
-              <Icon name="checkCircle" size={20} color={c.ok} />
-              <Txt v="label" color="muted" style={{ flex: 1 }}>{t("no_messages")}</Txt>
+              {!(notesLoading || alarmsLoading || notesError || alarmsError) && <Icon name="checkCircle" size={20} color={c.ok} />}
+              <Txt v="label" color="muted" style={{ flex: 1 }}>
+                {t(notesLoading || alarmsLoading ? "list_loading" : notesError || alarmsError ? "list_unavailable" : "no_messages")}
+              </Txt>
             </View>
           ) : messages.slice(0, 10).map((r, i) => (
             <View key={i} style={[styles.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>

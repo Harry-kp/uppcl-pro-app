@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useConsumption, useDashboard, useLatestInvoice, useSavingTip, useYearlyHistory, type MonthlyInvoice } from "@shared/api";
-import { derivePostpaid } from "@shared/insights";
+import { derivePostpaid, monthFromDaily } from "@shared/insights";
 import { mean, stddev, toNum } from "@shared/stats";
 import { FALLBACK_RATE, kwh, rupees } from "@shared/utils";
 import { Bars } from "../../src/Bars";
@@ -158,6 +158,7 @@ function YearView({ rate }: { rate: number }) {
   const year = new Date().getFullYear();
   const thisYear = useYearlyHistory(year);
   const lastYear = useYearlyHistory(year - 1);
+  const { data: dash } = useDashboard();
 
   const m = useMemo(() => {
     const byMonth = new Map<string, number>();
@@ -167,11 +168,15 @@ function YearView({ rate }: { rate: number }) {
       if (Number.isNaN(at.getTime()) || !Number.isFinite(v)) continue;
       byMonth.set(`${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}`, v);
     }
+    // The month that just ended is often missing from UPPCL's rollup for days; fill it from the daily readings.
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+    if (!byMonth.has(prevKey)) { const v = monthFromDaily(dash?.consumption_30d.daily ?? [], prev); if (v > 0) byMonth.set(prevKey, v); }
     const keys = [...byMonth.keys()].sort().slice(-12);
     const months = keys.map((k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1));
     const values = keys.map((k) => byMonth.get(k)!);
     // Compare the last *complete* month: the current one is still filling up.
-    const now = new Date();
     const lastFull = [...keys].reverse().find((k) => k !== `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
     let vs: { pct: number; month: Date } | null = null;
     if (lastFull) {
@@ -180,7 +185,7 @@ function YearView({ rate }: { rate: number }) {
       if (prev && prev > 0) vs = { pct: Math.round(((cur - prev) / prev) * 100), month: new Date(Number(lastFull.slice(0, 4)), Number(lastFull.slice(5)) - 1, 1) };
     }
     return { months, values, total: values.reduce((a, b) => a + b, 0), vs };
-  }, [thisYear.data, lastYear.data]);
+  }, [thisYear.data, lastYear.data, dash]);
 
   if (thisYear.isLoading && !thisYear.data) return <Centered><Txt v="body" color="muted">{t("loading")}</Txt></Centered>;
   const monthLong = (d: Date) => d.toLocaleDateString(locale, { month: "long" });

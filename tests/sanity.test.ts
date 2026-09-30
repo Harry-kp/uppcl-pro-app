@@ -15,7 +15,7 @@ mock.module("expo-router", () => ({ router: { push: () => {} } }));
 import { ProxyError, type DashboardResponse } from "@shared/api";
 import { payAmountError, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
-import { derivePostpaid, derivePrepaid } from "@shared/insights";
+import { derivePostpaid, derivePrepaid, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
 const { isInAppUrl } = await import("../src/links");
@@ -90,6 +90,37 @@ describe("insights", () => {
     expect(r.pendingBill?.amount).toBe(1400);
     expect(r.pendingBill?.vsLast).toBe(11);
     expect(r.billPaid).toBe(true);
+  });
+
+  test("derivePostpaid: no invoice (UPPCL bill history down) on 1 Oct → September's bill from daily readings", () => {
+    // 29 of September's 30 days reported (daily lag), 7 units each; no monthly rollup for September yet.
+    const daily = Array.from({ length: 29 }, (_, i) => row(iso(2026, 9, i + 1), 7));
+    const r = derivePostpaid(dash({ consumption_30d: { kwh: 203, avg_daily_kwh: 7, effective_rate: null, daily } } as never),
+      { outstandingAmount: "0", yearly: [row(iso(2026, 8, 1), 180)] } as never, at(2026, 10, 1));
+    expect(r.rateFrom).toBe("typical");
+    expect(r.effectiveRate).toBe(6.5);
+    expect(r.pendingBill?.month).toEqual(new Date(2026, 8, 1));
+    expect(r.pendingBill?.kwh).toBe(210); // 29 days × 7, scaled to 30 days
+    expect(r.pendingBill?.amount).toBe(1365);
+    // Late in the month with still no invoice: don't keep guessing last month's bill.
+    expect(derivePostpaid(dash({ consumption_30d: { kwh: 203, avg_daily_kwh: 7, effective_rate: null, daily } } as never),
+      { outstandingAmount: "0" } as never, at(2026, 10, 25)).pendingBill).toBeNull();
+  });
+
+  test("monthFromDaily: scales a lagging month, ignores other months", () => {
+    const daily = [row(iso(2026, 8, 31), 99), ...Array.from({ length: 29 }, (_, i) => row(iso(2026, 9, i + 1), 7)), row(iso(2026, 10, 1), 99)];
+    expect(monthFromDaily(daily, new Date(2026, 8, 1))).toBe(210);
+    expect(monthFromDaily([], new Date(2026, 8, 1))).toBe(0);
+  });
+
+  test("derivePostpaid: rate source is named honestly", () => {
+    const yearly = [row(iso(2026, 8, 1), 180)];
+    const inv = { bill_dt: iso(2026, 9, 2), bill_amt: "1260", payment_dt: iso(2026, 9, 10) };
+    expect(derivePostpaid(dash(), { outstandingAmount: "0", inv, yearly } as never, at(2026, 9, 20)).rateFrom).toBe("bill");
+    const recent = dash({ consumption_30d: { kwh: 0, avg_daily_kwh: 6, effective_rate: 7.25, daily: [] } } as never);
+    const r = derivePostpaid(recent, { outstandingAmount: "0" } as never, at(2026, 9, 20));
+    expect(r.rateFrom).toBe("recent");
+    expect(r.effectiveRate).toBe(7.25);
   });
 
   test("derivePostpaid: no pendingBill once the bill is out, or while dues are open", () => {

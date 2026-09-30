@@ -114,7 +114,7 @@ function GearButton() {
 
 function Greeting({ data }: { data: DashboardResponse }) {
   const c = useColors();
-  const { t, ago: i18nAgo } = useI18n();
+  const { t, ago: i18nAgo, locale } = useI18n();
   const h = new Date().getHours();
   // The account holder's first name when UPPCL has one; otherwise a time-of-day greeting.
   const { data: me } = useMe();
@@ -127,15 +127,17 @@ function Greeting({ data }: { data: DashboardResponse }) {
   testData = platform.mock?.("scenario:active") === true; // @dev-tools seam
   useEffect(() => { if (found && !testData) keystore.setItem(NAME_KEY, found); }, [found, testData]);
   const first = found || (testData ? "" : real(keystore.getItem(NAME_KEY)));
-  const greet = first ? first.charAt(0).toUpperCase() + first.slice(1) : t(h < 12 ? "greeting_morning" : h < 17 ? "greeting_afternoon" : "greeting_evening");
+  const greet = first ? first.charAt(0).toUpperCase() + first.slice(1) : t(h >= 5 && h < 12 ? "greeting_morning" : h >= 12 && h < 17 ? "greeting_afternoon" : "greeting_evening");
   // Prepaid has a live balance timestamp; postpaid only has daily readings, so use the latest one.
   const latestReading = data.consumption_30d.daily
     .map((r) => String(r.energyImportKWH?.measureTime ?? ""))
     .filter(Boolean)
     .sort()
     .pop();
-  const updated = data.balance.updated_at ?? latestReading ?? null;
-  const ago = updated ? i18nAgo(updated) : null;
+  // Prepaid: a live balance time ("updated 5 min ago"). Postpaid: the last day UPPCL has readings for — "updated 2 days
+  // ago" there only reflected UPPCL's normal daily lag and read as a stale app.
+  const ago = data.balance.updated_at ? i18nAgo(data.balance.updated_at) : null;
+  const readingsTo = !ago && latestReading ? new Date(latestReading).toLocaleDateString(locale, { day: "numeric", month: "short" }) : null;
   const meterId = String(data.site.connectionId); // the account number, in full: not a secret, and people need it
   return (
     <View style={styles.greeting}>
@@ -146,7 +148,7 @@ function Greeting({ data }: { data: DashboardResponse }) {
           <View style={[styles.kind, { backgroundColor: c.pill }]}>
             <Txt v="caption" weight="bold" color="pillText">{data.site.connectionType === "postpaid" ? t("postpaid") : t("prepaid")}</Txt>
           </View>
-          <Txt v="caption" color="muted" style={{ flexShrink: 1 }}>{ago ? t("meter_line", { id: meterId, ago }) : t("meter_only", { id: meterId })}</Txt>
+          <Txt v="caption" color="muted" style={{ flexShrink: 1 }}>{ago ? t("meter_line", { id: meterId, ago }) : readingsTo ? t("meter_readings_to", { id: meterId, date: readingsTo }) : t("meter_only", { id: meterId })}</Txt>
         </View>
       </View>
       <GearButton />
@@ -424,7 +426,10 @@ function Postpaid({ data }: { data: DashboardResponse }) {
               {billStatus && <Pill tone={billStatus.tone} label={billStatus.chip} />}
               {budget && <Pill tone={shown > budget ? "warn" : "ok"} label={t(shown > budget ? "budget_over" : "budget_ok", { amount: rupees(budget, { decimals: 0 }) })} />}
             </View>
-            <HowLink text={t(d.pendingBill ? "how_pending" : "how_postpaid", { rate: `₹${rupees(d.effectiveRate, { decimals: 2 })}`, month: d.pendingBill ? month(d.pendingBill.month) : "" })} />
+            <HowLink text={t(d.pendingBill ? "how_pending" : d.cycleKwh > 0 ? "how_postpaid" : "how_estimate", {
+              rateSrc: t(`rate_src_${d.rateFrom}`, { rate: `₹${rupees(d.effectiveRate, { decimals: 2 })}` }),
+              month: d.pendingBill ? month(d.pendingBill.month) : thisMonth,
+            })} />
           </>
         )}
       </Card>

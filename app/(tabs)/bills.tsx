@@ -46,6 +46,9 @@ export default function Bills() {
   const month = (d: string) => billingPeriod(d).from.toLocaleDateString(locale, { month: "long", year: "numeric" });
   const day = (d: string) => new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
   const payList = payments.data?.data ?? [];
+  // An empty list is only "none" once UPPCL has answered; while loading or failing, say that instead.
+  const stmts = postpaid ? invoices : history;
+  const emptyText = (q: { isLoading: boolean; error?: unknown }, none: "none_statements" | "none_recharges") => t(q.isLoading ? "list_loading" : q.error ? "list_unavailable" : none);
   // Summary: what the year cost, and a bar per bill so a jump stands out before reading any row.
   const yearAgo = Date.now() - 365 * 86400_000;
   const paidYear = payList.filter((p) => new Date(p.payment_dt).getTime() >= yearAgo).reduce((a, p) => a + toNum(p.amt), 0);
@@ -107,7 +110,7 @@ export default function Bills() {
 
       <Section title={t("statements")}>
         {statements.length === 0 ? (
-          <Txt v="label" color="muted" style={styles.empty}>{t("none_statements")}</Txt>
+          <Txt v="label" color="muted" style={styles.empty}>{emptyText(stmts, "none_statements")}</Txt>
         ) : statements.slice(0, allBills ? 12 : 6).map((inv, i) => {
           const amt = toNum(inv.bill_amt);
           const credit = amt < 0; // negative bill = UPPCL owes you, carried forward
@@ -131,7 +134,7 @@ export default function Bills() {
 
       <Section title={postpaid ? t("payments") : t("recharges")}>
         {(payments.data?.data ?? []).length === 0 ? (
-          <Txt v="label" color="muted" style={styles.empty}>{t("none_recharges")}</Txt>
+          <Txt v="label" color="muted" style={styles.empty}>{emptyText(payments, "none_recharges")}</Txt>
         ) : payList.slice(0, allPayments ? 10 : 3).map((p, i) => (
           <Row key={p._id ?? p.txn_id} first={i === 0}
             title={day(p.payment_dt)}
