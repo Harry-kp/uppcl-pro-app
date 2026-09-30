@@ -21,6 +21,7 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false); // no connection ≠ wrong password: don't paint the fields red
   const [expired] = useState(sessionWasExpired); // UPPCL rejected the saved session (MISS-047)
   const pwRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
@@ -29,17 +30,20 @@ export default function Login() {
     if (!username.trim() || !password) return;
     setBusy(true);
     setError(null);
+    setOffline(false);
     try {
       await login(username.trim(), password);
       await mutate("/health");
     } catch (e) {
-      setError((e as Error).message);
+      const kind = (e as { kind?: string }).kind;
+      if (kind === "network") { setOffline(true); setError(t("login_offline")); }
+      else setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
 
-  const field = [styles.field, { backgroundColor: c.surface, borderColor: error ? c.critical : c.line }];
+  const field = [styles.field, { backgroundColor: c.surface, borderColor: error && !offline ? c.critical : c.line }];
   const input = [styles.input, { color: c.text, fontFamily: familyFor("medium", lang === "hi") }];
 
   return (
@@ -91,7 +95,9 @@ export default function Login() {
               </View>
             </View>
 
-            {error && <Txt v="label" color="critical">{error}</Txt>}
+            {error && (offline
+              ? <Insight tone="warn" icon="warning" text={error} />
+              : <Txt v="label" color="critical">{error}</Txt>)}
 
             <Button label={busy ? L.signing_in : L.sign_in} onPress={submit} busy={busy} disabled={!username.trim() || !password} />
             {/* Resets and sign-ups happen on UPPCL's own site, straight to the right page: we never handle passwords beyond sign-in. */}

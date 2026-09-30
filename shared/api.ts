@@ -92,10 +92,13 @@ async function send(upstream: "uppcl" | "bootstrap" | "wss" | "complaints", path
   try {
     return await platform.request(upstream, path, init);
   } catch (e) {
-    // Only a failed fetch (TypeError) or our 30 s abort means "no answer"; anything else is our own bug
-    // and must surface as one, not be dressed up as a network problem.
-    const name = (e as Error)?.name;
-    if (name !== "TypeError" && name !== "AbortError") throw e;
+    // A failure of the network call itself means "no answer": the classic TypeError, our 30 s abort, or
+    // expo/fetch's "fetch failed: java.net.UnknownHostException …". Anything else is our own bug and must
+    // surface as one, not be dressed up as a network problem (e.g. the send() recursion, BUG-069).
+    const name = (e as Error)?.name, text = String((e as Error)?.message ?? "");
+    const isNetwork = name === "TypeError" || name === "AbortError"
+      || /fetch failed|network|unknownhost|unable to resolve|timed? ?out|timeout|econn|ssl|socket|failed to connect|connection/i.test(text);
+    if (!isNetwork) throw e;
     const msg = name === "AbortError" ? "timeout: no answer in 30 s" : (e as Error).message || "network request failed";
     throw new ProxyError(0, msg, undefined, upstream === "bootstrap" ? "uppcl" : upstream, "network");
   }
