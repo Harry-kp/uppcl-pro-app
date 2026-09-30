@@ -40,7 +40,9 @@ async function latestRelease(): Promise<Release | null> {
 /** The newer release, if any. Checked at most every 12 h; never blocks anything. */
 export function useUpdate() {
   const { data } = useSWR("github:latest", latestRelease, { dedupingInterval: 12 * 3600_000, revalidateOnFocus: false, shouldRetryOnError: false });
-  return data && isNewer(data.version, APP_VERSION) ? data : null;
+  if (!data || !isNewer(data.version, APP_VERSION)) return null;
+  // The APK is Android-only; iPhones get the release page (the iOS builds are listed there).
+  return Platform.OS === "android" ? data : { ...data, apkUrl: null };
 }
 
 /** Home card: shown for a newer release until the user updates or says "Later" to that version. */
