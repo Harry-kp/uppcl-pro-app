@@ -5,15 +5,16 @@ import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outag
 import { router, useFocusEffect } from "expo-router";
 import {
   downloadBillPdf, useBills, useDashboard, useMe, useDowntime, useLatestInvoice, useOutstanding, usePayments, useUsageStats,
-  useWssArrears, useWssConsumer, useYearlyHistory,
+  useMyComplaints, useWssArrears, useWssConsumer, useYearlyHistory,
   type DashboardResponse, type MonthlyInvoice,
 } from "@shared/api";
 import { platform } from "@shared/platform";
 import { derivePostpaid, derivePrepaid, schemeFromAddress, TARGET_RUNWAY_DAYS } from "@shared/insights";
 import { toNum } from "@shared/stats";
-import { billingPeriod, rupees, kwh } from "@shared/utils";
+import { billingPeriod, parseUppclDate, rupees, kwh } from "@shared/utils";
 import { Bars } from "../../src/Bars";
 import { saveSnapshot } from "../../src/widget";
+import { openFor } from "@shared/complaints";
 import { getBudget } from "../../src/alerts";
 import { keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
 import { UpdateCard } from "../../src/github";
@@ -52,8 +53,43 @@ export default function Home() {
       <UpdateCard />
       {error && <ErrorNote error={error} stale compact />}
       <PlannedCut />
+      <ComplaintStatus />
       {data.site.connectionType === "postpaid" ? <Postpaid data={data} /> : <Prepaid data={data} />}
     </Screen>
+  );
+}
+
+/**
+ * Your 1912 complaint, only while it matters: open (how long, and whether an engineer is on it), or fixed in the
+ * last 24 h. Loads after Home has drawn, from a separate host, and shares the Complaints tab's cache.
+ */
+function ComplaintStatus() {
+  const c = useColors();
+  const { t, span, ago } = useI18n();
+  const { data: me } = useMe();
+  const { data } = useMyComplaints(me?.data?.[0]?.phone);
+  const list = data?.complaints ?? [];
+  const open = list.find((x) => x.is_open);
+  const fixed = !open ? list.find((x) => { const at = parseUppclDate(x.closing_date)?.getTime(); return at && Date.now() - at < 24 * 3600_000; }) : undefined;
+  const x = open ?? fixed;
+  if (!x) return null;
+  const ms = openFor(x);
+  const type = x.sub_type || x.type || t("complaint_no", { no: x.complaint_no });
+  const line = open
+    ? [ms !== null && t("cx_open_for", { t: span(ms) }), (x.je_mobile || x.je_name) && t("hc_engineer")].filter(Boolean).join(" · ")
+    : [ms !== null && t("cx_took", { t: span(ms) }), x.closing_date && ago(parseUppclDate(x.closing_date)!)].filter(Boolean).join(" · ");
+  return (
+    <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/complaint/[no]", params: { no: x.complaint_no } })}
+      style={({ pressed }) => [styles.complaint, { backgroundColor: open ? c.accentSoft : c.surface, borderColor: c.line, opacity: pressed ? 0.85 : 1 }]}>
+      <View style={[styles.complaintIcon, { backgroundColor: c.pill }]}>
+        <Icon name={open ? "supportAgent" : "checkCircle"} size={20} color={open ? c.pillText : c.ok} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Txt v="body" weight="semibold" numberOfLines={2}>{t(open ? "hc_open" : "hc_fixed", { type })}</Txt>
+        {!!line && <Txt v="caption" color="muted" numberOfLines={1}>{line}</Txt>}
+      </View>
+      <Icon name="chevronRight" size={20} color={c.muted} />
+    </Pressable>
   );
 }
 
@@ -462,6 +498,8 @@ function Postpaid({ data }: { data: DashboardResponse }) {
 }
 
 const styles = StyleSheet.create({
+  complaint: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 12, minHeight: 64 },
+  complaintIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   greeting: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
   gear: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   hero: { overflow: "hidden", gap: 10, borderRadius: radius.card },
