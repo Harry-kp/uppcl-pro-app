@@ -23,6 +23,8 @@ export default function ProfileScreen() {
 }
 
 /** Last 10 digits, so "+91 98…" and "98…" compare equal. */
+/** UPPCL fills unknown fields with "NA"/"null"; show those as missing, never as a value. */
+const known = (v?: string | null) => (v && !/^(na|n\/a|null|none|-)$/i.test(v.trim()) ? v : "");
 const tenDigits = (p?: string | null) => (p ?? "").replace(/[^0-9]/g, "").slice(-10);
 
 /**
@@ -46,8 +48,8 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
         {error ? <ErrorNote error={error} compact /> : <Insight tone="warn" icon="warning" text={t("details_unavailable")} />}
         <Txt v="caption" color="muted">{t("details_from_smart")}</Txt>
         <Card style={{ padding: 0, gap: 0 }}>
-          {!!site?.customerName && <Detail first label={t("name")} value={site.customerName} />}
-          {!!tenDigits(loginPhone) && <Detail first={!site?.customerName} label={t("login_mobile")} value={tenDigits(loginPhone)} />}
+          {!!known(site?.customerName) && <Detail first label={t("name")} value={site!.customerName} />}
+          {!!tenDigits(loginPhone) && <Detail first={!known(site?.customerName)} label={t("login_mobile")} value={tenDigits(loginPhone)} />}
           {!!addr && <Detail label={t("address")} value={addr} lines={3} />}
           <Pressable accessibilityRole="button" onPress={() => void mutate()}
             style={({ pressed }) => [styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
@@ -68,7 +70,7 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
       <Txt v="caption" color="muted">{t("registered_desc")}</Txt>
       {mismatch && <Insight tone="warn" icon="warning" text={t("phone_mismatch", { app: `••${appPhone.slice(-4)}`, bill: `••${billPhone.slice(-4)}` })} />}
       <Card style={{ padding: 0, gap: 0 }}>
-        {!!cd.name && <Detail first label={t("name")} value={cd.name} />}
+        {!!known(cd.name) && <Detail first label={t("name")} value={cd.name!} />}
         {!!billPhone && <Detail first={!cd.name} label={t("registered_mobile")} value={billPhone} />}
         {!!cd.email && <Detail label={t("email")} value={cd.email} />}
         <Detail label={t("bills_by")} value={billsBy} />

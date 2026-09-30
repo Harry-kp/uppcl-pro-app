@@ -126,7 +126,7 @@ export default function MeterDetails() {
               values={weekday.avg}
               highlight={weekday.busiest}
               labels={weekday.avg.map((_, i) => dayName(i, "short"))}
-              details={weekday.avg.map((v, i) => `${dayName(i, "long")} · ${kwh(v, 1)} kWh`)}
+              details={weekday.avg.map((v, i) => `${dayName(i, "long")} · ${kwh(v, 1)} ${t("units")}`)}
               summary={weekday.avg.map((v, i) => `${dayName(i, "long")} ${kwh(v, 1)}`).join(", ")}
             />
           </Card>
