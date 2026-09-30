@@ -308,15 +308,29 @@ export async function downloadBillPdf(invoice: { invoice_id: string }): Promise<
   await platform.savePdf(res.Response, `uppcl-bill-${invoice.invoice_id}.pdf`);
 }
 
-/** Download the official PDF receipt for the most recent online payment. */
-export async function downloadReceiptPdf(): Promise<void> {
+/**
+ * The official receipt PDF for one payment, from UPPCL SMART (payment/v2/download, what its own app uses).
+ * Any payment in the list, not just the latest, and it doesn't depend on the bill portal.
+ */
+export async function downloadReceiptPdf(payment: { _id: string; txn_id?: string }): Promise<void> {
   const site = await primarySite();
-  const res = await wssPost<{ statusCode?: string; bytecode?: string; statusMsg?: string }>(
-    "v2/lastOnlinePaymentReciept",
-    { kno: site.connectionId, discomName: wssDiscom(site) }
-  );
-  if (!res.bytecode) throw new ProxyError(404, res.statusMsg || "No payment receipt available", undefined, "wss");
-  await platform.savePdf(res.bytecode, `uppcl-receipt-${site.connectionId}.pdf`);
+  const jwt = getJwt();
+  if (!jwt) throw new ProxyError(401, "No active session — sign in first");
+  const r = await send("uppcl", "payment/v2/download", {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "content-type": "application/json", apikey: UPPCL_API_KEY, tenantid: tenantHeader(getSession()!.tenant),
+      token: jwt, authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({ consumer_id: site.connectionId, paymentId: payment._id, language: "en", tenantId: site.tenantId }),
+  });
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  // A PDF starts "%PDF"; anything else is UPPCL's JSON error.
+  if (!r.ok || bytes[0] !== 0x25 || bytes[1] !== 0x50) throw new ProxyError(r.ok ? 404 : r.status, "No receipt for this payment");
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  await platform.savePdf(btoa(bin), `uppcl-receipt-${payment.txn_id || payment._id}.pdf`);
 }
 
 /** Download the official arrears statement PDF. */

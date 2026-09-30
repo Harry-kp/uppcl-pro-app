@@ -139,9 +139,9 @@ export default function Bills() {
             title={day(p.payment_dt)}
             sub={p.channel || p.payment_type || undefined}
             amount={`₹${rupees(p.amt, { decimals: 0 })}`}
-            // UPPCL only offers the latest receipt, so it sits on the latest payment's row.
-            right={postpaid && i === 0
-              ? <PdfLink label={t("receipt_pdf")} busy={busy === "receipt"} onPress={() => pdf("receipt", downloadReceiptPdf)} />
+            // Every payment has its official receipt (UPPCL SMART), not just the latest.
+            right={p._id
+              ? <PdfLink label={t("receipt_pdf")} busy={busy === p._id} onPress={() => pdf(p._id, () => downloadReceiptPdf(p))} />
               : <Pill label={postpaid ? t("received") : t("credited")} />}
           />
         ))}
