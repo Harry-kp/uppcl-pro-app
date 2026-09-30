@@ -25,7 +25,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag }}
       - uses: oven-sh/setup-bun@v2
-      # expo-modules-jsi 57.1 needs Xcode 27 (SWIFT_RETURNS_RETAINED on C++ ctors); macos-15 tops out at 26.x
+      # expo-modules-jsi 57.1 (SWIFT_RETURNS_RETAINED on C++ ctors) fails on Xcode <= 26.3 (macos-15); macos-26 has 26.6
       - name: Use the newest Xcode on the runner
         run: |
           ls -d /Applications/Xcode_*.app; x=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)

@@ -262,6 +262,7 @@
     "update_now": "Update",
     "later": "Later",
     "up_to_date": "Up to date",
+    "link_blocked": "This link can't be opened in the app.",
     "report_problem": "Report a problem",
     "report_github": "Report on GitHub",
     "forgot_password_short": "Forgot password?",
