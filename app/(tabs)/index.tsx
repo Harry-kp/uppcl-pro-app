@@ -18,6 +18,7 @@ import { openFor } from "@shared/complaints";
 import { getBudget } from "../../src/alerts";
 import { keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
 import { UpdateCard } from "../../src/github";
+import { ReportSheet } from "../../src/report";
 
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -198,12 +199,13 @@ function Greeting({ data }: { data: DashboardResponse }) {
  */
 function QuickActions({ data, onBill, billBusy, hasDues }: { data: DashboardResponse; onBill?: () => void; billBusy?: boolean; hasDues?: boolean }) {
   const { t } = useI18n();
-  const sms = () => Linking.openURL(noPowerSmsUrl(data.site, Platform.OS === "ios"));
+  const [report, setReport] = useState(false); // "No power?" asks what's wrong first (src/report.tsx)
   return (
     <View style={styles.actions}>
+      <ReportSheet data={data} visible={report} onClose={() => setReport(false)} />
       {/* Prepaid has no bill PDF, so its tiles are the two ways to report a cut. */}
       {onBill && <Action icon="receiptLong" label={billBusy ? t("opening") : t("qa_bill")} onPress={onBill} disabled={billBusy} />}
-      <Action icon="sms" label={t("qa_no_power")} onPress={sms} />
+      <Action icon="sms" label={t("qa_no_power")} onPress={() => setReport(true)} />
       {!onBill && <Action icon="call" label={t("call_1912")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />}
       {/* When a bill is due, the hero's Pay button is the one; the tile is for paying ahead. */}
       {data.site.connectionType === "postpaid" && !hasDues && <Action icon="currencyRupee" label={t("qa_pay")} onPress={() => router.push("/pay")} />}
