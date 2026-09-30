@@ -19,6 +19,7 @@ import { derivePostpaid, derivePrepaid, monthFromDaily } from "@shared/insights"
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
 const { isInAppUrl } = await import("../src/links");
+const { mobile10, openFor, personName, sourceKind } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -212,5 +213,30 @@ describe("in-app web page (deep-linkable, so allowlisted)", () => {
   test("refuses anything else", () => {
     for (const u of ["https://evil.example/login", "http://github.com/", "javascript:alert(1)", "https://github.com.evil.example/", "", undefined])
       expect(isInAppUrl(u)).toBe(false);
+  });
+});
+
+describe("1912 complaint fields (as UPPCL sends them)", () => {
+  test("officer phones: 00-padded → 10 digits; junk → null", () => {
+    expect(mobile10("009000000022")).toBe("9000000022");
+    expect(mobile10("9000000021")).toBe("9000000021");
+    expect(mobile10("12345")).toBeNull();
+    expect(mobile10(null)).toBeNull();
+  });
+  test("officer names: tidy, and not a line name", () => {
+    expect(personName("SHRI RAM KUMAR (RAMPUR KHURD")).toBe("Ram Kumar (Rampur Khurd)");
+    expect(personName("SHRI MOHAN LAL SINGH")).toBe("Mohan Lal Singh");
+    expect(personName("11 KV LT 9000000021")).toBeNull();
+    expect(personName("")).toBeNull();
+  });
+  test("how it was filed, and how long it took", () => {
+    expect(sourceKind("1912")).toBe("call");
+    expect(sourceKind("1912 Web")).toBe("web");
+    expect(sourceKind("WhatsApp")).toBe("whatsapp");
+    expect(sourceKind(null)).toBeNull();
+    const closed = { entry_date: "19/05/2026 03:31:30 PM", closing_date: "19/05/2026 06:53:18 PM", is_open: false };
+    expect(openFor(closed)).toBe((3 * 60 + 21) * 60_000 + 48_000);
+    const open = { entry_date: "30/09/2026 10:00:00 PM", closing_date: null, is_open: true };
+    expect(openFor(open, new Date(2026, 9, 1, 1, 0, 0).getTime())).toBe(3 * 3600_000);
   });
 });

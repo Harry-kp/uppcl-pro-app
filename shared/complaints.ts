@@ -8,6 +8,7 @@
  */
 import { cbc } from "@noble/ciphers/aes.js";
 import { ProxyError, send } from "./api";
+import { parseUppclDate } from "./utils";
 
 const PROJECT_ID = "119", FORM_ID = "4235", ROLE_ID = "883", COMPANY_ID = "64";
 const EVENT_CONTROL = "38068";
@@ -54,6 +55,25 @@ async function postApi(inputXml: string, retry = true): Promise<string> {
 
 type Row = Record<string, string>;
 
+/** "009000000022" → "9000000022"; null unless it ends in a 10-digit Indian mobile. */
+export function mobile10(v: string | null | undefined): string | null {
+  const d = String(v ?? "").replace(/\D/g, "").slice(-10);
+  return /^[6-9]\d{9}$/.test(d) ? d : null;
+}
+
+/** "SHRI RAM KUMAR (RAMPUR KHURD" → "Ram Kumar (Rampur Khurd)"; null when it isn't a person
+ *  (the JE field often holds a line and a number, e.g. "11 KV LT 9000000021"). */
+export function personName(v: string | null | undefined): string | null {
+  let n = String(v ?? "").trim();
+  if (!n || /\d/.test(n)) return null;
+  n = n.replace(/^(shri|smt\.?|sri|mr\.?|ms\.?|er\.?)\s+/i, "");
+  if ((n.match(/\(/g) ?? []).length > (n.match(/\)/g) ?? []).length) n += ")";
+  return n.toLowerCase().replace(/(^|[\s(])(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
+}
+
+/** "NO SUPPLY" → "No supply". */
+const sentence = (v: string | null) => (v ? v.charAt(0).toUpperCase() + v.slice(1).toLowerCase() : null);
+
 function parseRowsets(raw: string): Row[] {
   const rows: Row[] = [];
   for (const block of raw.matchAll(/<RESULTS[^>]*>([\s\S]*?)<\/RESULTS>/gi)) {
@@ -95,9 +115,10 @@ async function detail(dataId: string): Promise<Record<string, unknown>> {
     data_id: pick("DATA_ID"), complaint_no: pick("COMPLAINT_NO"), status, is_open: status ? !status.toUpperCase().includes("CLOSE") : false,
     entry_date: pick("ENTRYDATE"), closing_date: pick("CLOSINGDATE"), consumer_name: pick("CONSUMER_NAME"), mobile_no: pick("MOBILENO"),
     address: pick("ADDRESS"), customer_account: pick("CUSTOMERACNTNO"), remarks: pick("REMARKS"), closing_remarks: pick("CLOSINGREMARKS"),
-    closed_by: pick("CLOSEDBY"), type: pick("COM_TYPE_NAME"), sub_type: pick("COM_SUB_TYPE_NAME"), source: pick("SRC"),
-    je_name: pick("JE_NAME"), je_mobile: pick("JE_MOBILE"), ae_name: pick("AE_NAME"), ae_mobile: pick("AE_MOBILE"),
-    xen_name: pick("XEN_NAME"), xen_mobile: pick("XEN_MOBILE"), subdivision: pick("SUBDIVISION"), substation: pick("SUBSTATION"),
+    closed_by: pick("CLOSEDBY"), type: sentence(pick("COM_TYPE_NAME")), sub_type: sentence(pick("COM_SUB_TYPE_NAME")), source: pick("SRC"),
+    // UPPCL's officer fields are messy: capitals, cut-off brackets, numbers padded with 00, a line name in JE_NAME.
+    je_name: personName(pick("JE_NAME")), je_mobile: mobile10(pick("JE_MOBILE")), ae_name: personName(pick("AE_NAME")), ae_mobile: mobile10(pick("AE_MOBILE")),
+    xen_name: personName(pick("XEN_NAME")), xen_mobile: mobile10(pick("XEN_MOBILE")), subdivision: pick("SUBDIVISION"), substation: pick("SUBSTATION"),
     assigned_to: pick("ASSIGNED_TO"), base_level: pick("BASE_LEVEL"), initial_user: pick("INITIALUSER"), raw_fields: merged,
   };
 }
@@ -126,4 +147,22 @@ export async function complaints(query: string): Promise<unknown> {
   // ponytail: detail for the first 20 only (one call each); a household has a handful, a shared number can have hundreds.
   const all = await Promise.all(list.filter((c) => c.data_id).slice(0, 20).map((c) => detail(c.data_id)));
   return { phone, complaints: all.sort((a, b) => entryTime(b.entry_date) - entryTime(a.entry_date)) };
+}
+
+/** How the complaint was filed, from UPPCL's source field ("1912", "1912 Web", "WhatsApp"…). */
+export function sourceKind(src: string | null | undefined): "call" | "web" | "whatsapp" | "sms" | "app" | null {
+  const v = String(src ?? "").toLowerCase();
+  if (!v) return null;
+  if (v.includes("whatsapp")) return "whatsapp";
+  if (v.includes("sms")) return "sms";
+  if (v.includes("web")) return "web";
+  if (/app|smart|mobile/.test(v)) return "app";
+  return v.includes("1912") ? "call" : null;
+}
+
+/** Filed → closed (or → now while open), in ms; null when UPPCL's dates don't parse. */
+export function openFor(c: { entry_date: string | null; closing_date: string | null; is_open: boolean }, now = Date.now()): number | null {
+  const from = parseUppclDate(c.entry_date)?.getTime();
+  const to = c.is_open ? now : parseUppclDate(c.closing_date)?.getTime();
+  return from && to && to >= from ? to - from : null;
 }

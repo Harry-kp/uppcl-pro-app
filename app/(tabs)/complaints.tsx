@@ -3,6 +3,7 @@ import { ActivityIndicator, Linking, Pressable, StyleSheet, TextInput, View, Pla
 import { router } from "expo-router";
 import { useDashboard, useMe, useMyComplaints, useTenantPreferences, useTickets, useWssConsumer, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
+import { openFor } from "@shared/complaints";
 import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -145,7 +146,13 @@ export default function Complaints() {
 /** Complaint list rows; `phone` is passed on so details work for another number's complaints too. */
 function ComplaintRows({ list, phone }: { list: ComplaintDetail[]; phone?: string }) {
   const c = useColors();
-  const { t, locale } = useI18n();
+  const { t, locale, span } = useI18n();
+  // "#PV010126… · 19 May · fixed in 3 h 22 min": the date, and how long UPPCL took (or has taken so far).
+  const line = (x: ComplaintDetail) => {
+    const d = parseUppclDate(x.entry_date), ms = openFor(x);
+    return [`#${x.complaint_no}`, d && d.toLocaleDateString(locale, { day: "numeric", month: "short" }),
+      ms !== null && t(x.is_open ? "cx_open_for" : "cx_fixed_in", { t: span(ms) })].filter(Boolean).join(" · ");
+  };
   return (
     <>
       {list.slice(0, 10).map((x, i) => (
@@ -154,9 +161,7 @@ function ComplaintRows({ list, phone }: { list: ComplaintDetail[]; phone?: strin
           style={({ pressed }) => [styles.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Txt v="body" weight="semibold" numberOfLines={1}>{x.sub_type || x.type || t("complaint_no", { no: x.complaint_no })}</Txt>
-            <Txt v="caption" color="muted" numeric numberOfLines={1}>
-              #{x.complaint_no}{x.entry_date && parseUppclDate(x.entry_date) ? ` · ${parseUppclDate(x.entry_date)!.toLocaleDateString(locale, { day: "numeric", month: "short" })}` : ""}
-            </Txt>
+            <Txt v="caption" color="muted" numeric numberOfLines={1}>{line(x)}</Txt>
           </View>
           <Pill label={x.is_open ? t("open") : t("closed")} tone={x.is_open ? "accent" : "ok"} />
           <Icon name="chevronRight" size={20} color={c.muted} />
