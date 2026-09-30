@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   ios:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 90
     env:
       TAG: ${{ github.event.inputs.tag }}
@@ -25,9 +25,10 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag }}
       - uses: oven-sh/setup-bun@v2
+      # expo-modules-jsi 57.1 needs Xcode 27 (SWIFT_RETURNS_RETAINED on C++ ctors); macos-15 tops out at 26.x
       - name: Use the newest Xcode on the runner
         run: |
-          x=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          ls -d /Applications/Xcode_*.app; x=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           sudo xcode-select -s "$x" && xcodebuild -version
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
