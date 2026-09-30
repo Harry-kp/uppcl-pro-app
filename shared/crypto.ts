@@ -10,7 +10,7 @@
  * Appsavy header encryption lives server-side in src/app/api/complaints/route.ts.
  */
 
-import { cbc } from "@noble/ciphers/aes.js";
+import { cbc, gcm } from "@noble/ciphers/aes.js";
 import { bytesToUtf8 } from "@noble/ciphers/utils.js";
 import { sha1 } from "@noble/hashes/legacy.js";
 import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
@@ -89,4 +89,27 @@ export async function wssDecrypt(cdata: string): Promise<string> {
   const iv = hexToBytes(cdata.slice(64, 96));
   const ct = Uint8Array.from(atob(cdata.slice(96)), (c) => c.charCodeAt(0));
   return bytesToUtf8(cbc(wssAesKey(salt), iv).decrypt(ct));
+}
+
+// ─── Vault: AES-256-GCM for the app's on-device key-value store ────────────────
+// The mobile app keeps ONE random key in the hardware keystore and everything else in a sealed file,
+// so a cold start costs one keystore decrypt instead of one per stored value (startup lag on old phones).
+
+/** A fresh 256-bit key, hex. */
+export function newVaultKey(): string {
+  return bytesToHex(randomBytes(32));
+}
+
+/** Encrypt a JSON-serialisable value → hex(nonce ‖ ciphertext+tag). */
+export function sealJson(keyHex: string, value: unknown): string {
+  const nonce = randomBytes(12);
+  const ct = gcm(hexToBytes(keyHex), nonce).encrypt(utf8ToBytes(JSON.stringify(value)));
+  return bytesToHex(nonce) + bytesToHex(ct);
+}
+
+/** Decrypt what sealJson produced. Throws if the key is wrong or the data was altered. */
+export function openJson<T>(keyHex: string, sealed: string): T {
+  const bytes = hexToBytes(sealed);
+  const pt = gcm(hexToBytes(keyHex), bytes.slice(0, 12)).decrypt(bytes.slice(12));
+  return JSON.parse(bytesToUtf8(pt)) as T;
 }

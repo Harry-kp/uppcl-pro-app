@@ -10,7 +10,7 @@ mock.module("expo-secure-store", () => ({
 }));
 
 import { payAmountError, ProxyError, type DashboardResponse, type PayBillHome } from "@shared/api";
-import { wssDecrypt, wssEncrypt } from "@shared/crypto";
+import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { derivePostpaid, derivePrepaid } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
@@ -147,5 +147,23 @@ describe("dev scenarios", () => {
     const home = (mockFor("wss:v2/InstaPayment/GetPayBillDetails", pay) as { PayBillHomeDTO: PayBillHome }).PayBillHomeDTO;
     expect(Number(home.payableAmt)).toBe(id === "post_due" || id === "post_overdue" ? 1922 : 0);
     expect((mockFor("wss:receipt:failed", pay) as { status: string }).status).toBe("failed");
+  });
+});
+
+describe("vault (sealed on-device store)", () => {
+  test("round-trips a JSON map", () => {
+    const k = newVaultKey();
+    const map = { uppcl_session: JSON.stringify({ jwt: "x".repeat(4000) }), app_lang: "hi" };
+    expect(openJson(k, sealJson(k, map))).toEqual(map);
+  });
+  test("rejects a wrong key", () => {
+    const sealed = sealJson(newVaultKey(), { a: "1" });
+    expect(() => openJson(newVaultKey(), sealed)).toThrow();
+  });
+  test("rejects tampered data", () => {
+    const k = newVaultKey();
+    const sealed = sealJson(k, { a: "1" });
+    const flipped = sealed.slice(0, -2) + (sealed.endsWith("00") ? "11" : "00");
+    expect(() => openJson(k, flipped)).toThrow();
   });
 });
