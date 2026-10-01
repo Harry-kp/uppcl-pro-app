@@ -57,7 +57,6 @@ never log, store or send credentials/tokens/account data anywhere but UPPCL and 
 - Public UPPCL constants (API key, bill-portal appServiceKey, Appsavy key) are not secrets but are kept
   as-is/assembled from fragments so secret scanners don't flag them. Don't copy them into new files.
 - Never commit real account numbers, phone numbers, names, addresses, JWTs, keystores or screenshots of a real account.
-  Exception: `docs/screenshots/ios/` (real account, name/account/substation/complaint numbers blurred and OCR-checked).
 - Session data lives in one AES-GCM file (`vault-v1.bin`) whose key is in the OS keystore (`src/boot.ts`).
   Don't add SecureStore reads on the startup path: each one is a slow hardware decrypt on old phones.
 - A corp gitleaks hook blocks commits that re-add `shared/api.ts`'s public constants (e.g. moving the file).
