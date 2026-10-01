@@ -155,13 +155,11 @@ Settings → About → Report a problem.
 
 <div align="center">
 
-<sub>
+**Unofficial.** Bijli Saathi is an independent, open-source app.<br>
+It is not made by or connected to UPPCL, its discoms or Jio, and works with UPPCL SMART (smart meter) accounts only.
 
-**Unofficial.** Bijli Saathi is an independent open-source app. It is not made by or connected to UPPCL, its
-discoms (PVVNL, MVVNL, DVVNL, PuVVNL, KESCo) or Jio, and works with UPPCL SMART (smart meter) accounts only.
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [How UPPCL's APIs work](docs/api-reverse-engineering.md) · [MIT License](LICENSE)
 
-[Contributing and building from source](CONTRIBUTING.md) · [Security](SECURITY.md) · [How UPPCL's APIs work](docs/api-reverse-engineering.md) · [MIT License](LICENSE) © 2026 Harshit Chaudhary
-
-</sub>
+© 2026 Harshit Chaudhary
 
 </div>
