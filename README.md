@@ -17,10 +17,10 @@ Free · no ads · no tracking · open source · हिन्दी + English
 
 <br>
 
-<img src="docs/screenshots/01-bill-answered-first.png" width="24%" alt="Postpaid home: amount due and a Pay button">
-<img src="docs/screenshots/02-prepaid-days-left.png" width="24%" alt="Prepaid home: days of balance left">
-<img src="docs/screenshots/03-pay-in-one-tap.png" width="24%" alt="Paying a bill in the app">
-<img src="docs/screenshots/04-usage-verdict.png" width="24%" alt="Usage: is this normal?">
+<img src="docs/screenshots/01-home-bill-first.png" width="24%" alt="Home: amount due, due date and a Pay button">
+<img src="docs/screenshots/02-no-power-two-taps.png" width="24%" alt="No power? Report it in two taps">
+<img src="docs/screenshots/03-complaint-filed.png" width="24%" alt="Complaint filed with UPPCL 1912">
+<img src="docs/screenshots/04-usage.png" width="24%" alt="Usage: is this normal?">
 
 </div>
 
@@ -88,11 +88,11 @@ home-screen widget · long-press shortcuts (report no power, latest bill, pay) �
 update check · errors that say **whose side failed** (UPPCL SMART, the bill portal, the 1912 portal, or the app).
 
 <div align="center">
-<img src="docs/screenshots/05-bills-and-payments.png" width="24%" alt="Bills and payments with PDFs">
-<img src="docs/screenshots/06-no-power-complaint.png" width="24%" alt="One-tap no-power complaint">
+<img src="docs/screenshots/05-bills-saved-on-time.png" width="24%" alt="Bills and payments, with what paying on time saved">
+<img src="docs/screenshots/06-pay-bill.png" width="24%" alt="Paying a bill in the app">
 <img src="docs/screenshots/07-dark-mode.png" width="24%" alt="Dark mode">
 <img src="docs/screenshots/08-hindi.png" width="24%" alt="Hindi">
-<br><sub>Screenshots use invented test data, never a real account.</sub>
+<br><sub>Screenshots use the app's built-in sample data ("Try with sample data"), never a real account.</sub>
 </div>
 
 ## Get it

@@ -61,6 +61,7 @@ with UPPCL, and links to https://www.uppcl.org.
 2. Push tag `vX.Y.Z` (the release workflow builds the APK for GitHub and the AAB for Play).
 3. Download the AAB artifact and upload it to the Play track (internal → closed → production).
 
-## Store assets still to make
-- 512×512 icon (from `assets/` app icon) and a 1024×500 feature graphic.
-- Phone screenshots: take them in demo mode (light, dark, Hindi), 2–8 per language.
+## Store assets (done)
+- `fastlane/metadata/android/*/images/`: 512×512 `icon.png`, 1024×500 `featureGraphic.png`, phone screenshots
+  (English: 7, Hindi: 6), all from demo mode. To redo them: sign out, "Try with sample data", screenshot, and
+  crop off the system navigation bar (README gallery: `docs/screenshots/`).

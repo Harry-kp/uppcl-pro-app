@@ -115,7 +115,8 @@ function data(id: Exclude<ScenarioId, "portal_down" | "offline">) {
     const amt = k === 0 ? 1922 : k === 3 ? -412 : 1600 + k * 110;
     const paid = k > 0 || latestPaid;
     return { invoice_id: `INV${k}`, bill_from_dt: iso(d - 30 * DAY), bill_amt: String(amt), due_dt: iso(k === 0 ? dueDt : d + 14 * DAY),
-      bill_dt: iso(d), payment_dt: paid && amt > 0 ? iso(d + 9 * DAY) : "", payment_amt: paid && amt > 0 ? String(amt) : "" };
+      bill_dt: iso(d), payment_dt: paid && amt > 0 ? iso(d + 9 * DAY) : "",
+      payment_amt: paid && amt > 0 ? String(Math.round(amt * 0.988)) : "" }; // paid before the due date: UPPCL's ~1% rebate
   });
   const outstanding = prepaid || latestPaid ? "0" : "1922";
 
@@ -162,6 +163,7 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
   }
   const d = data(active === "portal_down" ? "post_due" : active);
   // Complaint filing (shared/complaints.ts): a ready draft, and a pretend complaint number. Never 1912.
+  if (key === "site") return d.site; // payments and PDFs look the account up first: never UPPCL in sample mode
   if (key === "complaints:prepare") return { problem: "no_power", outage: "Individual", account: d.site.connectionId, district: { id: "0", name: "Sample district" },
     name: "Asha Verma", mobile: "9000000001", substation: "Test Nagar", subdivision: "Test sub-division", divisions: [], substations: [], blocked: null, controls: {} };
   if (key === "complaints:districts") return [{ id: "0", name: "Sample district" }];

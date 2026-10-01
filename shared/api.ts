@@ -384,6 +384,8 @@ async function sites(): Promise<unknown> {
 }
 
 export async function primarySite(): Promise<SiteRecord> {
+  const sample = platform.mock?.("site") as SiteRecord | undefined; // data seam: sample data (src/demo.ts)
+  if (sample) return sample;
   const cached = getSite();
   if (cached) return cached;
   const resp = (await sites()) as { data: SiteRecord[] };

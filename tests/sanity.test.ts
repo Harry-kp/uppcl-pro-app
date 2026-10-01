@@ -378,6 +378,8 @@ describe("demo mode never reaches UPPCL", () => {
     expect(draft.substation).toBeTruthy();
     expect((await fileSupplyComplaint(draft, "No power")).complaintNo).toBe("SAMPLE-0001");
     expect((await listDistricts()).length).toBeGreaterThan(0);
+    const { primarySite } = await import("@shared/api");
+    expect((await primarySite()).connectionId).toBeTruthy(); // payments / PDFs start here
     expect(calls).toEqual([]); // nothing went to the network
     setScenario(null);
     configurePlatform({ mock: undefined });
