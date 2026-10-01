@@ -119,13 +119,13 @@ export function Button({
       disabled={disabled || busy}
       style={({ pressed }) => [styles.button, { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }]}
     >
-      {busy ? <ActivityIndicator color={fg} /> : (
-        // A trailing icon says where the tap goes (e.g. "opens UPPCL's site").
-        <View style={styles.buttonRow}>
-          <Txt v="heading" style={{ color: fg, textAlign: "center", flexShrink: 1 }}>{label}</Txt>
-          {icon && <Icon name={icon} size={18} color={fg} />}
-        </View>
-      )}
+      {/* Busy keeps its words beside the spinner ("Signing in…"): a bare spinner doesn't say what's happening.
+          A trailing icon says where the tap goes (e.g. "opens UPPCL's site"). */}
+      <View style={styles.buttonRow}>
+        {busy && <ActivityIndicator color={fg} />}
+        <Txt v="heading" style={{ color: fg, textAlign: "center", flexShrink: 1 }}>{label}</Txt>
+        {icon && !busy && <Icon name={icon} size={18} color={fg} />}
+      </View>
     </Pressable>
   );
 }

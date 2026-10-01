@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, StatusBar } from "react-native";
 import { UPPCL_SMART_URL } from "../src/boot";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { mutate } from "swr";
@@ -37,6 +37,7 @@ export default function Login() {
   const [expired] = useState(sessionWasExpired); // UPPCL rejected the saved session (MISS-047)
   const pwRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, StatusBar.currentHeight ?? 0); // insets.top can be 0 right after sign-out
   const badCreds = fail?.kind === "creds"; // only this paints the fields red: no connection ≠ wrong password
 
   async function submit() {
@@ -67,7 +68,7 @@ export default function Login() {
       <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Welcome: the one place the brand speaks. */}
-          <View style={[styles.welcome, { paddingTop: insets.top + 12 }]}>
+          <View style={[styles.welcome, { paddingTop: topInset + 12 }]}>
             <Glow />
             <View style={styles.topBar}>
               <View style={styles.brand}>
@@ -128,20 +129,18 @@ export default function Login() {
             </View>
           </Card>
 
-          {/* First-time users often have no UPPCL SMART login yet: say what it is, what to keep ready, and where to get one. */}
-          <Card style={{ gap: 12 }}>
-            <View style={{ gap: 4 }}>
-              <Txt v="heading">{t("no_account_title")}</Txt>
-              <Txt v="label" color="muted">{t("no_account_body")}</Txt>
-            </View>
-            <Need icon="call" text={t("no_account_need_mobile")} />
-            <Need icon="receiptLong" text={t("no_account_need_account")} />
-            <Button label={t("no_account_cta")} kind="soft" icon="openInNew" onPress={() => openLink(`${UPPCL_SMART_URL}signup`)} />
-          </Card>
+          {/* One line for first-time users (no UPPCL SMART login yet) instead of a card: the screen's job is signing in. */}
+          <Pressable accessibilityRole="link" onPress={() => openLink(`${UPPCL_SMART_URL}signup`)} style={styles.newHere}>
+            <Txt v="label" color="muted">{t("new_here")} </Txt>
+            <Txt v="label" color="primary" weight="semibold">{t("new_here_cta")}</Txt>
+          </Pressable>
 
           <Txt v="caption" color="muted" style={styles.footer}>{t("unofficial_short")}</Txt>
         </ScrollView>
       </SafeAreaView>
+      {/* When the keyboard scrolls the form up, the header would slide under the transparent status bar and
+          collide with the clock (seen on the Redmi). A solid strip keeps that area clear. */}
+      <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, height: topInset, backgroundColor: c.bg }} />
     </KeyboardAvoidingView>
   );
 }
@@ -171,17 +170,6 @@ function Field({ label, link, url, active, invalid, children }: {
   );
 }
 
-/** One thing to keep ready before signing up. */
-function Need({ icon, text }: { icon: IconName; text: string }) {
-  const c = useColors();
-  return (
-    <View style={styles.need}>
-      <View style={[styles.needIcon, { backgroundColor: c.pill }]}><Icon name={icon} size={18} color={c.pillText} /></View>
-      <Txt v="body" style={{ flex: 1 }}>{text}</Txt>
-    </View>
-  );
-}
-
 /** हि | EN: both choices always visible, the current one raised. Each label is drawn in its own script's face. */
 function LangToggle() {
   const c = useColors();
@@ -206,6 +194,7 @@ function LangToggle() {
 }
 
 const styles = StyleSheet.create({
+  newHere: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", minHeight: 48, alignItems: "center" },
   scroll: { flexGrow: 1, padding: 16, gap: 16 },
   // Bleeds past the screen gutter so the glow reads as light, not as a box.
   welcome: { marginHorizontal: -16, marginTop: -16, paddingBottom: 8, paddingHorizontal: 20 },
@@ -221,7 +210,5 @@ const styles = StyleSheet.create({
   eye: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   errRow: { flexDirection: "row", gap: 8, alignItems: "flex-start", marginTop: -4 },
   privacy: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  need: { flexDirection: "row", alignItems: "center", gap: 12 },
-  needIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   footer: { marginTop: "auto", paddingTop: 8, textAlign: "center" },
 });

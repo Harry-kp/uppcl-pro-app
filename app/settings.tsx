@@ -95,8 +95,9 @@ export default function Settings() {
     clearPersistentCache(); // and the copy kept for instant open
     clearSnapshot(); // widget shows "Open UPPCL Pro to set up"
     keystore.removeItem(NAME_KEY); // the next person to sign in isn't greeted with this name
+    // The sign-in gate (_layout) swaps to the sign-in screen when /health flips. Navigating by hand as well
+    // raced it: router.replace("/") could land on Home with no session ("Please sign in again" + Try again).
     await mutate("/health");
-    router.replace("/");
   }
 
   const budget = getBudget();
