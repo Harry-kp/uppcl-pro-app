@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Linking, Pressable, StyleSheet, View, Platform, ToastAndroid } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { router, useFocusEffect } from "expo-router";
 import {
   downloadBillPdf, mutate as mutateAll, useBills, useDashboard, useMe, useDowntime, useLatestInvoice, useOutstanding, usePayments,
@@ -13,7 +12,7 @@ import { derivePostpaid, derivePrepaid, schemeFromAddress, TARGET_RUNWAY_DAYS } 
 import { billingPeriod, kwh, parseUppclDate, rupees, toNum } from "@shared/utils";
 import { Bars } from "../../src/Bars";
 import { saveSnapshot } from "../../src/widget";
-import { openFor } from "@shared/complaints";
+import { HELPLINE_TEL, openFor } from "@shared/complaints";
 import { getBudget } from "../../src/alerts";
 import { keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
 import { UpdateCard } from "../../src/github";

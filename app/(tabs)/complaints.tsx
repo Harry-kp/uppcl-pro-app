@@ -3,8 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMe, useMyComplaints, useTenantPreferences, useTickets, useWssConsumer, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { openFor } from "@shared/complaints";
-import { HELPLINE_TEL } from "@shared/outage";
+import { HELPLINE_TEL, openFor } from "@shared/complaints";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";

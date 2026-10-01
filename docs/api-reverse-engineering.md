@@ -641,7 +641,7 @@ the logged-in, OTP-gated service-request flow), so it doesn't fit outages.
 ### 11.4 SMS keywords (verified, 1912 login page `popUpSmsCode`)
 
 `NOPOWER <ACCOUNTID>` (no supply), `MTR <ACCOUNTID>` (defective meter) and `SOS <phone>` (emergency). The page gives
-no shortcode; the app sends `NO POWER <account> <DISCOM>` to 5616195 (`shared/outage.ts`). Whether both spellings
+no shortcode; the app sends `NO POWER <account> <DISCOM>` to 5616195 (`shared/complaints.ts`). Whether both spellings
 parse is unverified.
 
 ### 11.5 Recommendation
