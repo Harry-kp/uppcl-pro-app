@@ -440,3 +440,47 @@ Payments: `InstaPayment/{updateConsumerInputAmount, processPaymentRequest, proce
 > that total × 0.8. Use 0.8 (not the CEA 0.71) so our numbers match UPPCL's app and bill.
 </content>
 </invoke>
+
+## 10. October 2026 audit (live, read-only, signed in)
+
+What changed, what's newly used, and what to avoid. Verified on a real postpaid PVVNL account (meter data
+source `jeu`) while UPPCL's billing backend was down.
+
+**Outage pattern.** When UPPCL's billing backend (CCB) is down, everything billing fails together and
+everything else keeps working:
+- bill portal: every call → HTTP 400 `CCB_ISE_SE_503` (a made-up account gets the same; it isn't our request)
+- UPPCL SMART `bill/billHistory` → 409 "Unable to fetch bill history." (official site's exact body too)
+- UPPCL SMART `site/outstandingBalance` → 409, with `?fetchCache=true|false` too
+- still fine: dashboard, `eventsummary/*`, `bill/search`, `payment/v2/search`, `site/prepaidBalance`
+`bun scripts/check-upstreams.ts <account>` tells the two apart in seconds.
+
+**1912 complaint portal moved.** `appsavy.com/coreapps/…` stopped accepting connections; the same Appsavy
+backend answers at `https://1912.uppcl.org/…` with no `/coreapps` prefix: `UI/Anonymous?PROJECTID=119&FORMID=4235`
+→ `UI/Form?FormId=4235` (session cookies) → `POST api/AppsavyServices/GetRelationalDataA`. The app calls it
+directly (`shared/complaints.ts`); the native cookie jar keeps the session. Officer fields are messy:
+`JE_NAME` can be a line name ("11 KV LT 9000000021"), phones are `00`-padded, names carry "SHRI" and cut
+brackets — cleaned at parse time (`mobile10`, `personName`).
+
+**Newly used**
+- `POST payment/v2/download` `{consumer_id, paymentId: <payment _id>, language, tenantId}` → a receipt PDF
+  (binary, `%PDF`) for *any* payment. Replaces the bill portal's latest-receipt-only call.
+- `POST eventsummary/v2/search?skip=0&limit=1000` → one day in 15-minute rows (96/day). Body depends on
+  `site.dataSource`: `jeu` = `{deviceId, groupBy:"day", uom:"kWh", date, fromDate, toDate (IST ISO), consumerId,
+  periodicity:"IN"}`; `hes` = `{…date, from: day-start − 1 s, to}`. Plain `{deviceId, groupBy, date}` → 409.
+  No `voltage` on `jeu` meters (UPPCL SMART draws a voltage chart only where rows carry it; ideal 210–240 V).
+- `eventsummary/aggregate` daily rows carry `power` (the day's peak, kW): the peak-vs-sanctioned-load gauge.
+- site record (`site/search`): `meterPhase` ("1-PH-SMTMTR"), `meterInstallationDate`, `email`,
+  `isPaperlessBillEnabled`, `dataSource`. `connectionDate` equals the smart-meter install date — not "connected since".
+
+**Avoid**
+- `connectionbudget/search` returns the account's **password hash and old password hashes** (`user[].password`,
+  `oldPasswords[]`). Never fetch or cache it (the app's SWR cache is a plain JSON file).
+- `eventsummary/consumptionAggregation` always answers `[]` — use the daily `power` instead.
+- `ticket/create` is UPPCL SMART's help-desk ticket, not a 1912 power complaint; `ticket/ticket-category` is empty
+  for PVVNL. Power complaints go by SMS (`NO POWER <account> <discom>` to 5616195), 1912, or the discom's WhatsApp.
+- `tenant/searchPreference` for the super-tenant (to find SMART's "register complaint" `launchLink`) → 409
+  outside UPPCL's own app; the discom-level answer has only on/off flags plus `discomDetails` (helpline, email, WhatsApp).
+
+**Still unexplored:** `eventsummary/consumptionHistory` `{consumerId, TxID}` (meter readings incl. billed kW/kWh;
+likely billing-backed), `ticket/complaint-search` `{complaintNo, tenantCode}` (1912 status via UPPCL SMART — a
+backup if the 1912 portal goes down again), `bill/download` (bill PDF via SMART; needs an invoice from billHistory).
