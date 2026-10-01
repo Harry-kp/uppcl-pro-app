@@ -115,8 +115,9 @@ jobs:
           gh release upload "$TAG" "bijli-saathi-$TAG.apk" "bijli-saathi-$TAG.apk.sha256" --clobber
 
       # Play Store bundle: the same app built with EXPO_PUBLIC_STORE=play (no GitHub update check; Play forbids
-      # self-updating). Written to .env so the JS bundle task's inputs change and Gradle rebuilds the bundle
-      # instead of reusing the APK's. Signed with the same key (use it as Play's app signing key: GitHub APK
+      # self-updating). Neither cache knows about EXPO_PUBLIC_* values: Metro's transform cache and Gradle's
+      # up-to-date check would both hand back the APK's JS (with the update check). So: clear Metro's cache and
+      # force-rerun the JS bundling task. Signed with the same key (use it as Play's app signing key: GitHub APK
       # installs can then update from Play). Kept as a workflow artifact, not a release download.
       - name: bundleRelease (Play)
         working-directory: android
@@ -128,7 +129,8 @@ jobs:
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |
           echo "EXPO_PUBLIC_STORE=play" > ../.env
-          ./gradlew bundleRelease --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Porg.gradle.jvmargs=-Xmx4g
+          rm -rf /tmp/metro-* "${TMPDIR:-/tmp}"/metro-* ../node_modules/.cache
+          ./gradlew :app:createBundleReleaseJsAndAssets --rerun bundleRelease --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Porg.gradle.jvmargs=-Xmx4g
           rm ../.env
 
       - name: Verify the Play bundle has no GitHub update check (and the APK does)
