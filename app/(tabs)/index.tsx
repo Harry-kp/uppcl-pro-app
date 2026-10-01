@@ -42,7 +42,7 @@ export default function Home() {
     <Screen>
       {/* Nothing loaded yet, but Settings (language, sign out) must stay reachable. */}
       <View style={styles.greeting}>
-        <Txt v="title" style={{ flex: 1 }}>UPPCL Pro</Txt>
+        <Txt v="title" style={{ flex: 1 }}>Bijli Saathi</Txt>
         <GearButton />
       </View>
       <ErrorNote error={error} onRetry={() => mutate()} />

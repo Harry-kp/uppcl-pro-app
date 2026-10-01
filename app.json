@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "UPPCL Pro",
+    "name": "Bijli Saathi",
     "slug": "uppcl-pro",
     "scheme": "uppclpro",
     "version": "0.1.0",
@@ -35,7 +35,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Unlock UPPCL Pro with Face ID."
+          "faceIDPermission": "Unlock Bijli Saathi with Face ID."
         }
       ],
       [
@@ -71,7 +71,7 @@
           "widgets": [
             {
               "name": "Meter",
-              "label": "UPPCL Pro",
+              "label": "Bijli Saathi",
               "description": "Days of balance left, or your bill due",
               "minWidth": "110dp",
               "minHeight": "110dp",

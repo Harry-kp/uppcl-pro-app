@@ -78,7 +78,7 @@ export function reportProblem(details: string[] = []) {
   const device = Platform.OS === "android" ? `${(Platform.constants as { Model?: string }).Model ?? "Android"} · Android API ${Platform.Version}` : `${Platform.OS} ${Platform.Version}`;
   const body = [
     "**What happened?**", "", "", "**What did you expect?**", "", "",
-    "**Details** (from the app)", "```", ...details, `UPPCL Pro ${APP_VERSION}`, device, "```", "",
+    "**Details** (from the app)", "```", ...details, `Bijli Saathi ${APP_VERSION}`, device, "```", "",
     "_Please remove anything personal (account number, phone, address) before submitting — issues are public._",
   ].join("\n");
   const title = details.length ? `Error: ${details.find((l) => /said|Error/.test(l)) ?? details[0]}`.slice(0, 120) : "";

@@ -28,7 +28,7 @@ o = XCUITestOptions()
 o.set_capability("app", up["app_url"])
 o.set_capability("bstack:options", {
     "userName": user, "accessKey": key, "deviceName": device, "osVersion": os.environ.get("IOS_VERSION", "17"),
-    "projectName": "UPPCL Pro", "buildName": "ios-smoke", "sessionName": "sample" if sample else "real account",
+    "projectName": "Bijli Saathi", "buildName": "ios-smoke", "sessionName": "sample" if sample else "real account",
     "video": False, "networkLogs": False, "appiumLogs": False, "deviceLogs": True,
     "maskCommands": "setValues, getValues, setCookies, getCookies",
 })

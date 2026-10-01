@@ -1,8 +1,8 @@
-# Privacy policy: Meter Pro for UP Bijli (UPPCL Pro)
+# Privacy policy: Bijli Saathi for UPPCL
 
 _Last updated: 1 October 2026_
 
-Meter Pro is an unofficial, open-source app for UPPCL smart-meter customers. It is not made by, or affiliated
+Bijli Saathi is an unofficial, open-source app for UPPCL smart-meter customers. It is not made by, or affiliated
 with, UPPCL or any discom. There is no server of ours: the app on your phone talks directly to UPPCL.
 
 ## What the app handles, and where it goes

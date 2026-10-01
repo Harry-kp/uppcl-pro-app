@@ -1,8 +1,8 @@
 name: iOS build (optional)
 # Manual only: Actions → "iOS build (optional)" → Run workflow → tag (e.g. v0.1.0).
 # There is no Apple Developer account yet, so nothing here is signed:
-#   - uppcl-pro-<tag>-simulator.zip  → unzip, drag UPPCLPro.app onto a running iOS Simulator (Xcode)
-#   - uppcl-pro-<tag>-unsigned.ipa   → re-sign + install with Sideloadly/AltStore using a free Apple ID
+#   - bijli-saathi-<tag>-simulator.zip  → unzip, drag BijliSaathi.app onto a running iOS Simulator (Xcode)
+#   - bijli-saathi-<tag>-unsigned.ipa   → re-sign + install with Sideloadly/AltStore using a free Apple ID
 # Both are attached to the existing GitHub Release for that tag (the Android APK is untouched).
 on:
   workflow_dispatch:
@@ -52,7 +52,7 @@ jobs:
             || { grep -nE "error:|failed|Error" sim.log | tail -60; tail -80 sim.log; exit 1; }
           app=$(find build/sim/Build/Products -maxdepth 2 -name '*.app' | head -1)
           [ -n "$app" ] || { echo "no .app produced"; exit 1; }
-          (cd "$(dirname "$app")" && zip -qry "$GITHUB_WORKSPACE/uppcl-pro-$TAG-simulator.zip" "$(basename "$app")")
+          (cd "$(dirname "$app")" && zip -qry "$GITHUB_WORKSPACE/bijli-saathi-$TAG-simulator.zip" "$(basename "$app")")
 
       - name: Build unsigned device IPA
         run: |
@@ -64,7 +64,7 @@ jobs:
           app=$(find build/device/Build/Products -maxdepth 2 -name '*.app' | head -1)
           [ -n "$app" ] || { echo "no .app produced"; exit 1; }
           mkdir -p Payload && cp -R "$app" Payload/
-          zip -qry "uppcl-pro-$TAG-unsigned.ipa" Payload
+          zip -qry "bijli-saathi-$TAG-unsigned.ipa" Payload
 
       - name: Keep full build logs
         if: always()
@@ -79,4 +79,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || { echo "Release $TAG not found — run the Android release first"; exit 1; }
-          gh release upload "$TAG" "uppcl-pro-$TAG-simulator.zip" "uppcl-pro-$TAG-unsigned.ipa" --clobber
+          gh release upload "$TAG" "bijli-saathi-$TAG-simulator.zip" "bijli-saathi-$TAG-unsigned.ipa" --clobber

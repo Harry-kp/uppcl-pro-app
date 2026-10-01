@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="docs/icon.png" width="88" alt="UPPCL Pro">
+<img src="docs/icon.png" width="88" alt="Bijli Saathi">
 
-# Your electricity, made simple.
+# Bijli Saathi
 
-### बिजली की हर बात, आसान
+### Your electricity, made simple. · बिजली की हर बात, आसान
 
-The app for UPPCL smart meters. Your bill, your usage and your power cuts,<br>
+The companion app for UPPCL smart meters. Your bill, your usage and your power cuts,<br>
 answered on the first screen.
 
 <br>
@@ -123,7 +123,7 @@ Every official APK is signed with this key (SHA-256 certificate fingerprint):
 42:5E:6D:CC:C8:67:2D:27:CD:F7:28:F7:BE:24:86:60:AD:D6:17:CC:39:5E:F8:59:C9:13:95:D7:FF:22:C5:CC
 ```
 
-Check a download with `apksigner verify --print-certs uppcl-pro-vX.Y.Z.apk`. Android refuses to update
+Check a download with `apksigner verify --print-certs bijli-saathi-vX.Y.Z.apk`. Android refuses to update
 this app with one signed by a different key.
 </details>
 
@@ -157,7 +157,7 @@ Settings → About → Report a problem.
 
 <sub>
 
-**Unofficial.** UPPCL Pro is an independent open-source app. It is not made by or connected to UPPCL, its
+**Unofficial.** Bijli Saathi is an independent open-source app. It is not made by or connected to UPPCL, its
 discoms (PVVNL, MVVNL, DVVNL, PuVVNL, KESCo) or Jio, and works with UPPCL SMART (smart meter) accounts only.
 
 [Contributing and building from source](CONTRIBUTING.md) · [Security](SECURITY.md) · [How UPPCL's APIs work](docs/api-reverse-engineering.md) · [MIT License](LICENSE) © 2026 Harshit Chaudhary

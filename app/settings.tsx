@@ -95,7 +95,7 @@ export default function Settings() {
     await disableAlerts();
     await logout();
     clearPersistentCache(); // every cached response, on screen and on disk
-    clearSnapshot(); // widget shows "Open UPPCL Pro to set up"
+    clearSnapshot(); // widget shows "Open Bijli Saathi to set up"
     keystore.removeItem(NAME_KEY); // the next person to sign in isn't greeted with this name
     // The sign-in gate (_layout) swaps to the sign-in screen when /health flips. Navigating by hand as well
     // raced it: router.replace("/") could land on Home with no session ("Please sign in again" + Try again).

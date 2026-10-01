@@ -1,4 +1,4 @@
-Your UP electricity, made simple. Meter Pro shows what your UPPCL smart meter knows, in plain numbers.
+Your UP electricity, made simple. Bijli Saathi shows what your UPPCL smart meter knows, in plain numbers.
 
 • Your bill, first: what's due, by when, and what you save by paying on time. Pay in the app through UPPCL's own payment page.
 • Prepaid? See your balance and roughly how many days it will last.
@@ -10,6 +10,6 @@ Your UP electricity, made simple. Meter Pro shows what your UPPCL smart meter kn
 
 Private by design: there is no server of ours. The app talks directly to UPPCL from your phone. No ads, no analytics, nothing sent to us. Signing out deletes everything the app stored.
 
-Meter Pro is unofficial and open source. It is not made by or affiliated with UPPCL or any discom. For official services visit https://www.uppcl.org. It works with UPPCL SMART (smart meter) accounts.
+Bijli Saathi is unofficial and open source. It is not made by or affiliated with UPPCL or any discom. For official services visit https://www.uppcl.org. It works with UPPCL SMART (smart meter) accounts.
 
 Source code: https://github.com/Harry-kp/uppcl-pro-app

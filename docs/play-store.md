@@ -3,7 +3,7 @@
 Everything the app and repo need is done. What's left needs the maintainer's Google account.
 
 ## Already in the repo
-- **Play build**: every `vX.Y.Z` tag's release workflow also builds `uppcl-pro-vX.Y.Z.aab` with
+- **Play build**: every `vX.Y.Z` tag's release workflow also builds `bijli-saathi-vX.Y.Z.aab` with
   `EXPO_PUBLIC_STORE=play` (no GitHub update check; Play forbids self-updating) and checks it.
   Download it from the workflow run's artifacts (kept 90 days).
 - **Demo mode** for reviewers: "Try with sample data" on the sign-in screen (invented data; nothing is

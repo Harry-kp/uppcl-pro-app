@@ -77,7 +77,7 @@ function Body({ snap, c }: { snap: WidgetSnapshot | null; c: Palette }) {
         backgroundGradient: { from: c.glow, to: c.bg, orientation: "TR_BL" },
       }}
     >
-      <TextWidget text={snap ? snap.label : "UPPCL Pro"} style={{ fontSize: 13, fontFamily: regular, color: c.muted }} maxLines={1} truncate="END" />
+      <TextWidget text={snap ? snap.label : "Bijli Saathi"} style={{ fontSize: 13, fontFamily: regular, color: c.muted }} maxLines={1} truncate="END" />
       {snap ? (
         <FlexWidget style={{ flexDirection: "row", alignItems: "flex-end" }}>
           <TextWidget text={snap.big} style={{ fontSize: 40, fontFamily: "AnekLatin_800ExtraBold", color: snap.tone === "critical" ? c.critical : c.big, adjustsFontSizeToFit: true }} maxLines={1} />

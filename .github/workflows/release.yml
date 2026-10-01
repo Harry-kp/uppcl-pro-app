@@ -99,7 +99,7 @@ jobs:
           bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$bt/apksigner" verify --print-certs "$apk" | tee certs.txt
           if grep -qi "CN=Android Debug" certs.txt; then echo "signed with the debug key"; exit 1; fi
-          out="uppcl-pro-$TAG.apk"
+          out="bijli-saathi-$TAG.apk"
           cp "$apk" "$out"
           sha256sum "$out" > "$out.sha256"
           cat "$out.sha256"
@@ -108,11 +108,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="Android APK: download \`uppcl-pro-$TAG.apk\`, allow installs from your browser/Files app, install. SHA-256 in \`uppcl-pro-$TAG.apk.sha256\`.
+          notes="Android APK: download \`bijli-saathi-$TAG.apk\`, allow installs from your browser/Files app, install. SHA-256 in \`bijli-saathi-$TAG.apk.sha256\`.
 
           This APK may be rebuilt and replaced under the same version while it stabilises. The in-app update check only offers a *newer version number*, so a rebuilt APK of the same version is not offered automatically: reinstall it from here."
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "UPPCL Pro $TAG" --notes "$notes" --generate-notes --verify-tag
-          gh release upload "$TAG" "uppcl-pro-$TAG.apk" "uppcl-pro-$TAG.apk.sha256" --clobber
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Bijli Saathi $TAG" --notes "$notes" --generate-notes --verify-tag
+          gh release upload "$TAG" "bijli-saathi-$TAG.apk" "bijli-saathi-$TAG.apk.sha256" --clobber
 
       # Play Store bundle: the same app built with EXPO_PUBLIC_STORE=play (no GitHub update check; Play forbids
       # self-updating). Written to .env so the JS bundle task's inputs change and Gradle rebuilds the bundle
@@ -137,10 +137,10 @@ jobs:
           apk=android/app/build/outputs/apk/release/app-release.apk
           unzip -p "$aab" base/assets/index.android.bundle | strings | grep -q "api.github.com/repos" && { echo "AAB still checks GitHub for updates"; exit 1; }
           unzip -p "$apk" assets/index.android.bundle | strings | grep -q "api.github.com/repos" || { echo "APK lost its update check"; exit 1; }
-          cp "$aab" "uppcl-pro-$TAG.aab"
+          cp "$aab" "bijli-saathi-$TAG.aab"
 
       - uses: actions/upload-artifact@v4
         with:
           name: play-bundle-${{ env.TAG }}
-          path: uppcl-pro-${{ env.TAG }}.aab
+          path: bijli-saathi-${{ env.TAG }}.aab
           retention-days: 90

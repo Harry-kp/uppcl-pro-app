@@ -1,5 +1,5 @@
 /**
- * Pay bill: a bottom sheet over Home (design: "UPPCL Pro Recharge" mockup, postpaid sheet) —
+ * Pay bill: a bottom sheet over Home (design: "Bijli Saathi Recharge" mockup, postpaid sheet) —
  * bill + due date, the amount due, one Pay button, "Pay a different amount" folded away.
  * Pay the electricity bill inside the app, using UPPCL's own payment flow (BillDesk):
  * bill details → amount → signed BillDesk form, posted in a WebView → UPPCL's result page

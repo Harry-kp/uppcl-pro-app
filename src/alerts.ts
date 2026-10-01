@@ -49,7 +49,7 @@ export function alertsEnabled(): boolean {
 
 async function ensureChannel() {
   await Notifications.setNotificationChannelAsync(CHANNEL, {
-    name: "UPPCL Pro alerts", importance: Notifications.AndroidImportance.DEFAULT, lightColor: "#3B47A8",
+    name: "Bijli Saathi alerts", importance: Notifications.AndroidImportance.DEFAULT, lightColor: "#3B47A8",
   });
 }
 
