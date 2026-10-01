@@ -53,6 +53,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const [draft, setDraft] = useState<SupplyDraft | null>(null);
   const [prepError, setPrepError] = useState<unknown>(null);
   const [note, setNote] = useState("");
+  const [extra, setExtra] = useState(""); // quick view: optional words added to the automatic note
   const [busy, setBusy] = useState(false);
   const [filed, setFiled] = useState<Filed | null>(null);
   const [fileError, setFileError] = useState<unknown>(null);
@@ -87,7 +88,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
     try { setDraft(await chooseSubstation(draft, id)); } catch (e) { setPrepError(e); } finally { setBusy(false); }
   }
 
-  const close = () => { setView("quick"); setProblem("no_power"); setFiled(null); setFileError(null); setOutage("Individual"); onClose(); };
+  const close = () => { setExtra(""); setView("quick"); setProblem("no_power"); setFiled(null); setFileError(null); setOutage("Individual"); onClose(); };
   const call = () => { void Linking.openURL(`tel:${HELPLINE_TEL}`); close(); };
   const sms = () => { void Linking.openURL(noPowerSmsUrl(data.site, Platform.OS === "ios")); close(); };
   const whatsapp = () => {
@@ -146,8 +147,15 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
         )}
         {!failed && (
           <>
+            {/* Optional and already open: typing is never an extra step, skipping it costs nothing. */}
+            <TextInput value={extra} onChangeText={(x) => setExtra(x.slice(0, 150))} multiline
+              placeholder={t("rp_extra_ph")} placeholderTextColor={c.muted} accessibilityLabel={t("rp_extra_ph")}
+              style={[styles.input, { color: c.text, backgroundColor: c.bg, borderColor: c.line, fontFamily: familyFor("medium", lang === "hi") }]} />
             <Button label={busy ? t("rp_filing") : !draft ? t("rp_getting_ready") : t("rp_quick")} icon="bolt" busy={busy || (!draft && !prepError)}
-              onPress={() => (needsSubstation ? setView("detail") : void file(note))} />
+              onPress={() => {
+                const remarks = extra.trim() ? `${note} ${extra.trim()}` : note;
+                if (needsSubstation) { setNote(remarks); setView("detail"); } else void file(remarks);
+              }} />
             <Txt v="caption" color="muted" style={{ textAlign: "center" }}>{where ? `${t("rp_quick_note")} · ${where}` : t("rp_quick_note")}</Txt>
           </>
         )}

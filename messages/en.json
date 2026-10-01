@@ -342,6 +342,7 @@
     "rp_something_else": "Something else? Low voltage, sparking, add a note",
     "rp_no_power_details": "No power, and add details",
     "rp_back": "Back",
+    "rp_extra_ph": "Anything to add? Optional, e.g. \"pole near gate is sparking\"",
     "rp_title": "Report a power problem",
     "rp_no_power": "No power",
     "rp_voltage": "Low or flickering voltage",
