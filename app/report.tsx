@@ -70,16 +70,19 @@ export default function Report() {
   const needDivision = !!draft && draft.divisions.length > 0;
   const needSubstation = !!draft && !draft.substation && draft.substations.length > 0;
   const canFile = !!draft?.substation && !draft.blocked && !!note.trim() && !busy;
+  // A disabled button always says what it's waiting for.
+  const fileLabel = busy ? t("rp_filing") : !draft ? (prepError ? t("rp_file") : t("rp_getting_ready"))
+    : needDivision || needSubstation ? t("rp_need_substation") : !note.trim() ? t("rp_need_note") : t("rp_file");
 
   if (filed?.ok) return (
     <Screen>
       <BackHeader title={t("rp_form_title")} />
-      <Filed complaintNo={filed.complaintNo} onTrack={() => { router.back(); router.push("/complaints"); }} />
+      <Filed complaintNo={filed.complaintNo} place={draft?.substation} onTrack={() => { router.back(); router.push("/complaints"); }} />
     </Screen>
   );
 
   return (
-    <Screen footer={<Button label={busy ? t("rp_filing") : t("rp_file")} busy={busy} disabled={!canFile} onPress={() => void file()} />}>
+    <Screen footer={<Button label={fileLabel} busy={busy || (!draft && !prepError)} disabled={!canFile} onPress={() => void file()} />}>
       <BackHeader title={t("rp_form_title")} />
 
       <Card style={{ padding: 0, gap: 0 }}>
@@ -97,7 +100,8 @@ export default function Report() {
         <Row icon="call" label={t("rp_row_contact")} value={contact ? `••${contact.slice(-4)}` : t("rp_optional")} onPress={() => setEdit("contact")} />
       </Card>
 
-      {!!(prepError || error) && <ErrorNote error={prepError ?? error} compact />}
+      {!!prepError && <ErrorNote error={prepError} onRetry={own.retry} />}
+      {!!error && <ErrorNote error={error} onRetry={() => void file()} />}
       {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
       {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
       {(!!error || !!prepError || !!draft?.blocked || (filed && !filed.ok)) && data && <ReportFallback data={data} problem={supply} />}

@@ -17,7 +17,7 @@ import { HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
-import { Button, Insight, Sheet, Txt, familyFor } from "./ui";
+import { Button, Insight, Sheet, Txt, familyFor, useSlow } from "./ui";
 import { Icon } from "./icons";
 import { openLink } from "./links";
 
@@ -32,6 +32,7 @@ export function useOwnDraft(data: DashboardResponse | undefined, supply: Exclude
   const cd = consumer?.ConsumerDetails;
   const [draft, setDraft] = useState<SupplyDraft | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
   const account = data ? String(data.site.connectionId) : null;
   useEffect(() => {
     if (!active || !supply || !account) return;
@@ -43,12 +44,12 @@ export function useOwnDraft(data: DashboardResponse | undefined, supply: Exclude
       problem: supply === "voltage" ? "voltage" : "no_power", outage: "Individual",
     }).then((d) => live && setDraft(d), (e) => live && setError(e));
     return () => { live = false; };
-  }, [active, supply, account, cd?.division]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { draft, setDraft, error };
+  }, [active, supply, account, cd?.division, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { draft, setDraft, error, retry: () => setAttempt((n) => n + 1) };
 }
 
 /** "Complaint filed" with the number (or where it will show) and the way to track it. */
-export function Filed({ complaintNo, onTrack }: { complaintNo: string | null; onTrack: () => void }) {
+export function Filed({ complaintNo, place, onTrack }: { complaintNo: string | null; place?: string | null; onTrack: () => void }) {
   const c = useColors();
   const { t } = useI18n();
   return (
@@ -56,6 +57,8 @@ export function Filed({ complaintNo, onTrack }: { complaintNo: string | null; on
       <View style={[styles.done, { backgroundColor: c.pill }]}><Icon name="checkCircle" size={44} color={c.ok} /></View>
       <Txt v="title" style={{ textAlign: "center" }}>{t("rp_filed_title")}</Txt>
       <Txt v="body" color="muted" style={{ textAlign: "center" }}>{complaintNo ? t("rp_filed_no", { no: complaintNo }) : t("rp_filed_pending")}</Txt>
+      {/* What happens next, so nobody wonders whether to call too. */}
+      <Txt v="label" color="muted" style={{ textAlign: "center" }}>{place ? t("rp_next_place", { place }) : t("rp_next")}</Txt>
       <Button label={t("rp_track")} onPress={onTrack} />
     </View>
   );
@@ -88,7 +91,8 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const { data: downtime } = useDowntime();
   const open = complaints?.complaints.find((x) => x.is_open);
   const planned = downtime?.data?.body || downtime?.data?.title;
-  const { draft, error: prepError } = useOwnDraft(data, "no_power", visible); // prepared as the sheet opens
+  const { draft, error: prepError, retry } = useOwnDraft(data, "no_power", visible); // prepared as the sheet opens
+  const slow = useSlow(visible && !draft && !prepError); // 1912 can hang: don't leave people waiting on "Getting ready…"
   const [extra, setExtra] = useState(""); // optional words added to the automatic note
   const [busy, setBusy] = useState(false);
   const [filed, setFiled] = useState<{ ok: boolean; complaintNo: string | null; message: string } | null>(null);
@@ -116,7 +120,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   return (
     <Sheet visible={visible} onClose={close} title={filed?.ok ? t("rp_title") : t("rp_title_quick")}>
       {filed?.ok ? (
-        <Filed complaintNo={filed.complaintNo} onTrack={() => { close(); router.push("/complaints"); }} />
+        <Filed complaintNo={filed.complaintNo} place={draft?.substation} onTrack={() => { close(); router.push("/complaints"); }} />
       ) : (
         <>
           {/* An open complaint or a planned cut: say so first, filing again won't speed it up. */}
@@ -146,7 +150,10 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           )}
           {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
           {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
-          {!!(prepError || fileError) && <ErrorNote error={prepError ?? fileError} compact />}
+          {slow && <Insight tone="warn" icon="schedule" text={t("rp_slow")} />}
+          {slow && <ReportFallback data={data} problem="no_power" onDone={close} />}
+          {!!prepError && <ErrorNote error={prepError} onRetry={retry} />}
+          {!!fileError && <ErrorNote error={fileError} onRetry={() => void file()} />}
           {/* 1912 couldn't place the account (e.g. the bill's city isn't a 1912 district): the full form lets them pick. */}
           {!!prepError && link(t("rp_pick_district_me"), full)}
           {failed && <ReportFallback data={data} problem="no_power" onDone={close} />}
