@@ -492,3 +492,134 @@ still calls it.
 
 **Still unexplored:** `ticket/complaint-search` `{complaintNo, tenantCode}` (1912 status via UPPCL SMART — a
 backup if the 1912 portal goes down again), `bill/download` (bill PDF via SMART; needs an invoice from billHistory).
+
+## 11. Complaint registration (reverse-engineered, not exercised)
+
+Researched read-only, Oct 2026. Nothing below was submitted: no save, no OTP, no account lookup with real
+data. **Verified** means seen in the portal's JS or in an anonymous read the page itself makes when it loads.
+**Inferred** means it follows from that code but no request was sent. Example values are made up.
+
+### 11.1 1912 portal: anonymous web registration (Appsavy, project 119)
+
+**Finding the form (verified).** On page load the anonymous session (from `UI/Anonymous?PROJECTID=119&FORMID=4235`,
+same as `shared/complaints.ts`) calls `POST api/AppsavyServices/GetFormsMenu` `{"PROJECTID":"119","ROLEID":"883"}`.
+That call lists every form the `anonymous` role can open. The complaint forms:
+
+| FORM_ID | NAME | Caption | Notes |
+|---|---|---|---|
+| **6444** | CONSUMER_REGISTRATION | Consumer Complaint Registration | The one "Complaint Registration" on Consumer Home (13180) opens. `CAPTCHA=N`, `ISVERIFIED=N` |
+| 13138 | CONSUMER_SMART_METER_REG | Consumer Complaint Registration Form | "Consumer App" variant (SOC default `CONSUMER APP`); account → discom/division/substation prefill |
+| 8165 | Registration_Status | Registration Status | 6444's Save opens this page (`OPENPAGE`), passing UNIQUEID → 96556 and mobile → 83612 |
+| 12257 | VALIDATE_OTP | Validate OTP | Dialog that 6444 opens for non-supply types |
+| 4235 / 13493 | Status / COMPLAINT_STATUST_APP | Complaint status | 4235 is the one the app already uses |
+
+`UI/Anonymous?PROJECTID=119&FORMID=6444` (and 13138) answers 200 and redirects to `UI/Form?FormId=…`. The landing
+page's `fnOnClickRegComp` still points to `PROJECTID=304&FORMID=10228`, which is dead (404).
+
+**Form definition (verified).** `POST api/AppsavyServices/GetControlsA` `{"PROJECTID":119,"USER":"anonymous"}`
+(about 1.5 MB XML) returns every control (`Control_Rowset`) and event (`Event_Rowset`: `EVENT_CONTROL` → `ACTION`
+on `CONTROL_ID` using `QUERY_ID` = the AC_ID, with `PARENT` inputs) for all anonymous forms. This is how the
+control ids below were mapped. All headers are the same as for status lookups, except `formid` = enc("6444").
+
+**Master data (verified, anonymous `GetRelationalDataA`).** Same XML envelope as `shared/complaints.ts`:
+
+```xml
+<Event Control_Id="0"/>                                   <!-- page load -->
+<Child Control_Id="59930" Report="HTML" AC_ID="46416"/>   <!-- complaint types -->
+<Child Control_Id="59929" Report="HTML" AC_ID="60180"/>   <!-- districts: DATA_ID, DISTRICT (e.g. 1015 AGRA) -->
+
+<Event Control_Id="59930"/>                               <!-- type changed -->
+<Child Control_Id="59931" Report="HTML" AC_ID="46492"><Parent Control_Id="59930" Value="CT019" Data_Form_Id=""/></Child>   <!-- sub-types -->
+<Child Control_Id="129282" Report="HTML" AC_ID="158578"><Parent Control_Id="59930" Value="CT019" Data_Form_Id=""/></Child> <!-- COMP_TYPE flag -->
+```
+
+The types and sub-types that matter to the ReportSheet, with the `COMP_TYPE` flag that decides which fields
+show (verified):
+
+| App problem | Type | Sub-type | COMP_TYPE | OTP step? |
+|---|---|---|---|---|
+| No power / one phase gone | CT019 SUPPLY RELATED | CST120 NO SUPPLY | Y | **No** (Y hides REGISTERED_MOBILE_NO + VALIDATE_OTP) |
+| Low / fluctuating voltage | CT019 | CST147 VOLTAGE FLUCTUATION | Y | No |
+| Sparking at meter/cable | CT006 METER RELATED | CST223 LOOSE TERMINALS/SPARKING/CABLE ISSUE | N | **Yes** (N shows the OTP dialog) |
+| Danger / accident | CT025 INFORMATION / QUERY | CST205 ELECTRICAL ACCIDENT INTIMATION | N | Yes |
+| Prepaid cut-off after recharge | CT026 SMART METER/PREPAID | CST222 PAYMENT DONE BUT NOT RECONNECTED / CST109 METER POWER OFF | M | No |
+| (pole / line) | CT027 SERVICE RELATED | CST134 POLE/LINE SHIFTING/POLE BROKEN | N | Yes |
+
+There is no "phase" sub-type. One phase gone files as NO SUPPLY, with the detail in Remarks.
+
+**Form 6444 flow for SUPPLY RELATED (control ids verified, sequence inferred from events):**
+1. DISTRICT `59929` (from AC 60180), complaint type `59930`, sub-type `59931`, OUTAGE_TYPE `95303` (`Individual`/`Area`).
+2. ACCOUNT_NO `129225` + ACCOUNT_SEARCH `129228`: event ACs 159164–159169, 159179, 159400, 159698, 160687 with
+   parents ACCOUNT_NO and DISTRICT. These fill DISCOM_CODE `59932`, ZONE `59933`, CIRCLE `59934`, DIV `59935`,
+   SUB_DIV `59936`, SUBSTATION `59937`, CONSUMER_NAME `59942`, MOBILENO `59944`, ADDRESS `59946`, and the ACCOUNT_DETAILS grid
+   `129229`. Selecting a grid row (`129229.25384`) copies CUSTOMERACNTNO `59945`, JE_NAME/JE_MOBILE, SECTION and AREADOWN.
+   **Not called**: it returns a real consumer's name, address and mobile.
+3. VALIDATE_COMPLAINT_DETAILS `151533`: ACs 210295/210296 with MOBILENO, CUSTOMERACNTNO, sub-type and SUBSTATION →
+   VALIDATE_CHK `151532`. SAVE `59950` becomes visible only when it returns `0`. Inferred to be a duplicate or
+   open-complaint check; the message comes back in `ABC` `151534`. Not called.
+4. REMARKS `59949` (mandatory; regex forbids `< > , $ | ' "`), then SAVE.
+
+**Save (verified from `EventManagerV3.js` `fnSaveData` and `ServiceManagerV3.js` `fnUploadSurveyDataAsync`; never sent):**
+
+```
+POST https://1912.uppcl.org/api/AppsavyServices/UploadSurveyDataNewA
+headers: same encrypted set as GetRelationalDataA (formid=enc("6444"))
+body: {"xmlString": base64(utf8(xml)), "EventControlID": "59950", "DocVersion": 1}
+```
+```xml
+<?xml version="1.0"?><FORM IUVLOGINID="anonymous" USERID="anonymous" ROLE_ID="883" ID="6444" COMPANY_ID="64" EventControlID="59950" SRC="W">
+  <!-- only when a control-level OTP was verified: <OTP_REFRENCES VALUES="refNo:controlId:value:otp"/> -->
+  <DATA DATE="<fnGetFormattedDate()>"><UNIQUEID VALUE="<random+yyyy+m+d+h+m+s>"/><LATITUDE VALUE=""/><LONGITUDE VALUE=""/>
+    <CONTROL ID="59929" VALUE="1015"/>        <!-- district DATA_ID -->
+    <CONTROL ID="59930" VALUE="CT019"/><CONTROL ID="59931" VALUE="CST120"/><CONTROL ID="95303" VALUE="Individual"/>
+    <CONTROL ID="59932" VALUE="…"/> … <CONTROL ID="59937" VALUE="…"/>   <!-- discom…substation codes from the account search -->
+    <CONTROL ID="59945" VALUE="1234567890"/><CONTROL ID="59944" VALUE="9000000000"/>
+    <CONTROL ID="59942" VALUE="…"/><CONTROL ID="59946" VALUE="…"/><CONTROL ID="59949" VALUE="No supply since 9 pm"/>
+    <!-- + hidden TO_BE_SAVED labels the page fills itself: JE_NAME 60043, JE_MOBILE 60042, SECTION 60032, INBOUND_AGENT 60044, PRIMARY_COMPLAINT_NO 60034, SOC 75039, … -->
+  </DATA></FORM>
+```
+
+The response is XML `<RESULT>1</RESULT><RESULTMESSAGE>…</RESULTMESSAGE>`. The complaint number is inferred to be in
+RESULTMESSAGE and/or on the Registration_Status page (8165), which the app reaches with the UNIQUEID. Not verified.
+
+**Auth:** anonymous, no captcha (`CAPTCHA=N`), and for SUPPLY RELATED and prepaid types no OTP. Other types open
+dialog 12257, which presumably sends an SMS OTP to the registered mobile.
+**Risks:** this writes a real ticket that lands with the substation JE. Replaying ~25 hidden fields correctly is
+fragile, because the server trusts the client to send JE, substation and agent values. The undocumented
+`VALIDATE_CHK` gate decides whether Save is allowed at all. Rate limits are unknown, there's no published API, and
+UPPCL could read automated filing as abuse. The control and AC ids change whenever UPPCL edits the form (13138 and
+the 304/10228 link are both drift from earlier versions).
+
+### 11.2 UPPCL SMART (uppcl.sem.jio.com), verified from the bundle
+
+- "Register complaint" is not an API call. It runs `preference.homePage.serviceRequest.launchLink` (with
+  `{{connectionId}}`/`{{discom}}` placeholders) or `customerService.raiseRequest.launchLink` through `openLinks`,
+  which opens an external page. The target URL lives only in the super-tenant preference, which answers 409
+  outside UPPCL's own app (§10). Inferred to be the 1912 form.
+- `POST ticket/create` is a **multipart FormData** with `heading` (category), `sub_heading`, `description`,
+  `status:"open"`, `userId`, `connectionId` (site `_id`), `consumerId` (account), `consumerName`,
+  `deviceSource:"Web"|"Mobile"` and optional `attachment` files. The categories come from `GET ticket/ticket-category`. This is the
+  SMART help desk (account, bill and app issues), not the 1912 outage queue. Confirms §10.
+- `POST ticket/complaint-search` `{complaintNo, tenantCode}` (or `{connectionId, complaintNo}`) reads 1912 status. Read-only.
+
+### 11.3 consumer.uppcl.org (/wss) bill portal, verified from `main.2dc555616dbad9af.js`
+
+No power-complaint API. `complaint_reg` renders "SERVICE UNAVAILABLE"; `power_failure` is a static page listing
+1800-180-1912. The one complaint-like call is `POST /v1/api/meterComplaintRequest` (a meter service request from
+the logged-in, OTP-gated service-request flow), so it doesn't fit outages.
+
+### 11.4 SMS keywords (verified, 1912 login page `popUpSmsCode`)
+
+`NOPOWER <ACCOUNTID>` (no supply), `MTR <ACCOUNTID>` (defective meter) and `SOS <phone>` (emergency). The page gives
+no shortcode; the app sends `NO POWER <account> <DISCOM>` to 5616195 (`shared/outage.ts`). Whether both spellings
+parse is unverified.
+
+### 11.5 Recommendation
+
+Keep the user-sent channels for now and add one improvement: **pre-fill the right SMS keyword per problem**
+(`NOPOWER`, `MTR` for meter sparking, `SOS` for danger). It's zero risk, and UPPCL logs it as a real complaint the
+status screen already reads. In-app filing without OTP is **technically feasible for SUPPLY RELATED only**
+(form 6444, anonymous, no captcha). It would need district + account (both already in the app), a registered mobile,
+type/sub-type, outage type, and remarks. Before shipping it, run one supervised test filing from the owner's own
+account to confirm the account-search → validate → save chain and where the complaint number comes back. Also
+guard the server-side `VALIDATE_CHK` result, and file only on an explicit user tap, never automatically.
