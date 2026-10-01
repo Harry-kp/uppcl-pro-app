@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { AppState, Pressable, StyleSheet, Switch, TextInput, View, Platform } from "react-native";
+import { AppState, Pressable, StyleSheet, Switch, View, Platform } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -14,7 +14,7 @@ import { APP_VERSION, REPO, reportProblem, useUpdate } from "../src/github";
 import { DevSettingsSection } from "../src/dev"; // @dev-tools
 import { useI18n } from "../src/i18n";
 import { font, getThemeChoice, setThemeChoice, useColors, type ThemeChoice } from "../src/theme";
-import { BackHeader, Button, Card, Choices, Screen, Sheet, Txt, familyFor } from "../src/ui";
+import { BackHeader, Button, Card, Choices, Screen, Sheet, Txt, Field } from "../src/ui";
 import { rupees } from "@shared/utils";
 import { Icon, type IconName } from "../src/icons";
 import { openLink } from "../src/links";
@@ -180,10 +180,9 @@ export default function Settings() {
       <Sheet visible={askPw} title={alertsLabel} onClose={() => { setAskPw(false); setPw(""); }}>
         <Txt v="label" color="muted">{postpaid ? t("alerts_post_desc") : t("alerts_desc")}</Txt>
         <Txt v="caption" color="muted">{t("alerts_password")}</Txt>
-        <TextInput
+        <Field
           value={pw} onChangeText={setPw} secureTextEntry autoComplete="current-password" autoFocus
-          accessibilityLabel={alertsLabel} placeholder="••••••••" placeholderTextColor={c.muted}
-          style={[styles.input, { color: c.text, backgroundColor: c.bg, borderColor: c.line, fontFamily: familyFor("medium", lang === "hi") }]}
+          accessibilityLabel={alertsLabel} placeholder="••••••••"
         />
         {alertError && <Txt v="caption" color="critical">{alertError}</Txt>}
         <Button label={t("alerts_turn_on")} onPress={confirmAlerts} busy={alertBusy} disabled={!pw} />
@@ -237,10 +236,10 @@ function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
       <Txt v="label" color="muted">{t("budget_desc")}</Txt>
       <View style={styles.budgetRow}>
         <Txt v="value" color="muted">₹</Txt>
-        <TextInput value={v} onChangeText={(x) => setV(x.replace(/[^0-9]/g, "").slice(0, 6))} autoFocus
-          keyboardType="number-pad" placeholder={t("budget_ph")} placeholderTextColor={c.muted} accessibilityLabel={t("budget_title")}
+        <Field value={v} onChangeText={(x) => setV(x.replace(/[^0-9]/g, "").slice(0, 6))} autoFocus
+          keyboardType="number-pad" placeholder={t("budget_ph")} accessibilityLabel={t("budget_title")}
           onSubmitEditing={() => save(Number(v) || null)}
-          style={[styles.input, { flex: 1, color: c.text, backgroundColor: c.bg, borderColor: c.line, fontFamily: familyFor("medium", lang === "hi") }]} />
+          style={{ flex: 1 }} />
       </View>
       <Button label={t("save")} onPress={() => save(Number(v) || null)} disabled={!Number(v)} />
       {getBudget() !== null && <Button label={t("turn_off")} kind="soft" onPress={() => save(null)} />}
@@ -287,5 +286,4 @@ const styles = StyleSheet.create({
   budgetRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   lead: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   copy: { borderRadius: 999, paddingHorizontal: 16, minHeight: 48, minWidth: 80, alignItems: "center", justifyContent: "center" },
-  input: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, minHeight: 50 },
 });

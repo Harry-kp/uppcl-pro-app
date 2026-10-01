@@ -9,14 +9,14 @@
  * Danger is always a call. When filing can't go through, SMS / WhatsApp / call are offered instead.
  */
 import { useEffect, useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
 import { fileSupplyComplaint, HELPLINE_TEL, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
-import { Button, Insight, Sheet, Txt, familyFor, useSlow } from "./ui";
+import { Button, Insight, Sheet, Txt, useSlow, Field } from "./ui";
 import { Icon } from "./icons";
 import { openLink } from "./links";
 
@@ -84,7 +84,7 @@ export function ReportFallback({ data, problem, onDone }: { data: DashboardRespo
 
 export function ReportSheet({ data, visible, onClose }: { data: DashboardResponse; visible: boolean; onClose: () => void }) {
   const c = useColors();
-  const { t, span, lang } = useI18n();
+  const { t, span } = useI18n();
   const { data: me } = useMe();
   const { data: complaints } = useMyComplaints(me?.data?.[0]?.phone);
   const { data: downtime } = useDowntime();
@@ -140,9 +140,9 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
                 </Txt>
               </View>
               {/* Optional and already open: typing is never an extra step, skipping it costs nothing. */}
-              <TextInput value={extra} onChangeText={(x) => setExtra(x.slice(0, 150))} multiline
-                placeholder={t("rp_extra_ph")} placeholderTextColor={c.muted} accessibilityLabel={t("rp_extra_ph")}
-                style={[styles.input, { color: c.text, backgroundColor: c.bg, borderColor: c.line, fontFamily: familyFor("medium", lang === "hi") }]} />
+              <Field value={extra} onChangeText={(x) => setExtra(x.slice(0, 150))} multiline
+                placeholder={t("rp_extra_ph")} accessibilityLabel={t("rp_extra_ph")}
+                style={styles.input} />
               <Button label={busy ? t("rp_filing") : !draft ? t("rp_getting_ready") : t("rp_quick")} icon="bolt" busy={busy || !draft}
                 onPress={() => (draft && !draft.substation ? full() : void file())} />
             </>
@@ -167,5 +167,5 @@ const styles = StyleSheet.create({
   link: { minHeight: 36, justifyContent: "center", alignSelf: "center", marginTop: -6, marginBottom: -8 },
   where: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: -4 },
   done: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-  input: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 12, minHeight: 104, fontSize: 16, textAlignVertical: "top" },
+  input: { minHeight: 104 },
 });

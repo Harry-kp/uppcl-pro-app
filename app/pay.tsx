@@ -6,7 +6,7 @@
  * (pgresponse?refNo=…) → receipt. See docs/payment-reverse-engineering.md.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
@@ -21,7 +21,7 @@ import { UPPCL_SMART_URL } from "../src/boot";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
-import { Button, Insight, Segmented, Skeleton, SlowNote, Txt, familyFor } from "../src/ui";
+import { Button, Insight, Segmented, Skeleton, SlowNote, Txt, familyFor, Field } from "../src/ui";
 import { Icon } from "../src/icons";
 import { openLink } from "../src/links";
 
@@ -159,9 +159,9 @@ export default function Pay() {
           )}
           <View style={styles.amountRow}>
             <Txt v="title" color="muted">₹</Txt>
-            <TextInput value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9]/g, "").slice(0, 7))} keyboardType="number-pad"
+            <Field value={amount} onChangeText={(v) => setAmount(v.replace(/[^0-9]/g, "").slice(0, 7))} keyboardType="number-pad"
               accessibilityLabel={t("pay_amount")}
-              style={[styles.input, { color: c.text, backgroundColor: c.bg, borderColor: rule ? c.warn : c.line, fontFamily: familyFor("bold", lang === "hi") }]} />
+              warn={!!rule} style={[styles.input, { fontFamily: familyFor("bold", lang === "hi") }]} />
           </View>
           {ruleText && (
             <View style={styles.note}>
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   acct: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
   link: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   amountRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  input: { flex: 1, borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 14, fontSize: 24, minHeight: 56 },
+  input: { flex: 1, borderWidth: 1.5, fontSize: 24, minHeight: 56 },
   note: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
   sheetHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 48, paddingBottom: 10, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   close: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },

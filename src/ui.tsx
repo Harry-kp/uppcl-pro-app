@@ -1,8 +1,8 @@
 /** Small design-system primitives. Every colour comes from theme.ts. */
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, View,
-  type DimensionValue, type StyleProp, type TextStyle, type ViewStyle,
+  ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
+  type DimensionValue, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -95,6 +95,17 @@ export function Screen({ children, onRefresh, refreshing = false, footer }: { ch
         </View>
       )}
     </View>
+  );
+}
+
+/** The app's one text box: same height, radius, type and colours everywhere (multiline grows from the top). */
+export function Field({ style, warn, multiline, ...props }: TextInputProps & { warn?: boolean }) {
+  const c = useColors();
+  const { lang } = useI18n();
+  return (
+    <TextInput placeholderTextColor={c.muted} multiline={multiline} {...props}
+      style={[styles.field, multiline && styles.fieldMulti,
+        { color: c.text, backgroundColor: c.bg, borderColor: warn ? c.warn : c.line, fontFamily: familyFor("medium", lang === "hi") }, style]} />
   );
 }
 
@@ -262,6 +273,8 @@ const styles = StyleSheet.create({
   noFontPadding: { includeFontPadding: false, textAlignVertical: "center" },
   scroll: { padding: space.gutter, gap: space.gap, paddingBottom: 32 },
   section: { gap: 8, marginTop: 8 },
+  field: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, minHeight: 50 },
+  fieldMulti: { minHeight: 96, textAlignVertical: "top" },
   card: { borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 10 },
   buttonRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   button: { borderRadius: radius.button, paddingVertical: 13, paddingHorizontal: 16, minHeight: 48, justifyContent: "center" },

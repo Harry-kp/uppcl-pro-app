@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMe, useMyComplaints, useTenantPreferences, useTickets, useWssConsumer, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
@@ -7,14 +7,14 @@ import { HELPLINE_TEL, openFor } from "@shared/complaints";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
-import { Button, Card, Pill, Screen, Txt, familyFor, SkeletonRows, SlowNote } from "../../src/ui";
+import { Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote, Field } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
 import { ReportSheet } from "../../src/report";
 
 export default function Complaints() {
   const c = useColors();
-  const { t, locale, lang } = useI18n();
+  const { t, locale } = useI18n();
   const { data: dash } = useDashboard();
   const { data: me } = useMe();
   const complaints = useMyComplaints(me?.data?.[0]?.phone);
@@ -88,12 +88,12 @@ export default function Complaints() {
       </Pressable>
       {showOther && <View style={{ gap: 8 }}>
         <View style={styles.lookup}>
-          <TextInput
+          <Field
             value={otherInput} onChangeText={(v) => setOtherInput(v.replace(/[^0-9]/g, "").slice(0, 10))}
-            keyboardType="number-pad" placeholder={t("other_number_ph")} placeholderTextColor={c.muted}
+            keyboardType="number-pad" placeholder={t("other_number_ph")}
             accessibilityLabel={t("other_number")} returnKeyType="search"
             onSubmitEditing={() => otherInput.length === 10 && setOtherPhone(otherInput)}
-            style={[styles.input, { color: c.text, backgroundColor: c.surface, borderColor: c.line, fontFamily: familyFor("medium", lang === "hi") }]}
+            style={[styles.input, { backgroundColor: c.surface }]}
           />
           <Button label={t("check")} kind="soft" disabled={otherInput.length !== 10} busy={other.isLoading} onPress={() => setOtherPhone(otherInput)} />
         </View>
@@ -212,6 +212,6 @@ const styles = StyleSheet.create({
   note: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   fold: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 48 },
   lookup: { flexDirection: "row", gap: 8, alignItems: "center" },
-  input: { flex: 1, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: 16, minHeight: 48 },
+  input: { flex: 1, minHeight: 48 },
   contactIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });

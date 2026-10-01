@@ -5,7 +5,7 @@
  * Danger isn't a complaint type: it's a call, its own red row at the end.
  */
 import { useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { mutate, useDashboard } from "@shared/api";
 import { chooseDivision, chooseSubstation, fileSupplyComplaint, HELPLINE_TEL, listDistricts, prepareSupplyComplaint, withContact, type Place, type SupplyDraft } from "@shared/complaints";
@@ -14,14 +14,14 @@ import { useI18n } from "../src/i18n";
 import { Icon, type IconName } from "../src/icons";
 import { Filed, ReportFallback, useOwnDraft } from "../src/report";
 import { useColors } from "../src/theme";
-import { BackHeader, Button, Card, Choices, Insight, Screen, Sheet, Skeleton, Txt, familyFor } from "../src/ui";
+import { BackHeader, Button, Card, Choices, Insight, Screen, Sheet, Skeleton, Txt, Field } from "../src/ui";
 
 type Supply = "no_power" | "voltage" | "phase";
 type Edit = "problem" | "where" | "affected" | "note" | "contact" | "division" | "substation" | null;
 
 export default function Report() {
   const c = useColors();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const params = useLocalSearchParams<{ problem?: Supply }>();
   const { data } = useDashboard();
   const [supply, setSupply] = useState<Supply>(params.problem ?? "no_power");
@@ -61,7 +61,6 @@ export default function Report() {
     return fileSupplyComplaint(d, note);
   }, (r) => { setFiled(r); void mutate((k) => typeof k === "string" && k.startsWith("/complaints")); });
 
-  const input = [styles.input, { color: c.text, backgroundColor: c.bg, borderColor: c.line, fontFamily: familyFor("medium", lang === "hi") }];
   const dq = districtQ.trim().toLowerCase();
   const matches = dq ? districts.filter((x) => x.name.toLowerCase().includes(dq)).slice(0, 6) : [];
   const prepError = whose === "mine" ? own.error : null;
@@ -123,14 +122,14 @@ export default function Report() {
       </Sheet>
 
       <Sheet visible={edit === "note"} title={t("rp_row_note")} onClose={() => setEdit(null)}>
-        <TextInput value={note} onChangeText={(x) => setNote(x.slice(0, 200))} multiline autoFocus accessibilityLabel={t("rp_row_note")} style={[input, { minHeight: 96 }]} />
+        <Field value={note} onChangeText={(x) => setNote(x.slice(0, 200))} multiline autoFocus accessibilityLabel={t("rp_row_note")} />
         <Button label={t("rp_done")} disabled={!note.trim()} onPress={() => setEdit(null)} />
       </Sheet>
 
       <Sheet visible={edit === "contact"} title={t("rp_row_contact")} onClose={() => setEdit(null)}>
         <Txt v="label" color="muted">{t("rp_contact_why")}</Txt>
-        <TextInput value={contact} onChangeText={(x) => setContact(x.replace(/\D/g, "").slice(0, 10))} keyboardType="phone-pad" autoFocus
-          placeholder={t("rp_contact_ph")} placeholderTextColor={c.muted} accessibilityLabel={t("rp_row_contact")} style={input} />
+        <Field value={contact} onChangeText={(x) => setContact(x.replace(/\D/g, "").slice(0, 10))} keyboardType="phone-pad" autoFocus
+          placeholder={t("rp_contact_ph")} accessibilityLabel={t("rp_row_contact")} />
         <Button label={t("rp_done")} disabled={!!contact && contact.length !== 10} onPress={() => setEdit(null)} />
         {!!contact && <Button kind="soft" label={t("rp_remove")} onPress={() => { setContact(""); setEdit(null); }} />}
       </Sheet>
@@ -141,14 +140,14 @@ export default function Report() {
           options={[{ value: "mine", label: t("rp_mine") }, { value: "other", label: t("rp_someone_elses") }]} />
         {whose === "other" && (
           <>
-            <TextInput value={otherAcct} onChangeText={(x) => setOtherAcct(x.replace(/\D/g, "").slice(0, 12))} keyboardType="number-pad"
-              placeholder={t("rp_their_account")} placeholderTextColor={c.muted} accessibilityLabel={t("rp_their_account")} style={input} />
+            <Field value={otherAcct} onChangeText={(x) => setOtherAcct(x.replace(/\D/g, "").slice(0, 12))} keyboardType="number-pad"
+              placeholder={t("rp_their_account")} accessibilityLabel={t("rp_their_account")} />
             {district ? (
               <Row first icon="event" label={t("rp_district")} value={district.name} onPress={() => setDistrict(null)} />
             ) : (
               <>
-                <TextInput value={districtQ} onChangeText={setDistrictQ} placeholder={t("rp_their_district")} placeholderTextColor={c.muted}
-                  accessibilityLabel={t("rp_their_district")} style={input} />
+                <Field value={districtQ} onChangeText={setDistrictQ} placeholder={t("rp_their_district")}
+                  accessibilityLabel={t("rp_their_district")} />
                 <Choices value="" onChange={(id) => { setDistrict(districts.find((x) => x.id === id) ?? null); setDistrictQ(""); }}
                   options={matches.map((x) => ({ value: x.id, label: x.name }))} />
               </>
@@ -198,5 +197,4 @@ function Row({ icon, label, value, sub, onPress, first, loading, attention, dang
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 64 },
   rowIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  input: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10, minHeight: 50, fontSize: 16, textAlignVertical: "top" },
 });
