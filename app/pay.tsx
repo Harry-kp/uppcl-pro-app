@@ -124,6 +124,12 @@ export default function Pay() {
   const billMonth = billDate ? billingPeriod(billDate).from.toLocaleDateString(locale, { month: "long", year: "numeric" }) : null;
   const acctTail = dash ? String(dash.site.connectionId) : "";
   const editing = custom || payable === 0; // nothing due → advance payment needs an amount
+  // Nothing due, and the last bill is from an earlier month: last month's bill simply isn't out yet. Say so,
+  // or an advance payment reads like paying the bill (the same estimate Home shows).
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const awaiting = payable === 0 && billDate && billingPeriod(billDate).from < lastMonth
+    ? lastMonth.toLocaleDateString(locale, { month: "long" }) : null;
 
   return (
     <SheetFrame title={t("pay_title")}>
@@ -139,6 +145,7 @@ export default function Pay() {
         <Txt v="caption" color="muted">{payable > 0 ? t("amount_due") : t("nothing_due")}</Txt>
         {payable > 0 && <Txt v="hero" numeric color="big" style={{ fontSize: 44, lineHeight: 48 }}>₹{rupees(payable, { decimals: 0 })}</Txt>}
       </View>
+      {!!awaiting && <Insight tone="accent" icon="event" text={t("pay_awaiting_bill", { month: awaiting })} />}
 
       {editing && (
         <View style={{ gap: 8 }}>
