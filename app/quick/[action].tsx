@@ -1,9 +1,7 @@
 /** Target of the app-icon shortcuts (see useAppShortcuts in app/_layout.tsx): do the job, then land on its tab. */
 import { useEffect, useRef } from "react";
-import { Linking, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { downloadBillPdf, getLatestInvoice, useDashboard, type MonthlyInvoice } from "@shared/api";
-import { COMPLAINT_SMS_NUMBER, noPowerSmsUrl } from "@shared/outage";
 import { useI18n } from "../../src/i18n";
 import { Centered, Txt } from "../../src/ui";
 
@@ -18,10 +16,10 @@ export default function QuickAction() {
     if (action === "pay" && data) {
       done.current = true;
       router.replace("/pay");
-    } else if (action === "sms" && data) {
+    } else if (action === "sms") {
+      // Straight to the two-tap no-power sheet (it falls back to SMS itself when 1912 can't take it).
       done.current = true;
-      router.replace("/complaints");
-      void Linking.openURL(noPowerSmsUrl(data.site, Platform.OS === "ios"));
+      router.replace({ pathname: "/complaints", params: { report: "1" } });
     } else if (action === "bill") {
       done.current = true;
       router.replace("/bills");

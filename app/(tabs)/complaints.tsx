@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, TextInput, View, Platform } from "react-native";
-import { router } from "expo-router";
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMe, useMyComplaints, useTenantPreferences, useTickets, useWssConsumer, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
 import { openFor } from "@shared/complaints";
-import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
+import { HELPLINE_TEL } from "@shared/outage";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
 import { Button, Card, Pill, Screen, Txt, familyFor, SkeletonRows, SlowNote } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
+import { ReportSheet } from "../../src/report";
 
 export default function Complaints() {
   const c = useColors();
@@ -28,7 +29,6 @@ export default function Complaints() {
   const discom = prefs?.data?.discomDetails ?? {};
   const careRaw = (discom.customerCareNumber || discom.helplineNumber || "").trim();
   const care = careRaw.replace(/[^0-9]/g, "") === HELPLINE_TEL ? "" : careRaw; // already the "Call 1912" button above (UX-041)
-  const wa = (discom.whatsappNumber || "").replace(/[^0-9]/g, "");
   // UPPCL SMART's own tickets: a second source that works even when the 1912 portal is down.
   const native = (tickets?.data ?? []).map((r) => recordSummary(r as Record<string, unknown>)).slice(0, 5);
   const list = [...new Map([...(complaints.data?.complaints ?? []), ...(billComplaints.data?.complaints ?? [])].map((x) => [x.complaint_no, x])).values()]
@@ -41,22 +41,23 @@ export default function Complaints() {
   const otherList = [...(other.data?.complaints ?? [])].sort((a, b) => Number(b.is_open) - Number(a.is_open));
   // UPPCL messages and meter alarms are advanced: they live in Meter details (app/details.tsx).
 
-  // One tap: UPPCL's SMS shortcode with the outage complaint already written.
-  const sms = dash
-    ? noPowerSmsUrl(dash.site, Platform.OS === "ios")
-    : null;
+  // Same complaint flows as Home: the two-tap no-power sheet, and the full form for anything else.
+  // SMS / WhatsApp stay inside them as the fallback when 1912 can't take it.
+  const { report: fromShortcut } = useLocalSearchParams<{ report?: string }>(); // app-icon shortcut "No power"
+  const [report, setReport] = useState(fromShortcut === "1");
 
   return (
     <Screen onRefresh={() => complaints.mutate()} refreshing={complaints.isValidating}>
       <Txt v="title">{t("complaints_title")}</Txt>
 
       <Txt v="heading" style={{ marginTop: 4 }}>{t("report_title")}</Txt>
-      <Action icon="sms" title={t("no_power")} desc={t("no_power_desc")} primary disabled={!sms} onPress={() => sms && Linking.openURL(sms)} />
-      {/* The other two ways to report sit side by side, so the SMS stays the obvious first choice. */}
+      <Action icon="bolt" title={t("no_power")} desc={t("no_power_desc")} primary disabled={!dash} onPress={() => setReport(true)} />
+      {/* The other ways sit side by side, so "Report no power" stays the obvious first choice. */}
       <View style={styles.pair}>
+        <Action compact icon="chat" title={t("other_problem")} desc={t("other_problem_short")} onPress={() => router.push("/report")} />
         <Action compact icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />
-        {!!wa && <Action compact icon="chat" title={t("whatsapp")} desc={t("whatsapp_short")} onPress={() => openLink(`https://wa.me/${wa.length === 10 ? `91${wa}` : wa}`)} />}
       </View>
+      {dash && <ReportSheet data={dash} visible={report} onClose={() => setReport(false)} />}
 
       <View style={{ marginTop: 12 }}>
         <Txt v="heading">{t("status_title")}</Txt>
