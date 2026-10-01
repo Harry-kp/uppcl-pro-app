@@ -481,6 +481,14 @@ brackets — cleaned at parse time (`mobile10`, `personName`).
 - `tenant/searchPreference` for the super-tenant (to find SMART's "register complaint" `launchLink`) → 409
   outside UPPCL's own app; the discom-level answer has only on/off flags plus `discomDetails` (helpline, email, WhatsApp).
 
-**Still unexplored:** `eventsummary/consumptionHistory` `{consumerId, TxID}` (meter readings incl. billed kW/kWh;
-likely billing-backed), `ticket/complaint-search` `{complaintNo, tenantCode}` (1912 status via UPPCL SMART — a
+**Due-date rebate.** The bill PDF's "Payable by Due Date" is in the bill portal's `GetPayBillDetails` →
+`PayBillHomeDTO.customerDetailsDTO.payAmtBeforeDueDt` (and `payAmtAfterDueDt` for after it); found in the portal's
+`main.<hash>.js`. UPPCL SMART's `bill/billHistory` has no rebate field. Unverified with a live due bill: whether
+`payableAmt` already includes the rebate before the due date.
+
+**Gone:** `eventsummary/consumptionHistory` `{consumerId, TxID:"2345"}` (UPPCL SMART's "current bill" with
+`dueDateRebate`, `amountPayableWithDueDate`, charges breakdown) → 404 "Invalid URL" (Oct 2026), though its web app
+still calls it.
+
+**Still unexplored:** `ticket/complaint-search` `{complaintNo, tenantCode}` (1912 status via UPPCL SMART — a
 backup if the 1912 portal goes down again), `bill/download` (bill PDF via SMART; needs an invoice from billHistory).
