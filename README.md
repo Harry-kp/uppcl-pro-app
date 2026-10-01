@@ -67,9 +67,10 @@ Daily units, month by month, and the days that stood out against your usual.
 <tr>
 <td width="50%" valign="top">
 
-⚡ **No power? One tap.**
+⚡ **No power? Two taps.**
 
-Opens your SMS app with UPPCL's complaint message already written for your account. Or call 1912.
+Files your complaint with UPPCL 1912 right from the app: your account, substation and engineer are filled in
+for you. Low voltage, one phase, or someone else's home are one screen away; SMS and 1912 calls stay as backups.
 
 </td>
 <td width="50%" valign="top">
@@ -83,7 +84,7 @@ Low balance, new bill, due soon, planned power cuts, a monthly budget. All off u
 </table>
 
 **Also in the box:** bill and receipt PDFs inside the app · 1912 complaint status and the officer assigned ·
-home-screen widget · long-press shortcuts (no-power SMS, latest bill, pay) · light and dark mode · an in-app
+home-screen widget · long-press shortcuts (report no power, latest bill, pay) · light and dark mode · an in-app
 update check · errors that say **whose side failed** (UPPCL SMART, the bill portal, the 1912 portal, or the app).
 
 <div align="center">
@@ -142,6 +143,8 @@ iPhone support is on the way.
   encrypted file (AES-GCM) whose key lives in the Android keystore.
 - **Complaint status** comes from UPPCL's 1912 portal (`1912.uppcl.org`), also called directly from your phone.
   It is sent your registered mobile number (no password, no token) to look your complaints up.
+  **Filing a complaint** uses the same portal's public complaint form, only when you tap the button: it sends your
+  account number, the mobile UPPCL has on record (or another number you add) and your note.
 - **Alerts** (off by default) have to sign in again in the background when your session expires. If you turn
   them on, your UPPCL username and password are stored encrypted in the Android keystore, on your phone
   only, and removed when you turn alerts off or sign out. The checks run on the phone.
