@@ -10,7 +10,7 @@ import { alertsEnabled, disableAlerts, enableAlerts, getBudget, sendTestNotifica
 import { clearSnapshot, WIDGET_NAME } from "../src/widget";
 import { getWidgetInfo, requestPinWidget } from "react-native-android-widget";
 import { clearPersistentCache } from "../src/cache";
-import { APP_VERSION, REPO, reportProblem, useUpdate } from "../src/github";
+import { APP_VERSION, FROM_STORE, REPO, reportProblem, useUpdate } from "../src/github";
 import { DevSettingsSection } from "../src/dev"; // @dev-tools
 import { useI18n } from "../src/i18n";
 import { font, getThemeChoice, setThemeChoice, useColors, type ThemeChoice } from "../src/theme";
@@ -158,7 +158,7 @@ export default function Settings() {
 
       <Group title={t("about")}>
         <Row first icon={update ? "download" : "checkCircle"} label={t("version", { v: APP_VERSION })}
-          value={update ? t("update_available", { v: update.version }) : t("up_to_date")} valueTone={update ? undefined : "ok"}
+          value={update ? t("update_available", { v: update.version }) : FROM_STORE ? undefined : t("up_to_date")} valueTone={update ? undefined : "ok"}
           onPress={update ? () => openLink(update.apkUrl ?? update.pageUrl) : undefined} />
         <Row icon="chat" label={t("report_problem")} onPress={() => reportProblem()} />
         <Row icon="info" label={t("source")} onPress={() => openLink(`https://github.com/${REPO}`)} />

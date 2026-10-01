@@ -1,5 +1,5 @@
 /**
- * The app ships through GitHub Releases, not a store, so two things a store would do live here:
+ * The app ships through GitHub Releases (and maybe a store), so two things a store would do live here:
  *  - update check: is there a newer release than this build? (sideloaded APKs never update themselves)
  *  - report a problem: open a pre-filled GitHub issue (the user reviews it in the browser first).
  */
@@ -17,6 +17,9 @@ import { openLink } from "./links";
 export const REPO = "Harry-kp/uppcl-pro-app";
 export const APP_VERSION = Constants.expoConfig?.version ?? "0.0.0";
 const SKIP_KEY = "app_update_skipped"; // the version the user said "Later" to
+/** Built for a store (EXPO_PUBLIC_STORE=play): the store updates the app, so no GitHub update check at all
+ *  (Play forbids apps that update themselves from elsewhere). The GitHub APK leaves it unset. */
+export const FROM_STORE = process.env.EXPO_PUBLIC_STORE === "play";
 
 /** "0.1.10" > "0.1.9"; ignores a leading "v" and any "-beta" suffix. */
 export function isNewer(latest: string, current: string): boolean {
@@ -29,6 +32,7 @@ export function isNewer(latest: string, current: string): boolean {
 type Release = { version: string; apkUrl: string | null; pageUrl: string };
 
 async function latestRelease(): Promise<Release | null> {
+  if (FROM_STORE) return null; // compiled out of store builds: no GitHub call at all
   const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { accept: "application/vnd.github+json" } });
   if (!r.ok) return null; // no release yet, or rate-limited: say nothing
   const j = (await r.json()) as { tag_name?: string; html_url?: string; assets?: { name: string; browser_download_url: string }[] };
@@ -39,7 +43,7 @@ async function latestRelease(): Promise<Release | null> {
 
 /** The newer release, if any. Checked at most every 12 h; never blocks anything. */
 export function useUpdate() {
-  const { data } = useSWR("github:latest", latestRelease, { dedupingInterval: 12 * 3600_000, revalidateOnFocus: false, shouldRetryOnError: false });
+  const { data } = useSWR(FROM_STORE ? null : "github:latest", FROM_STORE ? null : latestRelease, { dedupingInterval: 12 * 3600_000, revalidateOnFocus: false, shouldRetryOnError: false });
   if (!data || !isNewer(data.version, APP_VERSION)) return null;
   // The APK is Android-only; iPhones get the release page (the iOS builds are listed there).
   return Platform.OS === "android" ? data : { ...data, apkUrl: null };

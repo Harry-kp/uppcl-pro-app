@@ -113,3 +113,34 @@ jobs:
           This APK may be rebuilt and replaced under the same version while it stabilises. The in-app update check only offers a *newer version number*, so a rebuilt APK of the same version is not offered automatically: reinstall it from here."
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "UPPCL Pro $TAG" --notes "$notes" --generate-notes --verify-tag
           gh release upload "$TAG" "uppcl-pro-$TAG.apk" "uppcl-pro-$TAG.apk.sha256" --clobber
+
+      # Play Store bundle: the same app built with EXPO_PUBLIC_STORE=play (no GitHub update check; Play forbids
+      # self-updating). Written to .env so the JS bundle task's inputs change and Gradle rebuilds the bundle
+      # instead of reusing the APK's. Signed with the same key (use it as Play's app signing key: GitHub APK
+      # installs can then update from Play). Kept as a workflow artifact, not a release download.
+      - name: bundleRelease (Play)
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+        run: |
+          echo "EXPO_PUBLIC_STORE=play" > ../.env
+          ./gradlew bundleRelease --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Porg.gradle.jvmargs=-Xmx4g
+          rm ../.env
+
+      - name: Verify the Play bundle has no GitHub update check (and the APK does)
+        run: |
+          aab=android/app/build/outputs/bundle/release/app-release.aab
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          unzip -p "$aab" base/assets/index.android.bundle | strings | grep -q "api.github.com/repos" && { echo "AAB still checks GitHub for updates"; exit 1; }
+          unzip -p "$apk" assets/index.android.bundle | strings | grep -q "api.github.com/repos" || { echo "APK lost its update check"; exit 1; }
+          cp "$aab" "uppcl-pro-$TAG.aab"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: play-bundle-${{ env.TAG }}
+          path: uppcl-pro-${{ env.TAG }}.aab
+          retention-days: 90
