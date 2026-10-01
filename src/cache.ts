@@ -6,6 +6,7 @@
 import { AppState } from "react-native";
 import { File, Paths } from "expo-file-system";
 import type { Cache, State } from "swr";
+import { indiaTime } from "@shared/utils";
 import { unloadAll } from "@shared/api";
 
 const file = new File(Paths.document, "swr-cache-v1.json");
@@ -31,7 +32,7 @@ function save() {
 export function persistentCache(): Cache {
   let entries: [string, State][] = [];
   try {
-    if (file.exists) entries = JSON.parse(file.textSync());
+    if (file.exists) entries = JSON.parse(file.textSync(), indiaTime); // older saves still carry "+05:30"
   } catch {
     entries = [];
   }

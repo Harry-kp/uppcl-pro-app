@@ -70,11 +70,20 @@ export function recordSummary(r: Record<string, unknown>): { title: string; subt
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 /**
+ * JSON.parse reviver: UPPCL's "2026-10-16T00:00:00+05:30" (a date in India) → "2026-10-16T00:00:00", which JS reads
+ * as that wall-clock time on the phone. Kept as an instant, a phone set to another time zone showed 15 Oct and
+ * labelled a 1 Oct bill as August. Meter readings already come without an offset, so everything now agrees.
+ */
+export const indiaTime = (_k: string, v: unknown) =>
+  typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?\+05:?30$/.test(v) ? v.replace(/\+05:?30$/, "") : v;
+
+/**
  * UPPCL dates come as ISO, "05-SEP-2026 10:30:00" or "05-09-2026". Browsers are lenient with
  * the last two; Hermes (React Native) isn't, so parse them explicitly. null when unparseable.
  */
 export function parseUppclDate(s: string | null | undefined): Date | null {
   if (!s) return null;
+  s = indiaTime("", s) as string; // "+05:30" → India's wall-clock date (see indiaTime)
   const iso = new Date(s);
   if (/^\d{4}-\d{2}-\d{2}/.test(s) && !Number.isNaN(iso.getTime())) return iso;
   const m = s.trim().match(/^(\d{1,2})[-/ ]([A-Za-z]{3,}|\d{1,2})[-/ ](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([AaPp][Mm]))?)?/);

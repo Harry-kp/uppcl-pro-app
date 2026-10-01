@@ -12,6 +12,7 @@ import useSWR, { mutate as defaultMutate, unload as defaultUnload, type ScopedMu
 import { solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
 import { complaints } from "./complaints";
+import { indiaTime } from "./utils";
 import {
   getSession,
   saveSession,
@@ -170,7 +171,7 @@ async function proxy(
   });
 
   if (r.status === 200) {
-    return r.json();
+    return JSON.parse(await r.text(), indiaTime);
   }
 
   if (r.status === 401 || r.status === 403) {

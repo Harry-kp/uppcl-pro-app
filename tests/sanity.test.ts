@@ -385,3 +385,16 @@ describe("demo mode never reaches UPPCL", () => {
     configurePlatform({ mock: undefined });
   });
 });
+
+describe("UPPCL dates read as India's calendar date on any phone time zone", () => {
+  test("bill dated 1 Oct covers September; due 16 Oct stays 16 Oct (run with TZ=America/New_York too)", async () => {
+    const { billingPeriod, indiaTime, parseUppclDate } = await import("@shared/utils");
+    const inv = JSON.parse('{"bill_dt":"2026-10-01T00:00:00+05:30","due_dt":"2026-10-16T00:00:00+05:30","n":"+05:30"}', indiaTime);
+    expect(inv.bill_dt).toBe("2026-10-01T00:00:00");
+    expect(inv.n).toBe("+05:30"); // only full timestamps change
+    expect(billingPeriod(inv.bill_dt).from.getMonth()).toBe(8); // September
+    expect(new Date(inv.due_dt).getDate()).toBe(16);
+    expect(parseUppclDate("2026-10-16T00:00:00+05:30")?.getDate()).toBe(16);
+    expect(parseUppclDate("2026-09-30T00:00:00")?.getDate()).toBe(30); // meter readings: unchanged
+  });
+});
