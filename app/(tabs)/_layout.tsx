@@ -1,8 +1,8 @@
-import { PixelRatio, View } from "react-native";
+import { View } from "react-native";
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n } from "../../src/i18n";
-import { font, useColors } from "../../src/theme";
+import { useColors } from "../../src/theme";
 import { Icon, type IconName } from "../../src/icons";
 
 const TABS: { name: string; label: "tab_home" | "tab_usage" | "tab_bills" | "tab_complaints"; icon: IconName; iconOn: IconName }[] = [
@@ -14,12 +14,11 @@ const TABS: { name: string; label: "tab_home" | "tab_usage" | "tab_bills" | "tab
 
 export default function TabsLayout() {
   const c = useColors();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
-  // Material 3 navigation bar (~80dp) that grows with the user's font size and always clears the
-  // gesture bar. The default bar has a fixed height, so large text ran into the home indicator (BUG-023).
-  const scale = Math.min(PixelRatio.getFontScale(), 1.6);
-  const barHeight = Math.round(72 + 16 * (scale - 1)) + insets.bottom;
+  // Icons only (user's call): the names still reach TalkBack through each tab's title.
+  // 64dp clears the gesture bar on every phone; no text, so it no longer grows with font size (BUG-023).
+  const barHeight = 64 + insets.bottom;
 
   return (
     <Tabs
@@ -29,9 +28,9 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: c.bg },
         tabBarActiveTintColor: c.text,
         tabBarInactiveTintColor: c.muted,
-        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line, height: barHeight, paddingTop: 8, paddingBottom: insets.bottom + 6 },
-        tabBarItemStyle: { minHeight: 56 },
-        tabBarLabelStyle: { fontFamily: lang === "hi" ? font.hiSemibold : font.semibold, fontSize: 12, marginTop: 4 },
+        tabBarShowLabel: false,
+        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.line, height: barHeight, paddingTop: 12, paddingBottom: insets.bottom + 12 },
+        tabBarItemStyle: { minHeight: 48 },
       }}
     >
       {TABS.map((tab) => (
