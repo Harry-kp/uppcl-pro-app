@@ -13,6 +13,9 @@ never log, store or send credentials/tokens/account data anywhere but UPPCL and 
 - "UPPCL or us?": `bun scripts/check-upstreams.ts <account-number>` — read-only status of UPPCL SMART,
   bill portal and 1912 portal. `CCB_ISE_SE_503` = UPPCL's billing backend is down.
 - Run on a device/emulator: `bunx expo run:android` (Android SDK + JDK 17; first build ~10 min)
+- iOS on a real cloud iPhone: `python scripts/ios-smoke.py <app.ipa> [--sample]` (needs `pip install Appium-Python-Client`,
+  `BSTACK_USERNAME`/`BSTACK_ACCESS_KEY`; without `--sample` it signs in with `UPPCL_USER`/`UPPCL_PASS`, masked).
+  Screenshots land in git-ignored `qa/ios/`. Read-only: opens Pay and the complaint sheet, never pays or files.
 - Release: bump `expo.version` (and `android.versionCode` for a new version) in `app.json`, push tag
   `vX.Y.Z` matching it. `.github/workflows/release.yml` builds, signs and uploads the APK; re-pushing the
   same tag or re-running the workflow overwrites the asset.
