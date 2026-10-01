@@ -1,4 +1,4 @@
-import { PixelRatio, Text, View } from "react-native";
+import { PixelRatio, Text } from "react-native";
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n } from "../../src/i18n";
@@ -16,8 +16,9 @@ export default function TabsLayout() {
   const c = useColors();
   const { t, lang } = useI18n();
   const insets = useSafeAreaInsets();
-  // Material 3 "label on the selected tab only": a calm bar that still says where you are. The other labels
-  // keep their space (transparent) so icons don't jump between tabs; TalkBack reads every tab's title.
+  // Material 3 navigation bar with every tab named (icons alone are ambiguous except Home; user's pick):
+  // the selected tab is a filled icon + bold name in the brand colour; the rest are muted outlines.
+  // No box behind the icon (the M3 pill read as a clumsy highlight here; user feedback).
   // Grows with the user's font size and clears the gesture bar (BUG-023).
   const scale = Math.min(PixelRatio.getFontScale(), 1.6);
   const barHeight = Math.round(72 + 16 * (scale - 1)) + insets.bottom;
@@ -41,14 +42,15 @@ export default function TabsLayout() {
           options={{
             title: t(tab.label),
             tabBarLabel: ({ focused }) => (
-              <Text numberOfLines={1} style={{ fontFamily: lang === "hi" ? font.hiSemibold : font.semibold, fontSize: 12, marginTop: 4, color: c.text, opacity: focused ? 1 : 0 }}>
+              <Text numberOfLines={1} style={{
+                fontFamily: focused ? (lang === "hi" ? font.hiBold : font.bold) : (lang === "hi" ? font.hiRegular : font.medium),
+                fontSize: 12, marginTop: 4, color: focused ? c.primary : c.muted,
+              }}>
                 {t(tab.label)}
               </Text>
             ),
             tabBarIcon: ({ focused }) => (
-              <View style={{ width: 64, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: focused ? c.pill : "transparent" }}>
-                <Icon name={focused ? tab.iconOn : tab.icon} size={24} color={focused ? c.pillText : c.muted} />
-              </View>
+              <Icon name={focused ? tab.iconOn : tab.icon} size={26} color={focused ? c.primary : c.muted} />
             ),
           }}
         />
