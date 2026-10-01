@@ -69,7 +69,7 @@ export function Txt({
   );
 }
 
-export function Screen({ children, onRefresh, refreshing = false }: { children: ReactNode; onRefresh?: () => void; refreshing?: boolean }) {
+export function Screen({ children, onRefresh, refreshing = false, footer }: { children: ReactNode; onRefresh?: () => void; refreshing?: boolean; footer?: ReactNode }) {
   const c = useColors();
   // Show the pull-to-refresh spinner only for a pull the user made, not for every background load.
   const [pulled, setPulled] = useState(false);
@@ -82,11 +82,18 @@ export function Screen({ children, onRefresh, refreshing = false }: { children: 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: top }}>
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: 32 + insets.bottom }]}
+        keyboardShouldPersistTaps="handled" // a tap on a list row acts at once, even with the keyboard up
+        contentContainerStyle={[styles.scroll, { paddingBottom: footer ? 24 : 32 + insets.bottom }]}
         refreshControl={onRefresh ? <RefreshControl refreshing={spinning} onRefresh={() => { setPulled(true); onRefresh(); }} tintColor={c.primary} colors={[c.primary]} progressBackgroundColor={c.surface} /> : undefined}
       >
         {children}
       </ScrollView>
+      {/* Pinned action (e.g. "File complaint"): always in reach, above the system nav bar. */}
+      {footer && (
+        <View style={{ paddingHorizontal: space.gutter, paddingTop: 12, paddingBottom: 12 + insets.bottom, gap: 6, backgroundColor: c.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }}>
+          {footer}
+        </View>
+      )}
     </View>
   );
 }
@@ -278,7 +285,8 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: "flex-end" }}>
         <Pressable accessibilityLabel="Close" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,10,25,0.45)" }]} />
-        <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: 16 + insets.bottom }]}>
+        {/* Never taller than the screen below the status bar: long lists scroll inside. */}
+        <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: 16 + insets.bottom, maxHeight: "100%", marginTop: Math.max(insets.top, StatusBar.currentHeight ?? 0) + 24 }]}>
           <View style={[styles.grabber, { backgroundColor: c.line }]} />
           {/* "handled": a tap on Save acts on the first press instead of only closing the keyboard. */}
           <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ gap: 12 }}>

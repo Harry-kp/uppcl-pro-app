@@ -19,7 +19,7 @@ import { billRebate, busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, m
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
 const { isInAppUrl } = await import("../src/links");
-const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, placeKey, sourceKind, supplySaveXml } = await import("@shared/complaints");
+const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, pickDistrict, placeKey, sourceKind, supplySaveXml, withContact } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -347,4 +347,21 @@ describe("1912 supply complaint (form 6444)", () => {
     expect(r["151532"][0].VAL).toBe("0");
     expect(r["59941"]).toEqual([]);
   });
+});
+
+describe("pickDistrict", () => {
+  const all = [{ id: "1", name: "RAMPUR" }, { id: "2", name: "GAUTAM BUDDHA NAGAR" }, { id: "3", name: "MAU" }, { id: "4", name: "AZAMGARH" }];
+  test("picked by the user wins", () => expect(pickDistrict(all, { districtId: "3", city: "RAMPUR" })?.id).toBe("3"));
+  test("bill address city", () => expect(pickDistrict(all, { city: "Rampur" })?.id).toBe("1"));
+  test("city isn't a district: the district inside the division", () =>
+    expect(pickDistrict(all, { city: "NOIDA", division: "EUDD II GAUTAM BUDDHA NAGAR" })?.id).toBe("2"));
+  test("nothing matches: undefined (the user picks)", () => expect(pickDistrict(all, { city: "NOIDA", division: "EDD X" })).toBeUndefined());
+});
+
+describe("withContact", () => {
+  const d = { controls: { 59944: "9000000000" } } as never;
+  test("a valid second number is saved with who it belongs to", () =>
+    expect((withContact(d, "+91 90000 00001", "Family") as { controls: Record<string, string> }).controls).toMatchObject({ 143142: "9000000001", 143626: "Family" }));
+  test("not a mobile number: nothing saved", () =>
+    expect((withContact(d, "12345", "Others") as { controls: Record<string, string> }).controls).toMatchObject({ 143142: "", 143626: "" }));
 });

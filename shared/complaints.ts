@@ -212,6 +212,8 @@ export interface SupplyDraft {
   mobile: string | null;
   substation: string | null;
   subdivision: string | null;
+  /** When the account's record has no area and its division couldn't be matched: the district's divisions (chooseDivision). */
+  divisions: Place[];
   /** When the account's record has no substation, the ones in its division; the user picks (chooseSubstation). */
   substations: (Place & { subdivision: Place })[];
   /** UPPCL's reason it won't take this complaint now (e.g. one is already open); no Save then. */
@@ -265,15 +267,34 @@ const REQUIRED: [id: string, what: string][] = [
  * `division` is the bill portal's ("EUDD IV RAMPUR"); `substationHint` any text naming the substation
  * (a past complaint's substation, the address) to pick one when UPPCL's record of the account has none.
  */
+/** 1912's districts, for filing on someone else's connection (the user picks theirs). */
+export async function listDistricts(): Promise<Place[]> {
+  return places((await lookup("0", [["59929", "60180"]]))["59929"]);
+}
+
+/**
+ * The account's 1912 district: the one the user picked, else the bill address's city ("GHAZIABAD"), else the
+ * district named inside the division ("EUDD IV RAMPUR"; longest name wins, so "MAU" can't match "AZAMGARH MAU…").
+ * The city isn't always the district (Noida's is Gautam Buddha Nagar): then the user picks it (listDistricts).
+ */
+export function pickDistrict(all: Place[], input: { districtId?: string | null; city?: string | null; division?: string | null }): Place | undefined {
+  if (input.districtId) return all.find((d) => d.id === input.districtId);
+  const city = placeKey(input.city ?? "");
+  const exact = city ? all.find((d) => placeKey(d.name) === city) : undefined;
+  if (exact) return exact;
+  const div = placeKey(input.division ?? "");
+  return div ? all.filter((d) => placeKey(d.name).length >= 4 && div.includes(placeKey(d.name))).sort((a, b) => b.name.length - a.name.length)[0] : undefined;
+}
+
 export async function prepareSupplyComplaint(input: {
-  account: string; city: string | null; division?: string | null; substationHint?: string | null;
+  account: string; city: string | null; districtId?: string | null; division?: string | null; substationHint?: string | null;
   problem: SupplyProblem; outage: "Individual" | "Area";
 }): Promise<SupplyDraft> {
   const c: Record<string, string> = Object.fromEntries(SAVED);
   const sub = SUB_TYPE[input.problem];
 
   const load = await lookup("0", [["59929", "60180"], ["96559", "89446"], ["75039", "99106"]]);
-  const district = places(load["59929"]).find((d) => input.city && placeKey(d.name) === placeKey(input.city));
+  const district = pickDistrict(places(load["59929"]), input);
   if (!district) throw new ProxyError(404, `1912 doesn't list the district "${input.city ?? "?"}"`, undefined, "complaints");
   const P: [string, string][] = [["129225", input.account], ["59929", district.id]];
   const [byDistrict, found] = await Promise.all([
@@ -292,7 +313,7 @@ export async function prepareSupplyComplaint(input: {
   });
   const draft: SupplyDraft = {
     problem: input.problem, outage: input.outage, account: c[59945], district,
-    name: c[59942] || null, mobile: c[59944] || null, substation: null, subdivision: null, substations: [], blocked: null, controls: c,
+    name: c[59942] || null, mobile: c[59944] || null, substation: null, subdivision: null, divisions: [], substations: [], blocked: null, controls: c,
   };
 
   if (row.SUBSTATION_CODE && row.DIVISION_CODE) {
@@ -315,16 +336,34 @@ export async function prepareSupplyComplaint(input: {
   // Not mapped (seen live on a smart postpaid account): pick the area the way a person would on the page,
   // division (matched to the bill portal's) → circle, zone, sub-divisions → their substations.
   const lists = await lookup("59929", [["59935", "46477", [["59929", district.id]]]]);
-  const division = places(lists["59935"]).find((d) => input.division && placeKey(d.name) === placeKey(input.division));
-  if (!division) throw new ProxyError(404, `1912 doesn't list the division "${input.division ?? "?"}"`, undefined, "complaints");
-  const dv = await lookup("59935", [["59934", "47159", [["59935", division.id]]], ["59933", "47160", [["59935", division.id]]], ["59936", "46479", [["59935", division.id]]]]);
-  Object.assign(c, { 59935: division.id, 59934: place(dv["59934"])?.id ?? "", 59933: place(dv["59933"])?.id ?? "" });
+  const divisions = places(lists["59935"]);
+  const division = divisions.find((d) => input.division && placeKey(d.name) === placeKey(input.division));
+  // Someone else's connection (or an unknown spelling): the user picks the division, then the substation.
+  if (!division) return { ...draft, divisions };
+  return withDivision(draft, division.id, input.substationHint);
+}
+
+/** The user's division (one of draft.divisions): lists its substations to pick from. */
+export async function chooseDivision(draft: SupplyDraft, divisionId: string): Promise<SupplyDraft> {
+  return withDivision(draft, divisionId, null);
+}
+
+async function withDivision(draft: SupplyDraft, divisionId: string, substationHint: string | null | undefined): Promise<SupplyDraft> {
+  const dv = await lookup("59935", [["59934", "47159", [["59935", divisionId]]], ["59933", "47160", [["59935", divisionId]]], ["59936", "46479", [["59935", divisionId]]]]);
+  const c = { ...draft.controls, 59935: divisionId, 59934: place(dv["59934"])?.id ?? "", 59933: place(dv["59933"])?.id ?? "" };
   const subdivisions = places(dv["59936"]);
   const lists2 = await Promise.all(subdivisions.map((s) => lookup("59936", [["59937", "46480", [["59936", s.id]]]])));
-  draft.substations = lists2.flatMap((l, i) => places(l["59937"]).map((p) => ({ ...p, subdivision: subdivisions[i] })));
-  const hint = placeKey(input.substationHint ?? "");
-  const pick = hint ? draft.substations.find((s) => hint.includes(placeKey(s.name)) || placeKey(s.name) === hint) : undefined;
-  return pick ? chooseSubstation(draft, pick.id) : draft;
+  const next: SupplyDraft = { ...draft, controls: c, divisions: [], substation: null, subdivision: null,
+    substations: lists2.flatMap((l, i) => places(l["59937"]).map((p) => ({ ...p, subdivision: subdivisions[i] }))) };
+  const hint = placeKey(substationHint ?? "");
+  const pick = hint ? next.substations.find((s) => hint.includes(placeKey(s.name)) || placeKey(s.name) === hint) : undefined;
+  return pick ? chooseSubstation(next, pick.id) : next;
+}
+
+/** A second number the engineer can call (1912's "alternate mobile"); not checked, no OTP. */
+export function withContact(draft: SupplyDraft, mobile: string | null, who: "Myself" | "Family" | "Others"): SupplyDraft {
+  const m = mobile10(mobile);
+  return { ...draft, controls: { ...draft.controls, 143142: m ?? "", 143626: m ? who : "" } };
 }
 
 /** The user's substation (one of draft.substations): fills the JE, section and agent the page does, then validates. */

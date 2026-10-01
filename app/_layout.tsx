@@ -86,6 +86,7 @@ function Gate() {
             <Stack.Screen name="complaint/[no]" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="pdf" options={{ animation: "slide_from_bottom" }} />
             <Stack.Screen name="details" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="report" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="profile" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="pay" options={{ presentation: "transparentModal", animation: "fade", contentStyle: { backgroundColor: "transparent" } }} />
             <Stack.Screen name="quick/[action]" options={{ animation: "none" }} />
