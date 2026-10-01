@@ -654,6 +654,11 @@ export interface Site {
   meterInstallationNumber: string;
   meterPhase: string;
   meterType: string;
+  // Also on UPPCL SMART's connection record (Oct 2026 audit):
+  email?: string;
+  isPaperlessBillEnabled?: boolean;
+  meterInstallationDate?: string;
+  dataSource?: string; // "jeu" / "hes" / …: decides the day-readings request body
 }
 
 export interface DailyBill {

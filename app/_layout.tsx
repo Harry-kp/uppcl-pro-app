@@ -44,7 +44,9 @@ export default function Root() {
   if (!loaded) return null;
   return (
     <SafeAreaProvider>
-      <SWRConfig value={{ provider: persistentCache }}>
+      {/* SWR retries failures forever by default; through a day-long UPPCL outage that keeps the radio busy.
+          Three backed-off retries, then the screen's own "try again" / pull-to-refresh / next open. */}
+      <SWRConfig value={{ provider: persistentCache, errorRetryCount: 3 }}>
         <I18nProvider>
           <Gate />
         </I18nProvider>

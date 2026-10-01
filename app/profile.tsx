@@ -51,6 +51,9 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
           {!!known(site?.customerName) && <Detail first label={t("name")} value={site!.customerName} />}
           {!!tenDigits(loginPhone) && <Detail first={!known(site?.customerName)} label={t("login_mobile")} value={tenDigits(loginPhone)} />}
           {!!addr && <Detail label={t("address")} value={addr} lines={3} />}
+          {/* Also in the UPPCL SMART record: no need to wait for the bill portal for these two. */}
+          {!!known(String(site?.email ?? "")) && <Detail label={t("email")} value={String(site!.email)} />}
+          {typeof site?.isPaperlessBillEnabled === "boolean" && <Detail label={t("bills_by")} value={site.isPaperlessBillEnabled ? t("bills_by_email") : t("bills_by_paper")} />}
           <Pressable accessibilityRole="button" onPress={() => void mutate()}
             style={({ pressed }) => [styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
             <Icon name="refresh" size={20} color={c.primary} />
@@ -71,7 +74,7 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
       {mismatch && <Insight tone="warn" icon="warning" text={t("phone_mismatch", { app: `••${appPhone.slice(-4)}`, bill: `••${billPhone.slice(-4)}` })} />}
       <Card style={{ padding: 0, gap: 0 }}>
         {!!known(cd.name) && <Detail first label={t("name")} value={cd.name!} />}
-        {!!billPhone && <Detail first={!cd.name} label={t("registered_mobile")} value={billPhone} />}
+        {!!billPhone && <Detail first={!known(cd.name)} label={t("registered_mobile")} value={billPhone} />}
         {!!cd.email && <Detail label={t("email")} value={cd.email} />}
         <Detail label={t("bills_by")} value={billsBy} />
         {!!address && <Detail label={t("billing_address")} value={address} lines={3} />}
