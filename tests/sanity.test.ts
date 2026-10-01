@@ -257,3 +257,18 @@ describe("1912 complaint fields (as UPPCL sends them)", () => {
     expect(openFor(open, new Date(2026, 9, 1, 1, 0, 0).getTime())).toBe(3 * 3600_000);
   });
 });
+
+describe("session", () => {
+  test("a session that runs out on its own is reported as expired, not silently dropped", async () => {
+    const { configurePlatform } = await import("@shared/platform");
+    const { getSession, saveSession, sessionWasExpired } = await import("@shared/session");
+    const mem = new Map<string, string>();
+    configurePlatform({ storage: { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => void mem.set(k, v), removeItem: (k) => void mem.delete(k) } });
+    saveSession({ jwt: "x", jwtExpiresMs: Date.now() + 60_000, tenant: "t" });
+    expect(getSession()).not.toBeNull();
+    expect(sessionWasExpired()).toBe(false);
+    saveSession({ jwt: "x", jwtExpiresMs: Date.now() - 1, tenant: "t" });
+    expect(getSession()).toBeNull();
+    expect(sessionWasExpired()).toBe(true);
+  });
+});
