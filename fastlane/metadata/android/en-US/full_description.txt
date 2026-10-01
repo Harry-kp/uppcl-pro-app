@@ -1,0 +1,15 @@
+Your UP electricity, made simple. Meter Pro shows what your UPPCL smart meter knows, in plain numbers.
+
+• Your bill, first: what's due, by when, and what you save by paying on time. Pay in the app through UPPCL's own payment page.
+• Prepaid? See your balance and roughly how many days it will last.
+• Usage: is this normal? Daily and hourly units, your busiest hours, and how this month compares.
+• Bills and payments: every statement and receipt as a PDF.
+• No power? Two taps file your complaint with UPPCL 1912, with your account, substation and line engineer filled in. Low voltage, one phase or someone else's home are one screen away. Track complaints and call the engineer.
+• Home-screen widget, bill reminders, dark mode, English and हिन्दी.
+• Try it first with sample data, no account needed.
+
+Private by design: there is no server of ours. The app talks directly to UPPCL from your phone. No ads, no analytics, nothing sent to us. Signing out deletes everything the app stored.
+
+Meter Pro is unofficial and open source. It is not made by or affiliated with UPPCL or any discom. For official services visit https://www.uppcl.org. It works with UPPCL SMART (smart meter) accounts.
+
+Source code: https://github.com/Harry-kp/uppcl-pro-app
