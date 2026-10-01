@@ -2,7 +2,7 @@
  * Sample data: invented accounts that answer every request the app makes, without the network.
  * - Demo mode ("Try with sample data" on sign-in): anyone can look around without a UPPCL account,
  *   store reviewers included; store screenshots come from here too (no real person on them).
- * - Dev builds also pick other scenarios (prepaid, overdue, outages) in Settings → Developer (src/dev).
+ * - Dev builds also pick other scenarios (prepaid, overdue, outages) in Settings → Developer.
  * Safety: while sample data is on, nothing reaches UPPCL. Complaint filing and payments are answered
  * here, and shared/complaints.ts refuses to call 1912 at all.
  * All data is invented and dated relative to today.
