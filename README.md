@@ -151,6 +151,7 @@ iPhone support is on the way.
 - The update check asks `api.github.com` for the latest release (no account data). "Report a problem" only
   opens GitHub (in your browser, or inside the app if the phone has no browser); nothing is sent until you
   submit, and issues are public, so remove anything personal first.
+- Full privacy policy: [docs/privacy.md](docs/privacy.md). "Try with sample data" sends nothing to UPPCL.
 - How UPPCL's APIs work: [docs/api-reverse-engineering.md](docs/api-reverse-engineering.md),
   [docs/payment-reverse-engineering.md](docs/payment-reverse-engineering.md).
 </details>
