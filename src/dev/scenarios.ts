@@ -177,7 +177,7 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
 
   // Bill portal (payment flow and PDFs).
   const home = { kno: d.site.connectionId, payableAmt: String(d.payable), totalAmount: String(d.payable), discomName: "PVVNL",
-    customerDetailsDTO: { billNo: "INV0", billDate: dmy(d.billDt), dueDate: dmy(d.dueDt), dueAmount: String(d.payable), purposeOfSupply: "LMV1", discomName: "PVVNL", mobileNo: "9000000001", email: "asha@example.com" } };
+    customerDetailsDTO: { billNo: "INV0", billDate: dmy(d.billDt), dueDate: dmy(d.dueDt), dueAmount: String(d.payable), payAmtBeforeDueDt: String(Math.round(d.payable * 0.99)), purposeOfSupply: "LMV1", discomName: "PVVNL", mobileNo: "9000000001", email: "asha@example.com" } };
   if (key === "wss:v2/InstaPayment/GetPayBillDetails" || key === "wss:v2/InstaPayment/updateConsumerInputAmount") return { PayBillHomeDTO: home };
   if (key === "wss:v2/InstaPayment/processPaymentRequestWithPG") return { bdRequestDTO: { url: "mock:billdesk", message: "MOCK", trackId: "MOCK-TRACK" } };
   if (key.startsWith("wss:receipt:")) {

@@ -30,6 +30,8 @@ export interface PayBillHome {
   customerDetailsDTO?: {
     billNo?: string; billDate?: string; dueDate?: string; dueAmount?: string; email?: string;
     mobileNo?: string; discomName?: string; purposeOfSupply?: string; typeOfConnection?: string;
+    // What the bill PDF calls "Payable by Due Date" (after the due-date rebate) and the amount after it.
+    payAmtBeforeDueDt?: string; payAmtAfterDueDt?: string;
   };
   [k: string]: unknown;
 }
@@ -115,4 +117,20 @@ export async function getPaymentReceipt(trackId: string): Promise<PaymentReceipt
     amount: pr.payment_amount as string | undefined, date: pr.paymentDate as string | undefined,
     ref: (pr.tran_ref_number ?? pr.trackId) as string | undefined, pdfBase64: (json.bytecode as string | undefined) || undefined,
   };
+}
+
+/**
+ * Paying by the due date earns UPPCL's due-date rebate: the bill portal sends the on-time amount
+ * (payAmtBeforeDueDt) beside the full one. null unless both are real, the saving is positive and small
+ * (< 5% — anything bigger isn't a rebate), and the due date hasn't passed.
+ */
+export function onTimeSaving(home: PayBillHome, now = new Date()): { by: Date; amount: number; saving: number } | null {
+  const cd = home.customerDetailsDTO;
+  const full = Number(cd?.dueAmount ?? home.payableAmt), onTime = Number(cd?.payAmtBeforeDueDt);
+  const by = parseUppclDate(cd?.dueDate);
+  if (!by || !Number.isFinite(full) || !Number.isFinite(onTime) || onTime <= 0) return null;
+  const endOfDue = new Date(by.getFullYear(), by.getMonth(), by.getDate(), 23, 59, 59);
+  const saving = full - onTime;
+  if (now > endOfDue || saving <= 0 || saving >= full * 0.05) return null;
+  return { by, amount: onTime, saving };
 }

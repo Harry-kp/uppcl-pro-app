@@ -13,7 +13,7 @@ mock.module("react-native", () => ({ Linking: { openURL: async () => {} } }));
 mock.module("expo-router", () => ({ router: { push: () => {} } }));
 
 import { ProxyError, type DashboardResponse } from "@shared/api";
-import { payAmountError, type PayBillHome } from "@shared/payment";
+import { onTimeSaving, payAmountError, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
@@ -270,5 +270,19 @@ describe("session", () => {
     saveSession({ jwt: "x", jwtExpiresMs: Date.now() - 1, tenant: "t" });
     expect(getSession()).toBeNull();
     expect(sessionWasExpired()).toBe(true);
+  });
+});
+
+describe("due-date rebate (bill portal's payAmtBeforeDueDt)", () => {
+  const home = (cd: Record<string, string>) => ({ payableAmt: "1612", customerDetailsDTO: { dueDate: "18-SEP-2026", dueAmount: "1612.00", ...cd } }) as PayBillHome;
+  test("before the due date: the on-time amount and the saving", () => {
+    expect(onTimeSaving(home({ payAmtBeforeDueDt: "1597.00" }), new Date(2026, 8, 10))).toEqual({ by: new Date(2026, 8, 18), amount: 1597, saving: 15 });
+    expect(onTimeSaving(home({ payAmtBeforeDueDt: "1597.00" }), new Date(2026, 8, 18, 20))?.saving).toBe(15); // the due day itself counts
+  });
+  test("nothing when it can't be right", () => {
+    expect(onTimeSaving(home({ payAmtBeforeDueDt: "1597.00" }), new Date(2026, 8, 19))).toBeNull(); // too late
+    expect(onTimeSaving(home({}), new Date(2026, 8, 10))).toBeNull(); // field missing
+    expect(onTimeSaving(home({ payAmtBeforeDueDt: "1612.00" }), new Date(2026, 8, 10))).toBeNull(); // no saving
+    expect(onTimeSaving(home({ payAmtBeforeDueDt: "1000" }), new Date(2026, 8, 10))).toBeNull(); // 38% off: not a rebate
   });
 });

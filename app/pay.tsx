@@ -13,7 +13,7 @@ import { WebView, type WebViewNavigation } from "react-native-webview";
 import { mutate } from "swr";
 import { useDashboard } from "@shared/api";
 import {
-  getPaymentReceipt, getPayBillDetails, payAmountError, startBillPayment,
+  getPaymentReceipt, getPayBillDetails, onTimeSaving, payAmountError, startBillPayment,
   type PayBillHome, type PaymentReceipt, type PayType,
 } from "@shared/payment";
 import { platform } from "@shared/platform";
@@ -126,6 +126,7 @@ export default function Pay() {
   const editing = custom || payable === 0; // nothing due → advance payment needs an amount
   // Nothing due, and the last bill is from an earlier month: last month's bill simply isn't out yet. Say so,
   // or an advance payment reads like paying the bill (the same estimate Home shows).
+  const onTime = payable > 0 ? onTimeSaving(home) : null;
   const now = new Date();
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const awaiting = payable === 0 && billDate && billingPeriod(billDate).from < lastMonth
@@ -146,6 +147,8 @@ export default function Pay() {
         {payable > 0 && <Txt v="hero" numeric color="big" style={{ fontSize: 44, lineHeight: 48 }}>₹{rupees(payable, { decimals: 0 })}</Txt>}
       </View>
       {!!awaiting && <Insight tone="accent" icon="event" text={t("pay_awaiting_bill", { month: awaiting })} />}
+      {/* UPPCL's own on-time amount (bill portal). Message only: the amounts paid follow the portal's payableAmt. */}
+      {!!onTime && <Insight tone="ok" icon="savings" text={t("pay_on_time", { date: onTime.by.toLocaleDateString(locale, { day: "numeric", month: "short" }), amount: rupees(onTime.amount, { decimals: 0 }), saving: rupees(onTime.saving, { decimals: 0 }) })} />}
 
       {editing && (
         <View style={{ gap: 8 }}>
