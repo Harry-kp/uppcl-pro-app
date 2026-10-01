@@ -34,6 +34,8 @@ export default function Bills() {
     .filter((b) => b.invoice_id)
     .sort((a, b) => String(b.bill_dt).localeCompare(String(a.bill_dt)))
     .slice(0, 12);
+  const rebates = postpaid ? statements.map(billRebate).filter((r): r is number => r !== null) : [];
+  const savedTotal = rebates.reduce((a, r) => a + r, 0);
 
   async function pdf(id: string, run: () => Promise<void>) {
     setBusy(id);
@@ -108,7 +110,9 @@ export default function Bills() {
         </Card>
       )}
 
-      <Section title={t("statements")} error={stmts.error} stale={statements.length > 0}>
+      {/* Why some bills say "Saved ₹…": UPPCL's rebate for paying by the due date. Said once, with the total. */}
+      <Section title={t("statements")} error={stmts.error} stale={statements.length > 0}
+        note={savedTotal > 0 ? <Insight tone="ok" icon="savings" text={t("rebate_total", { amount: rupees(savedTotal, { decimals: 0 }) })} /> : undefined}>
         {statements.length === 0 && stmts.isLoading ? <SkeletonRows n={3} /> : statements.length === 0 ? (
           <Txt v="label" color="muted" style={styles.empty}>{emptyText(stmts, "none_statements")}</Txt>
         ) : statements.slice(0, allBills ? 12 : 6).map((inv, i) => {
@@ -120,7 +124,8 @@ export default function Bills() {
             <Row key={inv.invoice_id} first={i === 0}
               title={month(inv.bill_dt)}
               // Prepaid statements are charged from the balance: there is nothing to pay, so no pay status.
-              sub={credit ? t("credit_note") : !postpaid ? t("from_balance") : paid && inv.payment_dt ? `${t("paid")} · ${day(inv.payment_dt)}${saved ? ` · ${t("bill_saved", { amount: rupees(saved, { decimals: 0 }) })}` : ""}` : t("unpaid")}
+              sub={credit ? t("credit_note") : !postpaid ? t("from_balance") : paid && inv.payment_dt ? `${t("paid")} · ${day(inv.payment_dt)}` : t("unpaid")}
+              badge={saved ? <Pill tone="ok" icon="savings" label={t("bill_saved", { amount: rupees(saved, { decimals: 0 }) })} /> : undefined}
               status={credit || !postpaid ? undefined : paid ? "ok" : "warn"}
               amount={credit ? t("credit", { amount: rupees(Math.abs(amt), { decimals: 0 }) }) : `₹${rupees(amt, { decimals: 0 })}`}
               amountColor={credit ? "ok" : undefined}
@@ -165,10 +170,11 @@ export default function Bills() {
 }
 
 /** `error`: this list's own failure, shown under its title — other lists on the page may be perfectly fresh. */
-function Section({ title, error, stale, children }: { title: string; error?: unknown; stale?: boolean; children: ReactNode }) {
+function Section({ title, error, stale, note, children }: { title: string; error?: unknown; stale?: boolean; note?: ReactNode; children: ReactNode }) {
   return (
     <View style={{ gap: 8, marginTop: 6 }}>
       <Txt v="heading">{title}</Txt>
+      {note}
       {!!error && <ErrorNote error={error} stale={stale} compact={stale} />}
       {/* Failed with nothing saved: the note above is the whole story, no empty card under it. */}
       {!(error && !stale) && <Card style={{ padding: 0, gap: 0 }}>{children}</Card>}
@@ -176,7 +182,7 @@ function Section({ title, error, stale, children }: { title: string; error?: unk
   );
 }
 
-function Row({ title, sub, status, amount, amountColor, right, first }: { title: string; sub?: string; status?: "ok" | "warn"; amount?: string; amountColor?: "ok"; right?: ReactNode; first: boolean }) {
+function Row({ title, sub, status, amount, amountColor, right, badge, first }: { title: string; sub?: string; status?: "ok" | "warn"; amount?: string; amountColor?: "ok"; right?: ReactNode; badge?: ReactNode; first: boolean }) {
   const c = useColors();
   return (
     <View style={[styles.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
@@ -188,6 +194,7 @@ function Row({ title, sub, status, amount, amountColor, right, first }: { title:
             <Txt v="caption" color={status === "warn" ? "warn" : "muted"} numberOfLines={1} style={{ flexShrink: 1 }}>{sub}</Txt>
           </View>
         )}
+        {badge && <View style={{ flexDirection: "row", marginTop: 6 }}>{badge}</View>}
       </View>
       <View style={{ alignItems: "flex-end", gap: 4 }}>
         {amount && <Txt v="body" numeric weight="bold" color={amountColor}>{amount}</Txt>}
