@@ -19,7 +19,7 @@ import { billRebate, busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, m
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
 const { isInAppUrl } = await import("../src/links");
-const { mobile10, openFor, personName, sourceKind } = await import("@shared/complaints");
+const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, placeKey, sourceKind, supplySaveXml } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -299,5 +299,52 @@ describe("billRebate", () => {
     expect(billRebate(b({ bill_amt: "-638" }))).toBeNull();
     expect(billRebate(b({ payment_amt: "1612" }))).toBeNull();
     expect(billRebate(b({ payment_amt: "1000" }))).toBeNull(); // part payment, not a rebate
+  });
+});
+
+describe("1912 supply complaint (form 6444)", () => {
+  // Made-up values only.
+  const draft = {
+    problem: "no_power" as const, outage: "Individual" as const, account: "1234567890", district: { id: "1001", name: "TESTPUR" },
+    name: "Test User", mobile: "9000000000", substation: "Test SS", subdivision: "Test SD", substations: [], blocked: null,
+    controls: { 59929: "1001", 59944: "9000000000", 59945: "1234567890", 59930: "CT019", 59931: "CST120", 95303: "Individual", 59942: "Test User", 59946: "A-1, Test Nagar & Co" } as Record<string, string>,
+  };
+  const xml = supplySaveXml(draft, `No supply since 9 pm, <b>"pole" | $ 'fuse'`, new Date(2026, 9, 1, 21, 5, 9));
+
+  test("the page's FORM envelope, date and save event", () => {
+    expect(xml.startsWith('<?xml version="1.0"?><FORM IUVLOGINID="anonymous" USERID="anonymous" ROLE_ID="883" ID="6444" COMPANY_ID="64" EventControlID="59950" SRC="W">')).toBe(true);
+    expect(xml).toContain('<DATA DATE="01-Oct-2026 21:05:09"><UNIQUEID VALUE="');
+    expect(xml.endsWith("</DATA></FORM>")).toBe(true);
+    expect(xml).not.toContain('CONTROL ID="59950"'); // the Save button itself isn't data
+  });
+  test("every saved control is there once, with its value", () => {
+    for (const id of ["59929", "59932", "59937", "59944", "59945", "59931", "59942", "59949", "60043", "96559", "130595"])
+      expect(xml.split(`<CONTROL ID="${id}" `).length).toBe(2);
+    expect(xml).toContain('<CONTROL ID="59931" VALUE="CST120" />');
+    expect(xml).toContain('<CONTROL ID="141592" VALUE="OR" />'); // label default, as the page sends it
+    expect(xml).toContain('<CONTROL ID="59946" VALUE="A-1, Test Nagar &amp; Co" />'); // XML-escaped
+  });
+  test("remarks lose the characters 1912 refuses; Hindi is kept as entities", () => {
+    expect(cleanRemarks(`No supply since 9 pm, <b>"pole" | $ 'fuse'`)).toBe("No supply since 9 pm b pole fuse");
+    expect(xml).toContain('<CONTROL ID="59949" VALUE="No supply since 9 pm b pole fuse" />');
+    expect(supplySaveXml(draft, "बिजली नहीं")).toContain('VALUE="&#2348;&#2367;');
+    expect(supplySaveXml(draft, "बिजली नहीं")).toMatch(/^[\x20-\x7e]*$/); // ASCII on the wire
+  });
+  test("place names match across UPPCL's spellings", () => {
+    expect(placeKey("EUDD IV RAMPUR")).toBe(placeKey("EUDD-4 RAMPUR"));
+    expect(placeKey("Test Nagar Phase 2")).toBe(placeKey("Test nagar Phase-II"));
+    expect(placeKey("EUDD-1 RAMPUR")).not.toBe(placeKey("EUDD-4 RAMPUR"));
+  });
+  test("complaint number from 1912's message", () => {
+    expect(complaintNoIn("Your complaint for SUPPLY RELATED has been registered successfully. Your Complaint No. is MV01012600001")).toBe("MV01012600001");
+    expect(complaintNoIn("Your complaint has been registered successfully")).toBeNull();
+  });
+  test("answers split per requested control", () => {
+    const raw = '<RESULT EVENT_CONTROL="0.0"><RESULTS CHILDCONTROLID="59929" AC_ID="60180" SECCONTROLID=""><Rowset><DATA_ID>1001</DATA_ID><DISTRICT>TESTPUR</DISTRICT></Rowset></RESULTS>' +
+      '<RESULTS CHILDCONTROLID="151532" AC_ID="210295" SECCONTROLID=""><Rowset><VAL>0</VAL></Rowset></RESULTS><RESULTS CHILDCONTROLID="59941" AC_ID="85043" SECCONTROLID=""></RESULTS></RESULT>';
+    const r = parseByChild(raw);
+    expect(r["59929"]).toEqual([{ DATA_ID: "1001", DISTRICT: "TESTPUR" }]);
+    expect(r["151532"][0].VAL).toBe("0");
+    expect(r["59941"]).toEqual([]);
   });
 });

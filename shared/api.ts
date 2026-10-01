@@ -926,6 +926,8 @@ export interface WssConsumer {
     division?: string;
     subDivision?: string;
     dateOfBirth?: string;
+    premiseAddress?: { city?: string | null };
+    billingAddresss?: { city?: string | null }; // sic: UPPCL spells it with three s
   };
 }
 

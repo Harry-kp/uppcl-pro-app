@@ -590,6 +590,36 @@ fragile, because the server trusts the client to send JE, substation and agent v
 UPPCL could read automated filing as abuse. The control and AC ids change whenever UPPCL edits the form (13138 and
 the 304/10228 link are both drift from earlier versions).
 
+**Verified live (Oct 2026, read-only, the maintainer's own account; implemented in `shared/complaints.ts`).**
+Everything up to Save; the save itself has still never been sent.
+- One anonymous session serves every form: lookups for 6444 work on the 4235 status session; only the
+  `formid` header changes. Lookup answers come back per control: `<RESULTS CHILDCONTROLID="…" AC_ID="…">`.
+- Page load: districts (AC 60180, `DATA_ID`+`DISTRICT`, matched to the bill portal's city), `UNI_COLOUM_ID`
+  96559 (AC 89446, a 17-digit time-based id the save carries), `SOC` 75039 (AC 99106 → `1912 Web`).
+  District change: `INBOUND_AGENT` 60044 (AC 160216, e.g. `<Discom>Agentin<n>@uppcl`), discom (AC 46474).
+- Type CT019 → sub-types CST120 NO SUPPLY / CST147 VOLTAGE FLUCTUATION, `COMP_TYPE` Y (no OTP).
+  `OUTAGETYPEVISIBILITY` (AC 86052) is Y for CST120 and N for CST147, so low voltage sends OUTAGE_TYPE "".
+- Account search (AC 160687, parents ACCOUNT_NO 129225 + DISTRICT) returns one grid row with columns
+  `ACCOUNT_NO, CONSUMER_NAME, ADDRESS, MOBILE, METER_NO, LOAD, SM_VENDOR_CODE, DISCOM_CODE, DIVISION_CODE,
+  SUBSTATION_CODE, FEEDER_CODE`. AC 159715 gives the registered mobile. **On a smart-postpaid account
+  DISCOM/DIVISION/SUBSTATION_CODE were empty**, so the page's "select account" fill (ACs 208361–208366,
+  160704–160707) has nothing to work with. The person then picks the area by hand, and so does the app:
+  division by name (AC 46477; the bill portal's "EUDD IV X" = 1912's "EUDD-4 X"), then circle (47159),
+  zone (47160) and sub-divisions (46479) from the division, substations per sub-division (46480).
+  The substation is matched to the address or a past complaint's substation, else the user chooses.
+- Substation change (ACs 46509 PRIMARY_COMPLAINT_NO, 46511 SECTION, 46513 JE_MOBILE, 46514 JE_NAME,
+  46518 AREADOWN, 46521 INBOUND, 85045 CONSUMER_TYPE) fills every mandatory hidden label. A GETDATA fill
+  doesn't fire change events on the page, so only a person's own pick runs these.
+- Validate (ACs 210295 → `VAL`, 210296 → `MSG`): `0` and an empty message for both sub-types. Non-zero
+  wasn't seen; the page then shows MSG and hides Save.
+- Save body (from the page's `fnSaveData`): every `TO_BE_SAVED` control in the form's order except the Save
+  button. Dropdown "--Select--" is `""`, labels send their text (`ORR` sends `OR`), values are HTML-encoded,
+  and the XML is base64 of its UTF-8. Date `dd-Mmm-yyyy HH:MM:ss`.
+- After a save the page opens Registration Status (8165): AC 68430 with the mobile (control 83612) returns
+  `Your complaint for SUPPLY RELATED has been registered successfully. Your Complaint No. is XX01012600001`.
+  That is the mobile's latest complaint, so the app reads the number from there. AC 89445 by UNIQUE_NO
+  answers a generic "registered successfully" even for an unknown id, so it can't confirm anything.
+
 ### 11.2 UPPCL SMART (uppcl.sem.jio.com), verified from the bundle
 
 - "Register complaint" is not an API call. It runs `preference.homePage.serviceRequest.launchLink` (with
