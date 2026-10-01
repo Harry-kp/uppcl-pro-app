@@ -8,7 +8,7 @@ import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outag
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
-import { Button, Card, Pill, Screen, Txt, familyFor } from "../../src/ui";
+import { Button, Card, Pill, Screen, Txt, familyFor, SkeletonRows, SlowNote } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
 
@@ -70,10 +70,8 @@ export default function Complaints() {
           </View>
         ) : list.length === 0 ? (
           complaints.isLoading || !me ? (
-            <View style={[styles.note, { padding: 16, alignItems: "center" }]}>
-              <ActivityIndicator color={c.primary} />
-              <Txt v="label" color="muted" style={{ flex: 1 }}>{t("complaints_loading")}</Txt>
-            </View>
+            // The 1912 portal is often slow: the list's shape now, the reason if it drags on.
+            <><SkeletonRows n={2} /><View style={{ paddingBottom: 12 }}><SlowNote loading /></View></>
           ) : (
             <View style={[styles.note, { padding: 16, alignItems: "center" }]}>
               <Icon name="checkCircle" size={20} color={c.ok} />

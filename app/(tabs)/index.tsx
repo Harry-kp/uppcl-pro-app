@@ -23,7 +23,7 @@ import { ReportSheet } from "../../src/report";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, radius, useColors } from "../../src/theme";
-import { Button, Card, Centered, Glow, Insight, Pill, Screen, Txt } from "../../src/ui";
+import { Button, Card, Centered, Glow, Insight, Pill, Screen, Skeleton, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
 
@@ -47,7 +47,16 @@ export default function Home() {
       <ErrorNote error={error} onRetry={() => mutate()} />
     </Screen>
   );
-  if (isLoading || !data) return <Centered><Txt v="body" color="muted">{t("loading")}</Txt></Centered>;
+  // First load (UPPCL can take ~10 s): Home's shape at once, and a word if UPPCL is slow.
+  if (isLoading || !data) return (
+    <Screen>
+      <View style={{ gap: 8, marginBottom: 4 }}><Skeleton w="45%" h={30} /><Skeleton w="65%" h={14} /></View>
+      <Card style={styles.hero}><Skeleton w="45%" h={14} /><Skeleton w="60%" h={52} /><Skeleton w="85%" h={14} /><Skeleton h={48} r={14} /></Card>
+      <View style={styles.actions}>{[0, 1, 2].map((i) => <Card key={i} style={{ flex: 1, alignItems: "center", gap: 10 }}><Skeleton w={44} h={44} r={22} /><Skeleton w="70%" h={14} /></Card>)}</View>
+      <SkeletonChartCard />
+      <SlowNote loading />
+    </Screen>
+  );
   return (
     <Screen onRefresh={() => mutate()} refreshing={isValidating}>
       <Greeting data={data} />

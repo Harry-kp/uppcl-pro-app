@@ -8,7 +8,7 @@ import { FALLBACK_RATE, kwh, rupees } from "@shared/utils";
 import { Bars } from "../../src/Bars";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
-import { Card, Centered, Insight, Pill, Screen, Segmented, Txt } from "../../src/ui";
+import { Card, Centered, Insight, Pill, Screen, Segmented, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
 import { Icon } from "../../src/icons";
 import { useColors } from "../../src/theme";
 
@@ -77,7 +77,7 @@ export default function Usage() {
       {range === "365" ? (
         <YearView rate={rate} />
       ) : isLoading || !data ? (
-        <Centered><ActivityIndicator color={c.primary} /></Centered>
+        <><SkeletonChartCard chart={140} /><SlowNote loading /></>
       ) : (
         <>
           <Card>
@@ -219,7 +219,7 @@ function YearView({ rate }: { rate: number }) {
     return { months, values, total: values.reduce((a, b) => a + b, 0), vs };
   }, [thisYear.data, lastYear.data, dash]);
 
-  if (thisYear.isLoading && !thisYear.data) return <Centered><Txt v="body" color="muted">{t("loading")}</Txt></Centered>;
+  if (thisYear.isLoading && !thisYear.data) return <><SkeletonChartCard chart={140} /><SlowNote loading /></>;
   const monthLong = (d: Date) => d.toLocaleDateString(locale, { month: "long" });
   return (
     <Card>

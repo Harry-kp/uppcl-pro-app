@@ -11,7 +11,7 @@ import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
 import { Bars } from "../../src/Bars";
-import { Card, Insight, Pill, Screen, Txt } from "../../src/ui";
+import { Card, Insight, Pill, Screen, SkeletonRows, Txt } from "../../src/ui";
 import { Icon } from "../../src/icons";
 
 export default function Bills() {
@@ -108,7 +108,7 @@ export default function Bills() {
       )}
 
       <Section title={t("statements")} error={stmts.error} stale={statements.length > 0}>
-        {statements.length === 0 ? (
+        {statements.length === 0 && stmts.isLoading ? <SkeletonRows n={3} /> : statements.length === 0 ? (
           <Txt v="label" color="muted" style={styles.empty}>{emptyText(stmts, "none_statements")}</Txt>
         ) : statements.slice(0, allBills ? 12 : 6).map((inv, i) => {
           const amt = toNum(inv.bill_amt);
@@ -132,7 +132,7 @@ export default function Bills() {
       </Section>
 
       <Section title={postpaid ? t("payments") : t("recharges")} error={payments.error} stale={payList.length > 0}>
-        {(payments.data?.data ?? []).length === 0 ? (
+        {payList.length === 0 && payments.isLoading ? <SkeletonRows n={3} /> : payList.length === 0 ? (
           <Txt v="label" color="muted" style={styles.empty}>{emptyText(payments, "none_recharges")}</Txt>
         ) : payList.slice(0, allPayments ? 10 : 3).map((p, i) => (
           <Row key={p._id ?? p.txn_id} first={i === 0}

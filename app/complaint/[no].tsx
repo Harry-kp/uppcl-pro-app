@@ -5,7 +5,7 @@ import { openFor, sourceKind } from "@shared/complaints";
 import { parseUppclDate } from "@shared/utils";
 import { useI18n } from "../../src/i18n";
 import { useColors } from "../../src/theme";
-import { BackHeader, Card, Pill, Screen, Txt } from "../../src/ui";
+import { BackHeader, Card, Pill, Screen, Skeleton, SkeletonRows, SlowNote, Txt } from "../../src/ui";
 import { Icon } from "../../src/icons";
 
 export default function ComplaintDetail() {
@@ -18,7 +18,14 @@ export default function ComplaintDetail() {
   // "30/09/2026 07:42:00 PM" (BUG-063): with the time, since how long a fix took is the point here.
   const when = (d: string | null) => parseUppclDate(d)?.toLocaleString(locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) ?? null;
 
-  if (!x) return <Screen><BackHeader title={t("complaint_no", { no: no ?? "" })} /><Txt v="body" color="muted">{t("loading")}</Txt></Screen>;
+  if (!x) return (
+    <Screen>
+      <BackHeader title={t("complaint_no", { no: no ?? "" })} />
+      <Card><Skeleton w="50%" h={20} /><Skeleton w="70%" h={14} /><Skeleton w="60%" h={14} /></Card>
+      <Card style={{ padding: 0, gap: 0 }}><SkeletonRows n={3} /></Card>
+      <SlowNote loading />
+    </Screen>
+  );
 
   const took = openFor(x);
   const src = sourceKind(x.source);

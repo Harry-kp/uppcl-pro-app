@@ -22,7 +22,7 @@ import { UPPCL_SMART_URL } from "../src/boot";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
-import { Button, Insight, Segmented, Txt, familyFor } from "../src/ui";
+import { Button, Insight, Segmented, Skeleton, SlowNote, Txt, familyFor } from "../src/ui";
 import { Icon } from "../src/icons";
 import { openLink } from "../src/links";
 
@@ -110,7 +110,7 @@ export default function Pay() {
       </SheetFrame>
     );
   }
-  if (!home) return <SheetFrame title={t("pay_title")}><ActivityIndicator color={c.primary} style={{ paddingVertical: 24 }} /></SheetFrame>;
+  if (!home) return <SheetFrame title={t("pay_title")}><Skeleton w="45%" h={14} /><Skeleton w="55%" h={40} /><Skeleton h={52} r={14} /><SlowNote loading /></SheetFrame>;
 
   const ruleText = rule === "min_due" ? t("pay_rule_min", { amount: rupees(payable, { decimals: 0 }) })
     : rule === "part_range" ? t("pay_rule_part", { min: rupees(Math.ceil(payable * (home.customerDetailsDTO?.purposeOfSupply === "LMV1" ? 0.1 : 0.25)), { decimals: 0 }), max: rupees(payable, { decimals: 0 }) })

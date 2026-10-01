@@ -276,6 +276,7 @@
     "no_account_cta": "Create a UPPCL SMART account",
     "signin_prep": "Getting ready…",
     "signin_opening": "Opening your account…",
+    "loading_slow": "UPPCL is taking a while to answer. Still trying…",
     "login_slow": "UPPCL SMART is taking too long to answer. Try again in a moment; your internet is fine.",
     "no_account_need_mobile": "Your mobile number",
     "no_account_need_account": "The 10-digit account number on your bill",

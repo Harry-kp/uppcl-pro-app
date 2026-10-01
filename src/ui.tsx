@@ -1,8 +1,8 @@
 /** Small design-system primitives. Every colour comes from theme.ts. */
-import { memo, useEffect, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
-  type StyleProp, type TextStyle, type ViewStyle,
+  ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
+  type DimensionValue, type StyleProp, type TextStyle, type ViewStyle,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -304,3 +304,71 @@ export function Choices<T extends string>({ options, value, onChange }: { option
     </View>
   );
 }
+
+/**
+ * Loading placeholder shaped like what's coming (a line, a number, a chart), so the layout is there at once and
+ * nothing jumps when data lands. Pulses on the native driver: costs no JS work on slow phones.
+ */
+export function Skeleton({ w = "100%", h = 14, r = 8, style }: { w?: DimensionValue; h?: number; r?: number; style?: StyleProp<ViewStyle> }) {
+  const c = useColors();
+  const pulse = useRef(new Animated.Value(0.55)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.55, duration: 700, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  return <Animated.View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+    style={[{ width: w, height: h, borderRadius: r, backgroundColor: c.track, opacity: pulse }, style]} />;
+}
+
+/** True once something has been loading for `ms`: time to say it's UPPCL being slow, not the app stuck. */
+export function useSlow(loading: boolean, ms = 6000): boolean {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!loading) { setSlow(false); return; }
+    const id = setTimeout(() => setSlow(true), ms);
+    return () => clearTimeout(id);
+  }, [loading, ms]);
+  return slow;
+}
+
+/** The line shown under a placeholder once loading is slow. Announced to screen readers. */
+export function SlowNote({ loading }: { loading: boolean }) {
+  const { t } = useI18n();
+  const slow = useSlow(loading);
+  if (!slow) return null;
+  return <View accessibilityLiveRegion="polite"><Txt v="caption" color="muted" style={{ textAlign: "center" }}>{t("loading_slow")}</Txt></View>;
+}
+
+/** Placeholder list rows (title + caption on the left, amount on the right), for lists inside a Card. */
+export function SkeletonRows({ n = 3 }: { n?: number }) {
+  const c = useColors();
+  return (
+    <>
+      {Array.from({ length: n }, (_, i) => (
+        <View key={i} style={[skel.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
+          <View style={{ flex: 1, gap: 8 }}><Skeleton w="55%" h={16} /><Skeleton w="35%" h={12} /></View>
+          <Skeleton w={64} h={18} />
+        </View>
+      ))}
+    </>
+  );
+}
+
+/** Placeholder for a summary card with a chart: a heading, a big number and the bars. */
+export function SkeletonChartCard({ chart = 120 }: { chart?: number }) {
+  return (
+    <Card>
+      <Skeleton w="40%" h={14} />
+      <Skeleton w="55%" h={30} />
+      <Skeleton h={chart} r={12} />
+    </Card>
+  );
+}
+
+const skel = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 16, minHeight: 64 },
+});

@@ -4,7 +4,7 @@ import { useDashboard, useMe, useWssConsumer } from "@shared/api";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
-import { BackHeader, Card, Insight, Screen, Txt } from "../src/ui";
+import { BackHeader, Card, Insight, Screen, SkeletonRows, SlowNote, Txt } from "../src/ui";
 import { Icon } from "../src/icons";
 import { openLink } from "../src/links";
 
@@ -37,7 +37,7 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
   const { data, error, isLoading, mutate } = useWssConsumer();
   const { data: dash } = useDashboard();
   const cd = data?.ConsumerDetails;
-  if (!cd && isLoading) return <ActivityIndicator color={c.primary} style={{ paddingVertical: 32 }} />;
+  if (!cd && isLoading) return <><Card style={{ padding: 0, gap: 0 }}><SkeletonRows n={4} /></Card><SlowNote loading /></>;
   if (!cd) {
     // The consumer portal is a separate UPPCL system and goes down on its own: show what UPPCL SMART
     // already told us instead of a blank page.
