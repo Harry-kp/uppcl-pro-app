@@ -158,8 +158,8 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
 }
 
 const styles = StyleSheet.create({
-  link: { minHeight: 44, justifyContent: "center", alignSelf: "center" },
+  link: { minHeight: 36, justifyContent: "center", alignSelf: "center", marginTop: -6, marginBottom: -8 },
   where: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: -4 },
   done: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-  input: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10, minHeight: 56, fontSize: 16, textAlignVertical: "top" },
+  input: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 12, minHeight: 104, fontSize: 16, textAlignVertical: "top" },
 });
