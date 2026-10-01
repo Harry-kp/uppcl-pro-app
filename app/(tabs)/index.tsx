@@ -10,8 +10,7 @@ import {
 } from "@shared/api";
 import { platform } from "@shared/platform";
 import { derivePostpaid, derivePrepaid, schemeFromAddress, TARGET_RUNWAY_DAYS } from "@shared/insights";
-import { toNum } from "@shared/stats";
-import { billingPeriod, parseUppclDate, rupees, kwh } from "@shared/utils";
+import { billingPeriod, kwh, parseUppclDate, rupees, toNum } from "@shared/utils";
 import { Bars } from "../../src/Bars";
 import { saveSnapshot } from "../../src/widget";
 import { openFor } from "@shared/complaints";

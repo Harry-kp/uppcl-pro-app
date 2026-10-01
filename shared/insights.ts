@@ -4,8 +4,7 @@
  * app, so both always show the same days-left, recharge advice and projections.
  */
 import type { DashboardResponse, DailyBill, Payment, ConsumptionRow, MonthlyInvoice } from "./api";
-import { mean, stddev, toNum } from "./stats";
-import { daysBetween, billedMonthKwh, billingPeriod, FALLBACK_RATE, parseUppclDate } from "./utils";
+import { billedMonthKwh, billingPeriod, daysBetween, FALLBACK_RATE, mean, parseUppclDate, stddev, toNum } from "./utils";
 
 /** Days of balance a recharge should buy. */
 export const TARGET_RUNWAY_DAYS = 40;

@@ -10,8 +10,7 @@ import {
   type MonthlyInvoice,
 } from "@shared/api";
 import { derivePostpaid } from "@shared/insights";
-import { mean, toNum } from "@shared/stats";
-import { kwh, parseUppclDate, recordSummary } from "@shared/utils";
+import { kwh, mean, parseUppclDate, recordSummary, toNum } from "@shared/utils";
 import { Bars } from "../src/Bars";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";

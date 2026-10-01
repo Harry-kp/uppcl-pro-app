@@ -6,8 +6,7 @@ import {
   type BillInvoice,
 } from "@shared/api";
 import { billRebate } from "@shared/insights";
-import { toNum } from "@shared/stats";
-import { billingPeriod, rupees } from "@shared/utils";
+import { billingPeriod, rupees, toNum } from "@shared/utils";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
