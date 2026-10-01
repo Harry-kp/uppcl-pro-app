@@ -1,113 +1,119 @@
 <div align="center">
 
-<img src="docs/icon.png" width="96" alt="UPPCL Pro icon">
+<img src="docs/icon.png" width="88" alt="UPPCL Pro">
 
-# UPPCL Pro
+# Your electricity, made simple.
 
-**Your electricity, made simple.** · बिजली की हर बात, आसान
+### बिजली की हर बात, आसान
 
-The UPPCL smart-meter app that answers the question you actually opened it for:<br>
-*how long will my balance last, and what will this month's bill be?*
-
-<a href="https://github.com/Harry-kp/uppcl-pro-app/releases/latest"><img src="https://img.shields.io/badge/Download%20APK-Android%207%2B-3B47A8?style=for-the-badge&logo=android&logoColor=white" alt="Download APK for Android 7+"></a>
-
-<a href="https://github.com/Harry-kp/uppcl-pro-app/releases/latest"><img src="https://img.shields.io/github/v/release/Harry-kp/uppcl-pro-app?label=latest&color=FFC466" alt="Latest release"></a> <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-585A73" alt="MIT license"></a>
-
-Free · no ads · no tracking · open source · हिन्दी + English
+The app for UPPCL smart meters. Your bill, your usage and your power cuts,<br>
+answered on the first screen.
 
 <br>
 
-<img src="docs/screenshots/01-home-bill-first.png" width="24%" alt="Home: amount due, due date and a Pay button">
-<img src="docs/screenshots/02-no-power-two-taps.png" width="24%" alt="No power? Report it in two taps">
-<img src="docs/screenshots/03-complaint-filed.png" width="24%" alt="Complaint filed with UPPCL 1912">
-<img src="docs/screenshots/04-usage.png" width="24%" alt="Usage: is this normal?">
+<a href="https://github.com/Harry-kp/uppcl-pro-app/releases/latest"><img src="https://img.shields.io/badge/Download%20for%20Android-3B47A8?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"></a>
+
+<sub>Free · No ads · No tracking · Open source · English and हिन्दी</sub>
+
+<br><br>
+
+<img src="docs/screenshots/01-home-bill-first.png" width="30%" alt="Home: amount due, due date and a Pay button">
+&nbsp;
+<img src="docs/screenshots/02-no-power-two-taps.png" width="30%" alt="No power? Report it in two taps">
+&nbsp;
+<img src="docs/screenshots/04-usage.png" width="30%" alt="Usage: is this normal?">
 
 </div>
 
-> [!NOTE]
-> **Unofficial.** UPPCL Pro is an independent open-source app, not made by or connected to UPPCL, its
-> discoms (PVVNL, MVVNL, DVVNL, PuVVNL, KESCo) or Jio. It uses UPPCL's own public systems through
-> [reverse-engineered APIs](docs/), which can change or break at any time.
-
-## Why people use it
+<br>
 
 <table>
 <tr>
-<td width="50%" valign="top">
+<td width="55%" valign="middle">
 
-⏳ **"Balance lasts about 8 days"**
+## Know what you owe, before the bill does
 
-Prepaid: when it runs out, and how much to recharge so you're covered for ~40 days.
+Open the app and the answer is already there: how much is due, by when, and what you save by paying
+on time. Prepaid? You see your balance and roughly how many days it will last.
+
+Pay in a few taps through UPPCL's own payment page. Your card and UPI details never touch the app.
 
 </td>
-<td width="50%" valign="top">
+<td width="45%" align="center">
+<img src="docs/screenshots/06-pay-bill.png" width="80%" alt="Paying a bill in the app">
+</td>
+</tr>
+<tr>
+<td width="45%" align="center">
+<img src="docs/screenshots/03-complaint-filed.png" width="80%" alt="Complaint filed with UPPCL 1912">
+</td>
+<td width="55%" valign="middle">
 
-🧾 **Your bill before it arrives**
+## Power gone? Two taps.
 
-Postpaid: amount due and due date, or an estimate of the bill that's coming, with the assumption spelled out.
+Tap **No power?**, then **Report no power**. Your complaint goes to UPPCL 1912 with your account,
+substation and line engineer already filled in. No forms, no hold music.
+
+Low voltage, one phase out, or a neighbour's connection are one screen away. Track every complaint
+and call the engineer straight from the app.
 
 </td>
 </tr>
 <tr>
-<td width="50%" valign="top">
+<td width="55%" valign="middle">
 
-💸 **Pay without the portal maze**
+## Is my usage normal?
 
-UPPCL's own payment flow through BillDesk, in a bottom sheet. Card and UPI details never touch the app.
+Daily units, hour by hour, and the days that stood out. See which hours cost you the most and how
+this month compares with the last.
 
-</td>
-<td width="50%" valign="top">
-
-📊 **"Is my usage normal?"**
-
-Daily units, month by month, and the days that stood out against your usual.
+Every bill and receipt is a PDF away, and the app shows what paying on time saved you, bill by bill.
 
 </td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-⚡ **No power? Two taps.**
-
-Files your complaint with UPPCL 1912 right from the app: your account, substation and engineer are filled in
-for you. Low voltage, one phase, or someone else's home are one screen away; SMS and 1912 calls stay as backups.
-
-</td>
-<td width="50%" valign="top">
-
-🔔 **Alerts you choose**
-
-Low balance, new bill, due soon, planned power cuts, a monthly budget. All off until you turn them on.
-
+<td width="45%" align="center">
+<img src="docs/screenshots/05-bills-saved-on-time.png" width="80%" alt="Bills and payments, with what paying on time saved">
 </td>
 </tr>
 </table>
 
-**Also in the box:** bill and receipt PDFs inside the app · 1912 complaint status and the officer assigned ·
-home-screen widget · long-press shortcuts (report no power, latest bill, pay) · light and dark mode · an in-app
-update check · errors that say **whose side failed** (UPPCL SMART, the bill portal, the 1912 portal, or the app).
-
 <div align="center">
-<img src="docs/screenshots/05-bills-saved-on-time.png" width="24%" alt="Bills and payments, with what paying on time saved">
-<img src="docs/screenshots/06-pay-bill.png" width="24%" alt="Paying a bill in the app">
-<img src="docs/screenshots/07-dark-mode.png" width="24%" alt="Dark mode">
-<img src="docs/screenshots/08-hindi.png" width="24%" alt="Hindi">
-<br><sub>Screenshots use the app's built-in sample data ("Try with sample data"), never a real account.</sub>
+
+<br>
+
+**Also inside:** home-screen widget · bill and balance reminders · dark mode · हिन्दी ·
+long-press shortcuts · clear messages when UPPCL itself is down
+
+<br>
+
+<img src="docs/screenshots/07-dark-mode.png" width="30%" alt="Dark mode">
+&nbsp;
+<img src="docs/screenshots/08-hindi.png" width="30%" alt="Hindi">
+
+<sub>Screenshots show the app's built-in sample data, never a real account.</sub>
+
 </div>
 
-## Get it
+<br>
 
-**You need a UPPCL SMART login** (the same one as UPPCL's official UPPCL SMART app). No account yet?
-[Sign up on UPPCL SMART](https://uppcl.sem.jio.com/uppclsmart/signup) first; the app's sign-in screen links
-there too, and to forgot username / password.
+## Private by design
 
-1. On your phone, open the **[latest release](https://github.com/Harry-kp/uppcl-pro-app/releases/latest)**
-   and download `uppcl-pro-vX.Y.Z.apk`.
-2. Open it. Android asks to allow installs from your browser or Files app: allow, then install.
-3. That's it. When a newer version is out, the app tells you; install it over the old one and you stay signed in.
+**There is no server of ours.** Your phone talks to UPPCL directly, for everything. Nobody in
+between sees your password, your bills or your address.
+
+**Nothing is collected.** No analytics, no ads, no account with us. Signing out deletes everything the
+app stored. The full details are in the [privacy policy](docs/privacy.md), and the code is right here to read.
+
+## Get started
+
+1. Download the APK from the **[latest release](https://github.com/Harry-kp/uppcl-pro-app/releases/latest)** on your phone and open it.
+2. Allow installs from your browser when Android asks, then install.
+3. Sign in with your UPPCL SMART account, or tap **Try with sample data** to look around first.
+
+No UPPCL SMART account yet? [Create one here](https://uppcl.sem.jio.com/uppclsmart/signup). New versions
+show up inside the app; install over the old one and you stay signed in.
 
 <details>
-<summary><b>Check it's really this app</b> (signing key)</summary>
+<summary>Make sure it's the real app</summary>
 
 <br>
 
@@ -117,101 +123,45 @@ Every official APK is signed with this key (SHA-256 certificate fingerprint):
 42:5E:6D:CC:C8:67:2D:27:CD:F7:28:F7:BE:24:86:60:AD:D6:17:CC:39:5E:F8:59:C9:13:95:D7:FF:22:C5:CC
 ```
 
-Android refuses to install an update signed with a different key over this one. If a site offers
-"UPPCL Pro" signed differently, it isn't this app. Check a download yourself with
-`apksigner verify --print-certs uppcl-pro-vX.Y.Z.apk`. Each release also lists the APK's SHA-256 checksum.
+Check a download with `apksigner verify --print-certs uppcl-pro-vX.Y.Z.apk`. Android refuses to update
+this app with one signed by a different key.
 </details>
 
-**iPhone:** an early, unsigned build is attached to each release (`-unsigned.ipa` for sideloading with
-Sideloadly or AltStore, `-simulator.zip` for Xcode's simulator). It isn't polished for iOS yet; proper
-iPhone support is on the way.
-
-## Your data stays with you
-
-- **No UPPCL Pro server.** Your phone talks straight to UPPCL, for everything. Nobody in between sees your password.
-- **Nothing leaves your phone except to UPPCL.** No analytics, no ads, no account with us.
-- **Signing out wipes it.** Session, saved screens and (if you turned alerts on) your saved password.
-
 <details>
-<summary><b>Exactly what goes where</b></summary>
+<summary>iPhone</summary>
 
 <br>
 
-- The app calls **UPPCL SMART** (`uppcl.sem.jio.com`, the smart-meter system) and UPPCL's **consumer portal**
-  (`consumer.uppcl.org`: bills, PDFs, payment) directly from your phone.
-- You sign in with your UPPCL SMART username and password. The session is kept on your phone in an
-  encrypted file (AES-GCM) whose key lives in the Android keystore.
-- **Complaint status** comes from UPPCL's 1912 portal (`1912.uppcl.org`), also called directly from your phone.
-  It is sent your registered mobile number (no password, no token) to look your complaints up.
-  **Filing a complaint** uses the same portal's public complaint form, only when you tap the button: it sends your
-  account number, the mobile UPPCL has on record (or another number you add) and your note.
-- **Alerts** (off by default) have to sign in again in the background when your session expires. If you turn
-  them on, your UPPCL username and password are stored encrypted in the Android keystore, on your phone
-  only, and removed when you turn alerts off or sign out. The checks run on the phone.
-- The update check asks `api.github.com` for the latest release (no account data). "Report a problem" only
-  opens GitHub (in your browser, or inside the app if the phone has no browser); nothing is sent until you
-  submit, and issues are public, so remove anything personal first.
-- Full privacy policy: [docs/privacy.md](docs/privacy.md). "Try with sample data" sends nothing to UPPCL.
-- How UPPCL's APIs work: [docs/api-reverse-engineering.md](docs/api-reverse-engineering.md),
-  [docs/payment-reverse-engineering.md](docs/payment-reverse-engineering.md).
+An early, unsigned build comes with each release (`-unsigned.ipa` to sideload with Sideloadly or AltStore,
+`-simulator.zip` for Xcode). Proper iPhone support is on the way.
 </details>
 
-## Good to know
-
-- **UPPCL goes down a lot.** When it does, the app says so, and that it's their side (for example
-  `CCB_ISE_SE_503` means UPPCL's billing backend is down). Try again later.
-- **"Days left" and bill estimates are predictions** from your recent usage, not UPPCL's figures.
-- **In-app payment is new.** Check the receipt, and use the official UPPCL site if anything looks off.
-- **Smart meters only** (accounts on UPPCL SMART). The 1912 complaint portal is slow and often times out.
-
-<details>
-<summary><b>FAQ</b></summary>
-
-<br>
+## Questions
 
 **Is it safe to type my UPPCL password here?**
-It goes from your phone to UPPCL and nowhere else, and the code that does it is right here to read
-(`shared/api.ts`). Only install APKs signed with the key above.
+It goes from your phone to UPPCL and nowhere else. Install only APKs signed with the key above.
 
-**Why isn't it on the Play Store?**
-It's an unofficial app for someone else's service; releases on GitHub keep it simple and free. The app checks
-for updates itself.
+**My bill or meter reading looks wrong.**
+The app shows UPPCL's own data and can't change it. Call 1912 or use UPPCL's
+[consumer portal](https://consumer.uppcl.org/wss/).
 
-**My bill, meter or recharge is wrong.**
-That's UPPCL's side: call 1912 or use UPPCL's [consumer portal](https://consumer.uppcl.org/wss/). This app
-shows UPPCL's data, it can't change your account.
+**The app says UPPCL is down.**
+It often is, and the app tells you whose side failed. Try again a little later.
 
-**Something broke in the app.**
-Settings → About → **Report a problem**. On an error, **Details → Copy details** gives the text that
-tells us whose side failed.
-</details>
-
-## Contributing
-
-Bug reports and small, focused PRs are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and, for security
-issues, [SECURITY.md](SECURITY.md).
-
-<details>
-<summary><b>Build from source</b></summary>
+**Something in the app broke.**
+Settings → About → Report a problem.
 
 <br>
 
-Needs [Bun](https://bun.sh), and for a device build the Android SDK and JDK 17.
+<div align="center">
 
-```sh
-bun install
-bun run typecheck
-bun test
-bunx expo run:android          # debug build on a device or emulator
-```
+<sub>
 
-Release APK (what CI does): `bunx expo prebuild --platform android`, then
-`cd android && ./gradlew assembleRelease` with a signing config; see
-[.github/workflows/release.yml](.github/workflows/release.yml). Dev builds include fake-data test scenarios
-(Settings → Developer) for screens a real account can't reach; they live in `src/dev` and are removable with
-`scripts/remove-dev-tools.sh`.
-</details>
+**Unofficial.** UPPCL Pro is an independent open-source app. It is not made by or connected to UPPCL, its
+discoms (PVVNL, MVVNL, DVVNL, PuVVNL, KESCo) or Jio, and works with UPPCL SMART (smart meter) accounts only.
 
-## License
+[Contributing and building from source](CONTRIBUTING.md) · [Security](SECURITY.md) · [How UPPCL's APIs work](docs/api-reverse-engineering.md) · [MIT License](LICENSE) © 2026 Harshit Chaudhary
 
-[MIT](LICENSE) © 2026 Harshit Chaudhary
+</sub>
+
+</div>
