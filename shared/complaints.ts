@@ -8,6 +8,7 @@
  */
 import { cbc } from "@noble/ciphers/aes.js";
 import { ProxyError, send } from "./api";
+import { platform } from "./platform";
 import { parseUppclDate } from "./utils";
 
 const PROJECT_ID = "119", FORM_ID = "4235", ROLE_ID = "883", COMPANY_ID = "64";
@@ -33,6 +34,7 @@ const SESSION_TTL = 15 * 60_000;
 
 // One anonymous session serves every form's lookups (verified); the form id travels in the headers.
 async function ensureSession(force = false, form = FORM_ID) {
+  refuseSample();
   if (!force && Date.now() - sessionAt < SESSION_TTL) return;
   // Each hop sets cookies; fetch follows the redirects and the native cookie jar keeps them.
   for (const path of [`UI/Anonymous?PROJECTID=${PROJECT_ID}&FORMID=${form}`, `UI/Form?FormId=${form}`]) {
@@ -50,7 +52,12 @@ const apiHeaders = (form: string) => ({
   appsavylogin: enc("anonymous"), formid: enc(form), roleid: enc(ROLE_ID), sourcetype: enc("WEB"), token: enc(""),
 });
 
+/** Sample data is on (demo mode): 1912 must never be called, above all never a save with an invented account. */
+const sample = () => platform.mock?.("scenario:active") === true; // data seam: sample data (src/demo.ts)
+const refuseSample = () => { if (sample()) throw new ProxyError(0, "Sample data: not sent to UPPCL", undefined, "app", "app"); };
+
 async function postApi(inputXml: string, form = FORM_ID, retry = true): Promise<string> {
+  refuseSample();
   await ensureSession();
   const r = await send("complaints", "api/AppsavyServices/GetRelationalDataA", {
     method: "POST",
@@ -269,6 +276,7 @@ const REQUIRED: [id: string, what: string][] = [
  */
 /** 1912's districts, for filing on someone else's connection (the user picks theirs). */
 export async function listDistricts(): Promise<Place[]> {
+  if (sample()) return platform.mock!("complaints:districts") as Place[];
   return places((await lookup("0", [["59929", "60180"]]))["59929"]);
 }
 
@@ -290,6 +298,7 @@ export async function prepareSupplyComplaint(input: {
   account: string; city: string | null; districtId?: string | null; division?: string | null; substationHint?: string | null;
   problem: SupplyProblem; outage: "Individual" | "Area";
 }): Promise<SupplyDraft> {
+  if (sample()) return { ...(platform.mock!("complaints:prepare") as SupplyDraft), problem: input.problem };
   const c: Record<string, string> = Object.fromEntries(SAVED);
   const sub = SUB_TYPE[input.problem];
 
@@ -419,9 +428,11 @@ export function complaintNoIn(text: string): string | null {
  * Never exercised against the live portal (Oct 2026): the request mirrors the page's own Save.
  */
 export async function fileSupplyComplaint(draft: SupplyDraft, remarks: string): Promise<{ ok: boolean; complaintNo: string | null; message: string }> {
+  if (sample()) return platform.mock!("complaints:file") as { ok: boolean; complaintNo: string | null; message: string };
   if (draft.blocked) return { ok: false, complaintNo: null, message: draft.blocked };
   if (!cleanRemarks(remarks)) return { ok: false, complaintNo: null, message: "Say what's wrong in a few words" };
   await ensureSession(true, REG_FORM); // the page saves from its own form's session
+  refuseSample(); // belt and braces: the one call that creates a real ticket
   const r = await send("complaints", "api/AppsavyServices/UploadSurveyDataNewA", {
     method: "POST", cache: "no-store", headers: apiHeaders(REG_FORM),
     body: JSON.stringify({ xmlString: b64(supplySaveXml(draft, remarks)), EventControlID: "59950", DocVersion: 1 }),

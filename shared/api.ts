@@ -302,7 +302,7 @@ export function wssDiscom(site: SiteRecord): string {
 }
 
 export async function wssPost<T = Record<string, unknown>>(path: string, payload: Record<string, unknown>): Promise<T> {
-  const mocked = platform.mock?.(`wss:${path}`); if (mocked !== undefined) return mocked as T; // @dev-tools seam
+  const mocked = platform.mock?.(`wss:${path}`); if (mocked !== undefined) return mocked as T; // data seam: sample data (src/demo.ts)
   const r = await send("wss", path, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -344,6 +344,8 @@ export async function downloadBillPdf(invoice: { invoice_id: string }): Promise<
  * Any payment in the list, not just the latest, and it doesn't depend on the bill portal.
  */
 export async function downloadReceiptPdf(payment: { _id: string; txn_id?: string }): Promise<void> {
+  const sample = platform.mock?.(`receipt:${payment._id}`) as string | undefined; // // data seam: sample data (src/demo.ts)
+  if (sample) return platform.savePdf(sample, `receipt-${payment._id}.pdf`);
   const site = await primarySite();
   const jwt = getJwt();
   if (!jwt) throw new ProxyError(401, "No active session — sign in first");
@@ -402,7 +404,7 @@ function ids(site: SiteRecord): { cid: string; did: string; tid: string } {
  * with encryption, or the complaints API route.
  */
 async function fetcher<T>(key: string): Promise<T> {
-  const mocked = platform.mock?.(key); if (mocked !== undefined) return mocked as T; // @dev-tools seam
+  const mocked = platform.mock?.(key); if (mocked !== undefined) return mocked as T; // data seam: sample data (src/demo.ts)
   // Complaints: UPPCL's 1912 portal, anonymous (no user creds), straight from the phone.
   if (key.startsWith("/complaints")) return complaints(key.slice("/complaints".length)) as Promise<T>;
 

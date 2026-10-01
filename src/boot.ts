@@ -10,6 +10,7 @@ import { File, Paths } from "expo-file-system";
 import { configurePlatform, type KeyValueStore, type Upstream } from "@shared/platform";
 import { UPPCL_BASE, WSS_BASE, uppclBrowserHeaders, wssHeaders } from "@shared/upstream";
 import { newVaultKey, openJson, sealJson } from "@shared/crypto";
+import { initDemo, mockFor } from "./demo";
 
 const BASES: Record<Upstream, string> = {
   uppcl: `${UPPCL_BASE}/accounts/api`,
@@ -110,4 +111,6 @@ export const NAME_KEY = "app_display_name_v2";
 /** Official UPPCL SMART site: recharges, bill payments and password resets happen there. */
 export const UPPCL_SMART_URL = "https://uppcl.sem.jio.com/uppclsmart/";
 
-if (__DEV__) (require("./dev") as typeof import("./dev")).install(); // @dev-tools: fake-data test scenarios (src/dev)
+// Sample data (demo mode, dev scenarios): answers requests while on, else the network.
+initDemo(keystore);
+configurePlatform({ mock: (key) => mockFor(key, { outcome: "success" }) });

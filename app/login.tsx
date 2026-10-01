@@ -12,6 +12,7 @@ import { Icon, type IconName } from "../src/icons";
 import en from "../messages/en.json";
 import hi from "../messages/hi.json";
 import { openLink } from "../src/links";
+import { DEMO, setScenario } from "../src/demo";
 
 /** What went wrong, by what the user can do about it: fix what they typed, fix their connection, or wait on UPPCL / tell us. */
 type Fail = { kind: "creds" } | { kind: "offline" } | { kind: "slow" } | { kind: "other"; error: unknown };
@@ -129,6 +130,10 @@ export default function Login() {
           </Card>
 
           {/* One line for first-time users (no UPPCL SMART login yet) instead of a card: the screen's job is signing in. */}
+          {/* Look around first: invented data, nothing is sent to UPPCL (src/demo.ts). */}
+          <Pressable accessibilityRole="button" onPress={() => { setScenario(DEMO); void mutate("/health"); }} style={styles.newHere}>
+            <Txt v="label" color="primary" weight="semibold">{t("try_sample")}</Txt>
+          </Pressable>
           <Pressable accessibilityRole="link" onPress={() => openLink(`${UPPCL_SMART_URL}signup`)} style={styles.newHere}>
             <Txt v="label" color="muted">{t("new_here")} </Txt>
             <Txt v="label" color="primary" weight="semibold">{t("new_here_cta")}</Txt>

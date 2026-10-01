@@ -2,26 +2,20 @@
  * Dev tools: test scenarios that feed the app fake data, so screens a real account can't reach
  * (prepaid, bill due/overdue, payment results, UPPCL outages) can be seen and checked.
  *
- * Everything lives in this folder. Main code only has one-line hooks tagged `@dev-tools`
- * (boot.ts, _layout.tsx, settings.tsx, and the `platform.mock` seam in the shared lib).
+ * The data itself is src/demo.ts (also demo mode). This folder is the picker UI and the banner; main code
+ * only has one-line hooks tagged `@dev-tools` (_layout.tsx, settings.tsx).
  * To remove the whole feature: `scripts/remove-dev-tools.sh` (deletes this folder + tagged lines).
  * Nothing here runs in release builds: every hook is behind `__DEV__`.
  */
 import { useState } from "react";
 import { DevSettings, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { configurePlatform } from "@shared/platform";
 import { keystore, NAME_KEY } from "../boot";
 import { clearPersistentCache } from "../cache";
 import { useColors } from "../theme";
 import { Card, Choices, Sheet, Txt } from "../ui";
 import { Icon } from "../icons";
-import { mockFor, SCENARIOS, setScenario, useScenario, type ScenarioId } from "./scenarios";
-
-/** Called once from boot.ts in dev builds: answer requests from the active scenario. */
-export function install() {
-  configurePlatform({ mock: (key) => mockFor(key, { outcome: "success" }) });
-}
+import { SCENARIOS, setScenario, useScenario, type ScenarioId } from "../demo";
 
 /** Orange marker on every screen while fake data is showing. */
 export function DevBanner() {

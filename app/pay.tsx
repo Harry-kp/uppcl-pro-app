@@ -118,7 +118,7 @@ export default function Pay() {
 
   // Real payments post UPPCL's signed form to BillDesk; dev test scenarios can serve a fake gateway page.
   let gatewayHtml = gateway ? autoPostForm(gateway) : "";
-  if (gateway) gatewayHtml = (platform.mock?.(`gateway:${gateway.url}`) as string | undefined) ?? gatewayHtml; // @dev-tools seam
+  if (gateway) gatewayHtml = (platform.mock?.(`gateway:${gateway.url}`) as string | undefined) ?? gatewayHtml; // data seam: sample data (src/demo.ts)
   const billDate = parseUppclDate(home.customerDetailsDTO?.billDate);
   const billMonth = billDate ? billingPeriod(billDate).from.toLocaleDateString(locale, { month: "long", year: "numeric" }) : null;
   const acctTail = dash ? String(dash.site.connectionId) : "";

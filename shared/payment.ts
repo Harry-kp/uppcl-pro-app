@@ -107,7 +107,7 @@ export interface PaymentReceipt {
 
 /** Step 6: after BillDesk sends the user back. "1"/"4" = paid, "0" = no answer from BillDesk yet. */
 export async function getPaymentReceipt(trackId: string): Promise<PaymentReceipt> {
-  const mocked = platform.mock?.(`wss:receipt:${trackId}`); if (mocked !== undefined) return mocked as PaymentReceipt; // @dev-tools seam
+  const mocked = platform.mock?.(`wss:receipt:${trackId}`); if (mocked !== undefined) return mocked as PaymentReceipt; // data seam: sample data (src/demo.ts)
   const r = await send("wss", `v2/InstaPayment/getPaymentReciept?trackID=${encodeURIComponent(trackId)}`, { cache: "no-store" });
   if (!r.ok) throw new ProxyError(r.status, "Bill portal unavailable", undefined, "wss");
   let json = (await r.json()) as Record<string, unknown>;

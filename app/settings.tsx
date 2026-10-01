@@ -18,6 +18,7 @@ import { BackHeader, Button, Card, Choices, Screen, Sheet, Txt, Field } from "..
 import { rupees } from "@shared/utils";
 import { Icon, type IconName } from "../src/icons";
 import { openLink } from "../src/links";
+import { setScenario, useDemo } from "../src/demo";
 
 export default function Settings() {
   const c = useColors();
@@ -35,6 +36,7 @@ export default function Settings() {
   const [theme, setTheme] = useState<ThemeChoice>(getThemeChoice);
   const [sheet, setSheet] = useState<"lang" | "theme" | "budget" | "signout" | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const demo = useDemo();
   const update = useUpdate();
   const [widgetPlaced, setWidgetPlaced] = useState(false);
   const [, rerender] = useState(0);
@@ -89,6 +91,7 @@ export default function Settings() {
   }
 
   async function signOut() {
+    setScenario(null); // leaves demo mode too
     await disableAlerts();
     await logout();
     clearPersistentCache(); // every cached response, on screen and on disk
@@ -146,9 +149,10 @@ export default function Settings() {
 
       {/* Destructive action on its own, away from preferences (UX-027). */}
       <Group title={t("account")}>
-        <Row first icon="logout" label={t("sign_out")} tone="critical"
-          onPress={() => setSheet("signout")} />
+        <Row first icon="logout" label={demo ? t("exit_sample") : t("sign_out")} tone="critical"
+          onPress={() => (demo ? void signOut() : setSheet("signout"))} />
       </Group>
+
 
       {__DEV__ && <DevSettingsSection />} {/* @dev-tools */}
 

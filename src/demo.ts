@@ -1,13 +1,15 @@
 /**
- * Dev-only test scenarios: fake accounts that answer every fetcher key, so prepaid, bill-due,
- * overdue and payment-result screens can be seen without a real account in that state.
- * Installed from boot.ts only when __DEV__; release builds never read this file's data.
+ * Sample data: invented accounts that answer every request the app makes, without the network.
+ * - Demo mode ("Try with sample data" on sign-in): anyone can look around without a UPPCL account,
+ *   store reviewers included; store screenshots come from here too (no real person on them).
+ * - Dev builds also pick other scenarios (prepaid, overdue, outages) in Settings → Developer (src/dev).
+ * Safety: while sample data is on, nothing reaches UPPCL. Complaint filing and payments are answered
+ * here, and shared/complaints.ts refuses to call 1912 at all.
  * All data is invented and dated relative to today.
  */
 import { useSyncExternalStore } from "react";
-import * as SecureStore from "expo-secure-store";
 import { ProxyError } from "@shared/api";
-import { TEST_PDF } from "./testPdf";
+import type { KeyValueStore } from "@shared/platform";
 
 export type ScenarioId = "prepaid_ok" | "prepaid_low" | "post_due" | "post_overdue" | "post_clear" | "portal_down" | "offline";
 export type PayOutcome = "success" | "failed" | "pending";
@@ -23,14 +25,21 @@ export const SCENARIOS: { id: ScenarioId; label: string }[] = [
 ];
 
 const KEY = "dev_scenario";
-let active: ScenarioId | null = (SecureStore.getItem(KEY) as ScenarioId | null) ?? null;
+let store: KeyValueStore | null = null;
+let active: ScenarioId | null = null;
+/** boot.ts: the app's sealed store (one file read, no slow keystore read at startup). */
+export function initDemo(s: KeyValueStore) { store = s; active = (s.getItem(KEY) as ScenarioId | null) ?? null; }
 const listeners = new Set<() => void>();
 export const activeScenario = () => active;
 export function setScenario(id: ScenarioId | null) {
   active = id;
-  if (id) SecureStore.setItem(KEY, id); else void SecureStore.deleteItemAsync(KEY);
+  if (id) store?.setItem(KEY, id); else store?.removeItem(KEY);
   listeners.forEach((l) => l());
 }
+/** The scenario demo mode shows: a postpaid home with a bill due, open complaint, history. */
+export const DEMO: ScenarioId = "post_due";
+/** Re-render on enter/exit (Home's "Sample data" pill, Settings' exit). */
+export const useDemo = () => useScenario() !== null;
 /** Re-render when the scenario changes (the TEST DATA banner). */
 export function useScenario(): ScenarioId | null {
   return useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, activeScenario);
@@ -140,8 +149,10 @@ function data(id: Exclude<ScenarioId, "portal_down" | "offline">) {
 
 /** Answer a fetcher / bill-portal key for the active scenario; undefined = use the network. */
 export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
-  if (!active || key === "/health") return undefined;
+  if (!active) return undefined;
   if (key === "scenario:active") return true;
+  // Signed in to the sample account (no session, no password).
+  if (key === "/health") return { ok: true, authenticated: true, tenant: "pvvnl", jwt_expires_ms: now() + 30 * DAY, jwt_expires_in_days: 30 };
   if (key === "gateway:mock:billdesk") return FAKE_BILLDESK_HTML;
   // Failure scenarios throw exactly what the real network layer throws, so error screens can be checked.
   if (active === "offline") throw new ProxyError(0, "Network request failed", undefined, key.startsWith("wss:") ? "wss" : key.startsWith("/complaints") ? "complaints" : "uppcl", "network");
@@ -150,6 +161,12 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
     if (key.startsWith("/complaints")) throw new ProxyError(502, "fetch failed", { error: "fetch failed", upstream: "appsavy.com" }, "complaints");
   }
   const d = data(active === "portal_down" ? "post_due" : active);
+  // Complaint filing (shared/complaints.ts): a ready draft, and a pretend complaint number. Never 1912.
+  if (key === "complaints:prepare") return { problem: "no_power", outage: "Individual", account: d.site.connectionId, district: { id: "0", name: "Sample district" },
+    name: "Asha Verma", mobile: "9000000001", substation: "Test Nagar", subdivision: "Test sub-division", divisions: [], substations: [], blocked: null, controls: {} };
+  if (key === "complaints:districts") return [{ id: "0", name: "Sample district" }];
+  if (key === "complaints:file") return { ok: true, complaintNo: "SAMPLE-0001", message: "Sample data: nothing was sent to UPPCL." };
+  if (key.startsWith("receipt:")) return TEST_PDF;
   const [path, query = ""] = key.split("?");
   const q = new URLSearchParams(query);
 
@@ -200,3 +217,7 @@ a{display:block;margin:12px 0;padding:14px;border-radius:12px;text-align:center;
 <a class="fail" href="https://consumer.uppcl.org/wss/pgresponse?refNo=MOCK-failed">Payment fails</a>
 <a class="wait" href="https://consumer.uppcl.org/wss/pgresponse?refNo=MOCK-pending">No answer from the bank</a>
 </body></html>`;
+
+/** A one-page "TEST BILL" PDF for sample data (never a real bill). */
+export const TEST_PDF =
+  "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA0MjAgMzAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCAxMDIgPj4Kc3RyZWFtCkJUIC9GMSAyNiBUZiA2MCAxNzAgVGQgKFRFU1QgQklMTCkgVGogL0YxIDEyIFRmIDAgLTM2IFRkIChNZXRlciBQcm8gdGVzdCBkYXRhIC0gbm90IGEgcmVhbCBiaWxsKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhLUJvbGQgPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzk0IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDY5CiUlRU9GCg==";

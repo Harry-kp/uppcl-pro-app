@@ -170,8 +170,8 @@ function Greeting({ data }: { data: DashboardResponse }) {
   const real = (n?: string | null) => { const w = String(n ?? "").trim().split(/\s+/)[0]; return /^[\p{L}]{2,}$/u.test(w) && !/^(na|null|none|test)$/i.test(w) ? w : ""; };
   const found = real(me?.data?.[0]?.name) || real(consumer?.ConsumerDetails?.name) || real(data.site.customerName);
   // Remember the last real name, so a UPPCL outage later doesn't bring the greeting back.
-  let testData = false; // true while a dev test scenario feeds fake data: never remember that name
-  testData = platform.mock?.("scenario:active") === true; // @dev-tools seam
+  let testData = false; // true while sample data shows (demo mode / dev scenario): never remember that name
+  testData = platform.mock?.("scenario:active") === true; // data seam: sample data (src/demo.ts)
   useEffect(() => { if (found && !testData) keystore.setItem(NAME_KEY, found); }, [found, testData]);
   const first = found || (testData ? "" : real(keystore.getItem(NAME_KEY)));
   const greet = first ? first.charAt(0).toUpperCase() + first.slice(1) : t(h >= 5 && h < 12 ? "greeting_morning" : h >= 12 && h < 17 ? "greeting_afternoon" : "greeting_evening");
@@ -195,6 +195,8 @@ function Greeting({ data }: { data: DashboardResponse }) {
           <View style={[styles.kind, { backgroundColor: c.pill }]}>
             <Txt v="caption" weight="bold" color="pillText">{data.site.connectionType === "postpaid" ? t("postpaid") : t("prepaid")}</Txt>
           </View>
+          {/* Never let invented numbers pass for a real account. */}
+          {testData && <View style={[styles.kind, { backgroundColor: c.accentSoft }]}><Txt v="caption" weight="bold" color="accent">{t("sample_data")}</Txt></View>}
           <Txt v="caption" color="muted" style={{ flexShrink: 1 }}>{ago ? t("meter_line", { id: meterId, ago }) : readingsTo ? t("meter_readings_to", { id: meterId, date: readingsTo }) : t("meter_only", { id: meterId })}</Txt>
         </View>
       </View>

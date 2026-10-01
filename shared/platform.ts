@@ -16,7 +16,7 @@ export interface Platform {
   storage: KeyValueStore | null;
   /** Hand a base64 PDF to the user (share sheet). */
   savePdf(base64: string, filename: string): void | Promise<void>;
-  mock?(key: string): unknown; // @dev-tools seam: src/dev test scenarios answer a key (fetcher key or "wss:<path>") without the network
+  mock?(key: string): unknown; // sample data (src/demo.ts: demo mode + dev scenarios) answers a key without the network
 }
 
 const unconfigured = (): never => { throw new Error("platform not configured: src/boot.ts must run first"); };

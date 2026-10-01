@@ -17,7 +17,7 @@ import { onTimeSaving, payAmountError, type PayBillHome } from "@shared/payment"
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { billRebate, busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
-const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
+const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { isInAppUrl } = await import("../src/links");
 const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, pickDistrict, placeKey, sourceKind, supplySaveXml, withContact } = await import("@shared/complaints");
 
@@ -176,7 +176,7 @@ test("wss crypto round-trip", async () => {
   expect(await wssEncrypt(plain)).not.toBe(c); // fresh salt + IV each time
 });
 
-describe("dev scenarios", () => {
+describe("sample data (demo mode + dev scenarios)", () => {
   const pay = { outcome: "success" as const };
   test("no scenario → real network", () => {
     setScenario(null);
@@ -364,4 +364,22 @@ describe("withContact", () => {
     expect((withContact(d, "+91 90000 00001", "Family") as { controls: Record<string, string> }).controls).toMatchObject({ 143142: "9000000001", 143626: "Family" }));
   test("not a mobile number: nothing saved", () =>
     expect((withContact(d, "12345", "Others") as { controls: Record<string, string> }).controls).toMatchObject({ 143142: "", 143626: "" }));
+});
+
+describe("demo mode never reaches UPPCL", () => {
+  test("signed in, complaint 'filed' locally, 1912 refused", async () => {
+    const { configurePlatform } = await import("@shared/platform");
+    const { fileSupplyComplaint, listDistricts, prepareSupplyComplaint } = await import("@shared/complaints");
+    const calls: string[] = [];
+    configurePlatform({ mock: (k) => mockFor(k, { outcome: "success" }), request: async (u, p) => { calls.push(`${u}:${p}`); throw new Error("network used"); } });
+    setScenario(DEMO);
+    expect((mockFor("/health", { outcome: "success" }) as { authenticated: boolean }).authenticated).toBe(true);
+    const draft = await prepareSupplyComplaint({ account: "1234567890", city: null, problem: "no_power", outage: "Individual" });
+    expect(draft.substation).toBeTruthy();
+    expect((await fileSupplyComplaint(draft, "No power")).complaintNo).toBe("SAMPLE-0001");
+    expect((await listDistricts()).length).toBeGreaterThan(0);
+    expect(calls).toEqual([]); // nothing went to the network
+    setScenario(null);
+    configurePlatform({ mock: undefined });
+  });
 });
