@@ -8,7 +8,7 @@
  * UPPCL dropped RSA-OAEP + AES-GCM encryption — all endpoints accept
  * plaintext JSON now. Only ALTCHA proof-of-work is still needed for login.
  */
-import useSWR, { mutate as globalMutate } from "swr";
+import useSWR, { mutate as defaultMutate, unload as defaultUnload, type ScopedMutator, type Unloader } from "swr";
 import { solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
 import { complaints } from "./complaints";
@@ -19,12 +19,21 @@ import {
   expireSession,
   isAuthenticated,
   getJwt,
-
   getSite,
   setSite,
   jwtExpiresInDays,
   type SiteRecord,
 } from "./session";
+
+// The app's SWR cache is a provider (src/cache.ts). `mutate`/`unload` imported from "swr" act on SWR's
+// default cache, which no screen reads: sign-in/out waited for the 60 s /health poll because of that.
+// The Gate binds these to the provider's (useSWRConfig) on its first render.
+let bound: { mutate: ScopedMutator; unload: Unloader } = { mutate: defaultMutate, unload: defaultUnload };
+export function bindSwr(b: { mutate: ScopedMutator; unload?: Unloader }) { bound = { mutate: b.mutate, unload: b.unload ?? defaultUnload }; }
+/** Use this, never `mutate` from "swr". */
+export const mutate = ((...args: Parameters<ScopedMutator>) => bound.mutate(...args)) as ScopedMutator;
+/** Drop every cached response and tell mounted screens. */
+export const unloadAll: Unloader = (o) => bound.unload(o);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -167,7 +176,7 @@ async function proxy(
   if (r.status === 401 || r.status === 403) {
     expireSession();
     // Immediately tell Shell to show the login gate (don't wait for 60s poll)
-    globalMutate("/health");
+    void mutate("/health");
     throw new ProxyError(401, "Session expired — sign in again");
   }
 

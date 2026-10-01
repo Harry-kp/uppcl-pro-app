@@ -3,9 +3,8 @@ import { Linking, Pressable, StyleSheet, View, Platform, ToastAndroid } from "re
 import * as Clipboard from "expo-clipboard";
 import { COMPLAINT_SMS_NUMBER, HELPLINE_TEL, noPowerSmsUrl } from "@shared/outage";
 import { router, useFocusEffect } from "expo-router";
-import { mutate as globalMutate } from "swr";
 import {
-  downloadBillPdf, useBills, useDashboard, useMe, useDowntime, useLatestInvoice, useOutstanding, usePayments,
+  downloadBillPdf, mutate as mutateAll, useBills, useDashboard, useMe, useDowntime, useLatestInvoice, useOutstanding, usePayments,
   useMyComplaints, useWssArrears, useWssConsumer, useYearlyHistory,
   type DashboardResponse, type MonthlyInvoice,
 } from "@shared/api";
@@ -40,7 +39,7 @@ export default function Home() {
   const { t } = useI18n();
   // UPPCL says the session is gone: let the sign-in gate take over instead of offering a retry that can't work.
   const sessionGone = (error as { kind?: string } | undefined)?.kind === "session";
-  useEffect(() => { if (sessionGone) void globalMutate("/health"); }, [sessionGone]);
+  useEffect(() => { if (sessionGone) void mutateAll("/health"); }, [sessionGone]);
   if (error && !data) return (
     <Screen>
       {/* Nothing loaded yet, but Settings (language, sign out) must stay reachable. */}

@@ -6,6 +6,7 @@
 import { AppState } from "react-native";
 import { File, Paths } from "expo-file-system";
 import type { Cache, State } from "swr";
+import { unloadAll } from "@shared/api";
 
 const file = new File(Paths.document, "swr-cache-v1.json");
 const SKIP = (key: string) => key === "/health" || key.startsWith("$");
@@ -51,7 +52,8 @@ export function persistentCache(): Cache {
   return map as unknown as Cache;
 }
 
+/** Sign-out: drop every response (and tell mounted screens), plus the copy kept for instant open. */
 export function clearPersistentCache() {
-  current?.clear();
+  unloadAll({ revalidate: false });
   try { if (file.exists) file.delete(); } catch { /* already gone */ }
 }

@@ -13,8 +13,8 @@ import { useFonts } from "expo-font";
 import { AnekLatin_400Regular, AnekLatin_500Medium, AnekLatin_600SemiBold, AnekLatin_700Bold, AnekLatin_800ExtraBold } from "@expo-google-fonts/anek-latin";
 import { AnekDevanagari_400Regular, AnekDevanagari_600SemiBold, AnekDevanagari_700Bold } from "@expo-google-fonts/anek-devanagari";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { useDashboard, useHealth } from "@shared/api";
-import { SWRConfig, mutate } from "swr";
+import { bindSwr, mutate, useDashboard, useHealth } from "@shared/api";
+import { SWRConfig, useSWRConfig } from "swr";
 import { persistentCache } from "../src/cache";
 import { DevBanner } from "../src/dev"; // @dev-tools
 import { I18nProvider, useI18n } from "../src/i18n";
@@ -56,6 +56,7 @@ export default function Root() {
 }
 
 function Gate() {
+  bindSwr(useSWRConfig()); // before any screen can call mutate (see shared/api.ts)
   const c = useColors();
   const scheme = useColorScheme();
   const { data: health } = useHealth();

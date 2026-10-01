@@ -1,11 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Alert, AppState, Pressable, StyleSheet, Switch, TextInput, View, Platform } from "react-native";
+import { AppState, Pressable, StyleSheet, Switch, TextInput, View, Platform } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Clipboard from "expo-clipboard";
-import { mutate } from "swr";
-import { logout, useDashboard, useMe } from "@shared/api";
+import { logout, mutate, useDashboard, useMe } from "@shared/api";
 import { FINGERPRINT_KEY, keystore, NAME_KEY } from "../src/boot";
 import { alertsEnabled, disableAlerts, enableAlerts, getBudget, sendTestNotification, setBudget } from "../src/alerts";
 import { clearSnapshot, WIDGET_NAME } from "../src/widget";
@@ -34,7 +33,8 @@ export default function Settings() {
   const [alertBusy, setAlertBusy] = useState(false);
   const [alertError, setAlertError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeChoice>(getThemeChoice);
-  const [sheet, setSheet] = useState<"lang" | "theme" | "budget" | null>(null);
+  const [sheet, setSheet] = useState<"lang" | "theme" | "budget" | "signout" | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const update = useUpdate();
   const [widgetPlaced, setWidgetPlaced] = useState(false);
   const [, rerender] = useState(0);
@@ -91,8 +91,7 @@ export default function Settings() {
   async function signOut() {
     await disableAlerts();
     await logout();
-    await mutate(() => true, undefined, { revalidate: false }); // drop every cached response
-    clearPersistentCache(); // and the copy kept for instant open
+    clearPersistentCache(); // every cached response, on screen and on disk
     clearSnapshot(); // widget shows "Open UPPCL Pro to set up"
     keystore.removeItem(NAME_KEY); // the next person to sign in isn't greeted with this name
     // The sign-in gate (_layout) swaps to the sign-in screen when /health flips. Navigating by hand as well
@@ -148,10 +147,7 @@ export default function Settings() {
       {/* Destructive action on its own, away from preferences (UX-027). */}
       <Group title={t("account")}>
         <Row first icon="logout" label={t("sign_out")} tone="critical"
-          onPress={() => Alert.alert(t("signout_title"), t("signout_body"), [
-            { text: t("cancel"), style: "cancel" },
-            { text: t("signout_confirm"), style: "destructive", onPress: () => void signOut() },
-          ])} />
+          onPress={() => setSheet("signout")} />
       </Group>
 
       {__DEV__ && <DevSettingsSection />} {/* @dev-tools */}
@@ -171,6 +167,13 @@ export default function Settings() {
       <Sheet visible={sheet === "theme"} title={t("theme")} onClose={() => setSheet(null)}>
         <Choices value={theme} onChange={(v) => { setThemeChoice(v); setTheme(v); setSheet(null); }}
           options={[{ value: "system", label: t("theme_system") }, { value: "light", label: t("theme_light") }, { value: "dark", label: t("theme_dark") }]} />
+      </Sheet>
+      {/* Our own sheet, not the stock Android dialog: same type, colours and dark mode as the rest of the app. */}
+      <Sheet visible={sheet === "signout"} title={t("signout_title")} onClose={() => !leaving && setSheet(null)}>
+        <Txt v="body" color="muted">{t("signout_body")}</Txt>
+        <Button kind="critical" icon="logout" label={t("signout_confirm")} busy={leaving}
+          onPress={() => { setLeaving(true); void signOut().finally(() => setLeaving(false)); }} />
+        <Button kind="soft" label={t("cancel")} disabled={leaving} onPress={() => setSheet(null)} />
       </Sheet>
       <BudgetSheet visible={sheet === "budget"} onClose={() => setSheet(null)} />
       {/* Turning reminders on needs the password (kept encrypted so the check can sign in while the app is closed). */}

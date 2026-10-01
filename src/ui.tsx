@@ -1,10 +1,10 @@
 /** Small design-system primitives. Every colour comes from theme.ts. */
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, View,
   type DimensionValue, type StyleProp, type TextStyle, type ViewStyle,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { font, radius, space, useColors, type Colors } from "./theme";
 import { useI18n } from "./i18n";
@@ -75,15 +75,19 @@ export function Screen({ children, onRefresh, refreshing = false }: { children: 
   const [pulled, setPulled] = useState(false);
   const spinning = pulled && refreshing;
   useEffect(() => { if (pulled && !refreshing) setPulled(false); }, [pulled, refreshing]);
+  // Content scrolled flush against the clock/battery looked cramped: clip a little below the status bar
+  // (insets can read 0 on Android 9, hence currentHeight), and end clear of the system nav bar.
+  const insets = useSafeAreaInsets();
+  const top = Math.max(insets.top, StatusBar.currentHeight ?? 0) + 6;
   return (
-    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: top }}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: 32 + insets.bottom }]}
         refreshControl={onRefresh ? <RefreshControl refreshing={spinning} onRefresh={() => { setPulled(true); onRefresh(); }} tintColor={c.primary} colors={[c.primary]} progressBackgroundColor={c.surface} /> : undefined}
       >
         {children}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -107,10 +111,10 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 
 export function Button({
   label, onPress, kind = "primary", busy, disabled, icon,
-}: { label: string; onPress: () => void; kind?: "primary" | "soft"; busy?: boolean; disabled?: boolean; icon?: IconName }) {
+}: { label: string; onPress: () => void; kind?: "primary" | "soft" | "critical"; busy?: boolean; disabled?: boolean; icon?: IconName }) {
   const c = useColors();
-  const bg = kind === "primary" ? c.primary : c.pill;
-  const fg = kind === "primary" ? c.onPrimary : c.pillText;
+  const bg = kind === "primary" ? c.primary : kind === "critical" ? c.critical : c.pill;
+  const fg = kind === "primary" ? c.onPrimary : kind === "critical" ? c.surface : c.pillText;
   return (
     <Pressable
       accessibilityRole="button"

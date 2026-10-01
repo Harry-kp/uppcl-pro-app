@@ -10,8 +10,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, 
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
-import { mutate } from "swr";
-import { useDashboard } from "@shared/api";
+import { mutate, useDashboard } from "@shared/api";
 import {
   getPaymentReceipt, getPayBillDetails, onTimeSaving, payAmountError, startBillPayment,
   type PayBillHome, type PaymentReceipt, type PayType,
