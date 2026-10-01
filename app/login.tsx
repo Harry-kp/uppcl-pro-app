@@ -1,9 +1,9 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { UPPCL_SMART_URL } from "../src/boot";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { mutate } from "swr";
-import { login, ProxyError } from "@shared/api";
+import { login, prepareSignIn, ProxyError, signInReady } from "@shared/api";
 import { sessionWasExpired } from "@shared/session";
 import { useI18n, type Lang } from "../src/i18n";
 import { font, radius, useColors } from "../src/theme";
@@ -27,7 +27,11 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // What the button says while busy: UPPCL's sign-in check (~7 s on older phones) is worked out as soon as
+  // this screen opens, so it's usually done before the user has typed their password.
+  const [stage, setStage] = useState<"prep" | "signin" | "opening" | null>(null);
+  const busy = stage !== null;
+  useEffect(() => { void prepareSignIn(); }, []);
   const [fail, setFail] = useState<Fail | null>(null);
   const [focused, setFocused] = useState<"user" | "pw" | null>(null);
   const [expired] = useState(sessionWasExpired); // UPPCL rejected the saved session (MISS-047)
@@ -37,18 +41,20 @@ export default function Login() {
 
   async function submit() {
     if (!username.trim() || !password) return;
-    setBusy(true);
     setFail(null);
     try {
+      if (!signInReady()) { setStage("prep"); await prepareSignIn(); }
+      setStage("signin");
       await login(username.trim(), password);
+      setStage("opening"); // stays busy until Home replaces this screen: no idle gap in between
+      setTimeout(() => setStage(null), 20_000); // never spin forever if the switch doesn't come
       await mutate("/health");
     } catch (e) {
+      setStage(null);
       // A timeout is UPPCL being slow, not the user's internet: don't send them to check airplane mode.
       if ((e as { kind?: string }).kind === "network") setFail({ kind: /timeout/i.test(String((e as { reason?: string }).reason)) ? "slow" : "offline" });
       else if (e instanceof ProxyError && (e.status === 401 || e.status === 403 || BAD_CREDS.test(e.reason))) setFail({ kind: "creds" });
       else setFail({ kind: "other", error: e }); // UPPCL down, captcha trouble, or our bug: ErrorNote says whose side
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -115,7 +121,7 @@ export default function Login() {
               </View>
             )}
 
-            <Button label={busy ? L.signing_in : L.sign_in} onPress={submit} busy={busy} disabled={!username.trim() || !password} />
+            <Button label={stage === "prep" ? t("signin_prep") : stage === "opening" ? t("signin_opening") : busy ? L.signing_in : L.sign_in} onPress={submit} busy={busy} disabled={!username.trim() || !password} />
             <View style={styles.privacy}>
               <Icon name="lock" size={16} color={c.muted} />
               <Txt v="caption" color="muted" style={{ flexShrink: 1 }}>{t("login_privacy")}</Txt>

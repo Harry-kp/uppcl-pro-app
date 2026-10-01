@@ -194,26 +194,48 @@ async function uppcl_post(
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+/**
+ * UPPCL's sign-in needs a solved ALTCHA proof-of-work first: up to 100k SHA-256s, ~7 s on average and up to
+ * ~14 s on a 2018 phone. It doesn't depend on the username or password, so the sign-in screen calls this as
+ * soon as it opens and the work happens while the user types. A token is used once and kept for 4 minutes.
+ */
+let captcha: { at: number; token: Promise<string>; done: boolean } | null = null;
+const CAPTCHA_TTL = 4 * 60_000;
+
+export function prepareSignIn(): Promise<unknown> {
+  if (captcha && Date.now() - captcha.at < CAPTCHA_TTL) return captcha.token.catch(() => {});
+  const token = (async () => {
+    const r = await send("uppcl", "altcha/createAltCaptcha", {
+      headers: { apikey: UPPCL_API_KEY, tenantid: tenantHeader(DEFAULT_TENANT) },
+      cache: "no-store",
+    });
+    if (!r.ok) throw new ProxyError(r.status, "Failed to fetch ALTCHA challenge");
+    return solveAltcha((await r.json()) as AltchaChallenge);
+  })();
+  const entry = { at: Date.now(), token, done: false };
+  token.then(() => { entry.done = true; }, () => { if (captcha === entry) captcha = null; }); // failed prep: redone at sign-in
+  captcha = entry;
+  return token.catch(() => {});
+}
+
+/** False while UPPCL's sign-in check is still being worked out (the button says "Getting ready…"). */
+export function signInReady(): boolean {
+  return !!captcha?.done && Date.now() - captcha.at < CAPTCHA_TTL;
+}
+
 export async function login(username: string, password: string): Promise<void> {
+  void prepareSignIn(); // no-op if the screen already started it
+  const captchaToken = await captcha!.token;
+  captcha = null; // one token per sign-in attempt
   // UPPCL SMART's sign-in can take far longer than its data calls; don't give up at the usual 30 s.
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), 60_000);
-  try { return await loginSteps(username, password, abort.signal); } finally { clearTimeout(timer); }
+  try { return await loginSteps(username, password, captchaToken, abort.signal); }
+  catch (e) { void prepareSignIn(); throw e; } // ready for the retry; never after a success (it costs seconds of CPU)
+  finally { clearTimeout(timer); }
 }
 
-async function loginSteps(username: string, password: string, signal: AbortSignal): Promise<void> {
-  // 1. Fetch ALTCHA challenge
-  const altchaR = await send("uppcl", "altcha/createAltCaptcha", {
-    headers: { apikey: UPPCL_API_KEY, tenantid: tenantHeader(DEFAULT_TENANT) },
-    cache: "no-store",
-    signal,
-  });
-  if (!altchaR.ok) throw new ProxyError(altchaR.status, "Failed to fetch ALTCHA challenge");
-  const challenge: AltchaChallenge = await altchaR.json();
-
-  // 2. Solve proof-of-work
-  const captchaToken = await solveAltcha(challenge);
-
+async function loginSteps(username: string, password: string, captchaToken: string, signal: AbortSignal): Promise<void> {
   // 3. Send plaintext login (UPPCL login endpoint does not use encryption)
   const r = await send("uppcl", "auth/v2/login", {
     method: "POST",

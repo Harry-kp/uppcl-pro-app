@@ -41,12 +41,20 @@ export interface AltchaChallenge {
  */
 export async function solveAltcha(c: AltchaChallenge): Promise<string> {
   const maxnum = c.maxnumber ?? 100_000;
-  const target = c.challenge.toLowerCase();
+  const target = hexToBytes(c.challenge.toLowerCase());
   const startMs = Date.now();
-
+  // Hot loop: up to 100k SHA-256s, ~140 µs each on a 2018 phone (Hermes has no JIT), so keep it lean —
+  // hash the salt once and clone it, write the counter's digits into a reused buffer, compare raw bytes.
+  const base = sha256.create().update(utf8ToBytes(c.salt));
+  const digits = new Uint8Array(16);
   for (let n = 0; n <= maxnum; n++) {
     if (n % 5000 === 0) await new Promise((r) => setTimeout(r, 0)); // keep the UI responsive
-    if (bytesToHex(sha256(utf8ToBytes(`${c.salt}${n}`))) === target) {
+    let len = 0;
+    for (let v = n; ; v = (v / 10) | 0) { digits[15 - len++] = 48 + (v % 10); if (v < 10) break; }
+    const h = base.clone().update(digits.subarray(16 - len)).digest();
+    let same = true;
+    for (let i = 0; i < 32; i++) if (h[i] !== target[i]) { same = false; break; }
+    if (same) {
       const took = Date.now() - startMs;
       return btoa(
         JSON.stringify({
