@@ -306,6 +306,7 @@
     "payments": "Payments",
     "received": "Received",
     "credit": "₹{amount} credit",
+    "bill_saved": "saved ₹{amount} on time",
     "credit_note": "Carried to your next bill",
     "no_arrears": "No arrears",
     "clear": "Clear",

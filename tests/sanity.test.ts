@@ -15,7 +15,7 @@ mock.module("expo-router", () => ({ router: { push: () => {} } }));
 import { ProxyError, type DashboardResponse } from "@shared/api";
 import { onTimeSaving, payAmountError, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
-import { busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
+import { billRebate, busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { mockFor, SCENARIOS, setScenario } = await import("../src/dev/scenarios");
 const { isInAppUrl } = await import("../src/links");
@@ -160,6 +160,8 @@ describe("payAmountError", () => {
     [due, "1", 999, "min_due"], [due, "1", 1000, null], [due, "1", 1500, null],
     [due, "2", 99, "part_range"], [due, "2", 100, null], [due, "2", 1001, "part_range"],
     [{ payableAmt: "1000" } as PayBillHome, "2", 249, "part_range"],
+    // The live pay DTO says purposeOfSupply "10" (a code) and supplyType "LMV1": still domestic, 10%.
+    [{ payableAmt: "1000", customerDetailsDTO: { purposeOfSupply: "10", supplyType: "LMV1" } } as PayBillHome, "2", 100, null],
     [due, "3", 1000, "advance_1000"], [clear, "3", 1500, "advance_1000"], [clear, "3", 2000, null],
   ] as const)("%#: type %s ₹%d → %s", (home, type, amount, want) => {
     expect(payAmountError(home, type, amount)).toBe(want);
@@ -284,5 +286,18 @@ describe("due-date rebate (bill portal's payAmtBeforeDueDt)", () => {
     expect(onTimeSaving(home({}), new Date(2026, 8, 10))).toBeNull(); // field missing
     expect(onTimeSaving(home({ payAmtBeforeDueDt: "1612.00" }), new Date(2026, 8, 10))).toBeNull(); // no saving
     expect(onTimeSaving(home({ payAmtBeforeDueDt: "1000" }), new Date(2026, 8, 10))).toBeNull(); // 38% off: not a rebate
+  });
+});
+
+describe("billRebate", () => {
+  const b = (o: object) => ({ bill_amt: "1612", payment_amt: "1597", payment_dt: "2026-09-11T00:00:00+05:30", due_dt: "2026-09-18T00:00:00+05:30", ...o });
+  test("paid on time, a little less: that's the rebate", () => expect(billRebate(b({}))).toBe(15));
+  test("paid on the due date itself counts", () => expect(billRebate(b({ payment_dt: "2026-09-18T00:00:00+05:30" }))).toBe(15));
+  test("late, unpaid, credit, full or odd amounts: nothing", () => {
+    expect(billRebate(b({ payment_dt: "2026-09-20T00:00:00+05:30" }))).toBeNull();
+    expect(billRebate(b({ payment_amt: "", payment_dt: "" }))).toBeNull();
+    expect(billRebate(b({ bill_amt: "-638" }))).toBeNull();
+    expect(billRebate(b({ payment_amt: "1612" }))).toBeNull();
+    expect(billRebate(b({ payment_amt: "1000" }))).toBeNull(); // part payment, not a rebate
   });
 });

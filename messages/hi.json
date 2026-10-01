@@ -306,6 +306,7 @@
     "payments": "भुगतान",
     "received": "मिल गया",
     "credit": "₹{amount} क्रेडिट",
+    "bill_saved": "समय पर भरने से ₹{amount} बचे",
     "credit_note": "अगले बिल में समायोजित होगा",
     "no_arrears": "कोई पुराना बकाया नहीं",
     "clear": "साफ़",

@@ -5,6 +5,7 @@ import {
   useBillHistory, useDashboard, useInvoices, usePayments, useWssArrears,
   type BillInvoice,
 } from "@shared/api";
+import { billRebate } from "@shared/insights";
 import { toNum } from "@shared/stats";
 import { billingPeriod, rupees } from "@shared/utils";
 import { ErrorNote } from "../../src/errors";
@@ -114,11 +115,12 @@ export default function Bills() {
           const amt = toNum(inv.bill_amt);
           const credit = amt < 0; // negative bill = UPPCL owes you, carried forward
           const paid = Boolean((inv.payment_dt || "").trim());
+          const saved = postpaid ? billRebate(inv) : null;
           return (
             <Row key={inv.invoice_id} first={i === 0}
               title={month(inv.bill_dt)}
               // Prepaid statements are charged from the balance: there is nothing to pay, so no pay status.
-              sub={credit ? t("credit_note") : !postpaid ? t("from_balance") : paid && inv.payment_dt ? `${t("paid")} · ${day(inv.payment_dt)}` : t("unpaid")}
+              sub={credit ? t("credit_note") : !postpaid ? t("from_balance") : paid && inv.payment_dt ? `${t("paid")} · ${day(inv.payment_dt)}${saved ? ` · ${t("bill_saved", { amount: rupees(saved, { decimals: 0 }) })}` : ""}` : t("unpaid")}
               status={credit || !postpaid ? undefined : paid ? "ok" : "warn"}
               amount={credit ? t("credit", { amount: rupees(Math.abs(amt), { decimals: 0 }) }) : `₹${rupees(amt, { decimals: 0 })}`}
               amountColor={credit ? "ok" : undefined}

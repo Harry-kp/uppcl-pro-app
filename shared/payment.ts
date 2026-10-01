@@ -29,7 +29,7 @@ export interface PayBillHome {
   payBillDetailsDTO?: Record<string, unknown>;
   customerDetailsDTO?: {
     billNo?: string; billDate?: string; dueDate?: string; dueAmount?: string; email?: string;
-    mobileNo?: string; discomName?: string; purposeOfSupply?: string; typeOfConnection?: string;
+    mobileNo?: string; discomName?: string; purposeOfSupply?: string; supplyType?: string; typeOfConnection?: string;
     // What the bill PDF calls "Payable by Due Date" (after the due-date rebate) and the amount after it.
     payAmtBeforeDueDt?: string; payAmtAfterDueDt?: string;
   };
@@ -57,7 +57,9 @@ export function payAmountError(home: PayBillHome, type: PayType, amount: number)
   if (!Number.isInteger(amount) || amount <= 0 || amount >= 10_000_000) return "whole";
   if (type === "1" && amount < payable) return "min_due";
   if (type === "2") {
-    const minPct = home.customerDetailsDTO?.purposeOfSupply === "LMV1" ? 0.1 : 0.25;
+    // Domestic (LMV1) may part-pay 10%. This DTO's purposeOfSupply is a code ("10"), supplyType says "LMV1".
+    const d = home.customerDetailsDTO;
+    const minPct = d?.supplyType === "LMV1" || d?.purposeOfSupply === "LMV1" ? 0.1 : 0.25;
     if (amount > payable || amount < Math.ceil(payable * minPct)) return "part_range";
   }
   if (type === "3" && (payable > 0 || amount % 1000 !== 0)) return "advance_1000";

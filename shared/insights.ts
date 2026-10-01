@@ -5,7 +5,7 @@
  */
 import type { DashboardResponse, DailyBill, Payment, ConsumptionRow, MonthlyInvoice } from "./api";
 import { mean, stddev, toNum } from "./stats";
-import { daysBetween, billedMonthKwh, billingPeriod, FALLBACK_RATE } from "./utils";
+import { daysBetween, billedMonthKwh, billingPeriod, FALLBACK_RATE, parseUppclDate } from "./utils";
 
 /** Days of balance a recharge should buy. */
 export const TARGET_RUNWAY_DAYS = 40;
@@ -202,4 +202,14 @@ export function busiestHours(hours: number[], width = 3): { start: number; share
     if (sum > best) { best = sum; start = h; }
   }
   return { start, share: Math.round((best / total) * 100) };
+}
+
+/** What paying by the due date saved on one bill: UPPCL takes ~1–1.5% off (seen: ₹1,612 bill, ₹1,597 paid).
+ *  Only when paid on/before the due date and the gap looks like a rebate (0 < gap < 5%), else null. */
+export function billRebate(b: { bill_amt: string; payment_amt?: string | null; payment_dt?: string | null; due_dt?: string | null }): number | null {
+  const bill = toNum(b.bill_amt), paid = toNum(b.payment_amt);
+  const on = parseUppclDate(b.payment_dt)?.getTime(), due = parseUppclDate(b.due_dt)?.getTime();
+  if (!(bill > 0 && paid > 0) || on === undefined || due === undefined || on > due + 86_399_000) return null;
+  const gap = Math.round(bill - paid);
+  return gap > 0 && gap < bill * 0.05 ? gap : null;
 }
