@@ -14,7 +14,7 @@ import { Bars } from "../../src/Bars";
 import { saveSnapshot } from "../../src/widget";
 import { HELPLINE_TEL, openFor } from "@shared/complaints";
 import { getBudget } from "../../src/alerts";
-import { keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
+import { JUST_PAID_KEY, keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
 import { UpdateCard } from "../../src/github";
 import { ReportSheet } from "../../src/report";
 
@@ -423,6 +423,14 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     .map((x) => new Date(x));
   const budget = useFocusBudget();
   const shown = d.pendingBill?.amount ?? d.projectedBill; // the bill the hero is talking about
+  // Just paid in the app, but UPPCL's balance still shows it due (it lags a few hours): say "Paid", don't offer Pay.
+  const justPaid = (() => {
+    try {
+      const j = JSON.parse(keystore.getItem(JUST_PAID_KEY) ?? "null") as { amount: number; at: number } | null;
+      return j && Date.now() - j.at < 3 * 86_400_000 && d.hasDues && d.outstandingAmt <= j.amount + 1 ? j : null;
+    } catch { return null; }
+  })();
+  useEffect(() => { if (!d.hasDues) keystore.removeItem(JUST_PAID_KEY); }, [d.hasDues]);
   const vsPct = d.pendingBill ? d.pendingBill.vsLast : d.projVsLast; // compare whichever bill Home is showing
   const dueDay = (x: string) => new Date(x).toLocaleDateString(locale, { day: "numeric", month: "short" });
   const vsTone = vsPct >= 10 ? ("warn" as const) : vsPct < 0 ? ("ok" as const) : ("accent" as const);
@@ -443,7 +451,14 @@ function Postpaid({ data }: { data: DashboardResponse }) {
                     : t(d.daysToDue === 0 ? "due_today" : d.daysToDue === 1 ? "due_tomorrow" : "due_in_days", { n: d.daysToDue, date: dueDay(inv.due_dt) })} />
               </View>
             )}
-            <Button label={t("pay_now", { amount: rupees(d.outstandingAmt, { decimals: 0 }) })} onPress={() => router.push("/pay")} />
+            {justPaid ? (
+              <View style={{ gap: 4 }}>
+                <Pill tone="ok" label={t("paid_amount", { amount: rupees(justPaid.amount, { decimals: 0 }) })} />
+                <Txt v="caption" color="muted">{t("paid_updating")}</Txt>
+              </View>
+            ) : (
+              <Button label={t("pay_now", { amount: rupees(d.outstandingAmt, { decimals: 0 }) })} onPress={() => router.push("/pay")} />
+            )}
           </>
         ) : (
           <>

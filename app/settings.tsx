@@ -5,7 +5,7 @@ import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Clipboard from "expo-clipboard";
 import { logout, mutate, useDashboard, useMe } from "@shared/api";
-import { FINGERPRINT_KEY, keystore, NAME_KEY } from "../src/boot";
+import { FINGERPRINT_KEY, JUST_PAID_KEY, keystore, NAME_KEY } from "../src/boot";
 import { alertsEnabled, disableAlerts, enableAlerts, getBudget, sendTestNotification, setBudget } from "../src/alerts";
 import { clearSnapshot, WIDGET_NAME } from "../src/widget";
 import { getWidgetInfo, requestPinWidget } from "react-native-android-widget";
@@ -97,6 +97,7 @@ export default function Settings() {
     clearPersistentCache(); // every cached response, on screen and on disk
     clearSnapshot(); // widget shows "Open Bijli Saathi to set up"
     keystore.removeItem(NAME_KEY); // the next person to sign in isn't greeted with this name
+    keystore.removeItem(JUST_PAID_KEY);
     // The sign-in gate (_layout) swaps to the sign-in screen when /health flips. Navigating by hand as well
     // raced it: router.replace("/") could land on Home with no session ("Please sign in again" + Try again).
     await mutate("/health");

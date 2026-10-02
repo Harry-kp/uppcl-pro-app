@@ -105,6 +105,10 @@ export { keystore };
 /** "1" when the user turned on fingerprint unlock (Help → Settings). */
 export const FINGERPRINT_KEY = "app_fingerprint";
 
+/** A payment that just succeeded: { amount, at }. Home says "Paid" instead of offering Pay again until UPPCL's
+ *  balance catches up (it lags a few hours). Cleared once nothing is due, after 3 days, and on sign-out. */
+export const JUST_PAID_KEY = "app_just_paid";
+
 /** Last real name seen, for Home (v2: v1 could hold a test-scenario name). Cleared on sign-out and scenario switch. */
 export const NAME_KEY = "app_display_name_v2";
 

@@ -16,3 +16,18 @@ export function isInAppUrl(url: string | undefined): url is string {
 export function openLink(url: string): void {
   Linking.openURL(url).catch(() => { if (isInAppUrl(url)) router.push({ pathname: "/web", params: { url } }); });
 }
+
+/**
+ * A link BillDesk's page wants another app to open → the URL Android/iOS can open.
+ * "upi://pay?pa=…" (and tez://, phonepe://, paytmmp://…) as is; Chrome-style
+ * "intent://pay?pa=…#Intent;scheme=upi;package=com.phonepe.app;end" → "upi://pay?pa=…" (the phone then offers
+ * its UPI apps). Anything else: null.
+ */
+export function appLinkFor(url: string): string | null {
+  const m = /^intent:\/\/([^#]*)#Intent;(.*)end;?$/i.exec(url);
+  if (m) {
+    const scheme = /(?:^|;)scheme=([^;]+)/i.exec(m[2])?.[1];
+    return scheme ? `${scheme}://${m[1]}` : null;
+  }
+  return /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : null;
+}

@@ -6,7 +6,7 @@
  * (pgresponse?refNo=…) → receipt. See docs/payment-reverse-engineering.md.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
@@ -23,7 +23,8 @@ import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
 import { Spinner, Button, Insight, Segmented, Skeleton, SlowNote, Txt, familyFor, Field } from "../src/ui";
 import { Icon } from "../src/icons";
-import { openLink } from "../src/links";
+import { appLinkFor, openLink } from "../src/links";
+import { JUST_PAID_KEY, keystore } from "../src/boot";
 
 type Gateway = { url: string; message: string; trackId: string };
 
@@ -44,6 +45,21 @@ export default function Pay() {
   const [checking, setChecking] = useState(false);
   const [custom, setCustom] = useState(false); // "Pay a different amount" opened
   const gatewayOpen = useRef(false); // BillDesk page showing; guards against handling its return twice
+  const [upiNote, setUpiNote] = useState<"opened" | "none" | null>(null); // handed BillDesk's UPI request to a UPI app
+
+  // BillDesk's "pay with a UPI app" sends upi:// or intent:// links. A WebView can't open those (it showed an
+  // error page, so UPI apps never opened); hand them to the phone, which opens GPay / PhonePe / Paytm with
+  // the amount filled in. The BillDesk page stays open and confirms by itself when the user comes back.
+  // The WebView gets originWhitelist ["*"] so every link reaches here: its own whitelist handling asks
+  // Linking.canOpenURL first, which says "no" for upi:// on Android 11+ (package visibility), so UPI apps never
+  // opened even when installed. openURL itself works. Loads only https pages; never file:/javascript:.
+  function allowLoad(url: string): boolean {
+    if (/^(https:|about:blank|data:text\/html|blob:https:)/i.test(url)) return true;
+    const target = appLinkFor(url);
+    if (target && !/^(javascript|file|content|http):/i.test(target))
+      Linking.openURL(target).then(() => setUpiNote("opened"), () => setUpiNote("none"));
+    return false;
+  }
 
   useEffect(() => {
     getPayBillDetails()
@@ -94,6 +110,7 @@ export default function Pay() {
     for (let i = 0; i < 4; i++) {
       const r = await getPaymentReceipt(id).catch(() => null);
       if (r) setReceipt(r);
+      if (r?.status === "success") keystore.setItem(JUST_PAID_KEY, JSON.stringify({ amount: Number(r.amount) || n, at: Date.now() }));
       if (r && r.status !== "pending") break;
       if (i < 3) await new Promise((ok) => setTimeout(ok, 4000));
     }
@@ -190,7 +207,7 @@ export default function Pay() {
         )}
       </View>
 
-      <Modal visible={!!gateway} animationType="slide" onRequestClose={() => setGateway(null)} onShow={() => setGatewayReady(false)}>
+      <Modal visible={!!gateway} animationType="slide" onRequestClose={() => setGateway(null)} onShow={() => { setGatewayReady(false); setUpiNote(null); }}>
         <View style={[styles.sheetHead, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("cancel")} onPress={() => setGateway(null)} hitSlop={10} style={styles.close}>
             <Icon name="arrowBack" size={22} color={c.text} />
@@ -198,12 +215,23 @@ export default function Pay() {
           <Icon name="lock" size={16} color={c.ok} />
           <Txt v="label" weight="semibold" style={{ flex: 1 }}>{t("pay_secure_billdesk")}</Txt>
         </View>
+        {gateway && gatewayReady && (
+          <View style={[styles.tip, { backgroundColor: upiNote === "none" ? c.criticalSoft : c.pill }]}>
+            <Icon name={upiNote === "opened" ? "schedule" : upiNote === "none" ? "warning" : "info"} size={16} color={upiNote === "none" ? c.critical : c.pillText} />
+            <Txt v="caption" color={upiNote === "none" ? "critical" : "pillText"} style={{ flex: 1 }}>
+              {upiNote === "opened" ? t("pay_upi_back") : upiNote === "none" ? t("pay_upi_none") : t("pay_upi_tip")}
+            </Txt>
+          </View>
+        )}
         {gateway && (
           <WebView
             source={{ html: gatewayHtml }}
-            originWhitelist={["https://*"]}
+            originWhitelist={["*"]} // every link goes through allowLoad (see above)
             // Catch UPPCL's result URL before it loads: we show our own result instead of their page.
-            onShouldStartLoadWithRequest={(req) => { if (/pgresponse/i.test(req.url)) { onNav({ url: req.url } as WebViewNavigation); return false; } return true; }}
+            onShouldStartLoadWithRequest={(req) => {
+              if (/pgresponse/i.test(req.url)) { onNav({ url: req.url } as WebViewNavigation); return false; }
+              return allowLoad(req.url);
+            }}
             onNavigationStateChange={onNav}
             // Our auto-post form loads instantly; BillDesk's page then shows a grey screen for seconds while its
             // script starts. Keep our own loading screen until BillDesk's page has loaded and had a moment to draw.
@@ -287,7 +315,9 @@ const styles = StyleSheet.create({
   input: { flex: 1, borderWidth: 1.5, fontSize: 24, minHeight: 56 },
   note: { flexDirection: "row", alignItems: "center", gap: 6 },
   foot: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 40 },
+  tip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
   loading: { alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
   sheetHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 48, paddingBottom: 10, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   close: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
 });
+

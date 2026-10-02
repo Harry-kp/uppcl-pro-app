@@ -18,7 +18,7 @@ import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared
 import { billRebate, busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
-const { isInAppUrl } = await import("../src/links");
+const { appLinkFor, isInAppUrl } = await import("../src/links");
 const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, pickDistrict, placeKey, sourceKind, supplySaveXml, withContact } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
@@ -403,4 +403,17 @@ describe("paymentRef", () => {
   test("trackId when UPPCL sends one", () => expect(paymentRef({ trackId: "PV123", message: "M|999|NA" })).toBe("PV123"));
   test("trackId null (Oct 2026): BillDesk's order id from the message", () =>
     expect(paymentRef({ trackId: null, message: "UPPCLX|123456789012345678901234|NA|1485.00|NA" })).toBe("123456789012345678901234"));
+});
+
+describe("appLinkFor (BillDesk's UPI links → the phone)", () => {
+  test("upi:// and app schemes pass through", () => {
+    expect(appLinkFor("upi://pay?pa=x@bank&am=1485.00")).toBe("upi://pay?pa=x@bank&am=1485.00");
+    expect(appLinkFor("phonepe://pay?pa=x@bank")).toBe("phonepe://pay?pa=x@bank");
+  });
+  test("Chrome intent:// links become the scheme URL", () =>
+    expect(appLinkFor("intent://pay?pa=x@bank&am=1485.00#Intent;scheme=upi;package=com.phonepe.app;end")).toBe("upi://pay?pa=x@bank&am=1485.00"));
+  test("intent without a scheme, or not a link: null", () => {
+    expect(appLinkFor("intent://pay#Intent;package=com.x;end")).toBeNull();
+    expect(appLinkFor("not a url")).toBeNull();
+  });
 });
