@@ -1,5 +1,5 @@
 /** "Your details": what UPPCL has on record for this connection. Read-only in this app for now. */
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useDashboard, useMe, useWssConsumer } from "@shared/api";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";

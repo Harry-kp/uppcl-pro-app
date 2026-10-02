@@ -1,7 +1,7 @@
 /** Small design-system primitives. Every colour comes from theme.ts. */
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
+  Animated, Easing, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
   type DimensionValue, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -144,7 +144,7 @@ export function Button({
       {/* Busy keeps its words beside the spinner ("Signing in…"): a bare spinner doesn't say what's happening.
           A trailing icon says where the tap goes (e.g. "opens UPPCL's site"). */}
       <View style={styles.buttonRow}>
-        {busy && <ActivityIndicator color={fg} />}
+        {busy && <Spinner color={fg} size={18} />}
         <Txt v="heading" style={{ color: fg, textAlign: "center", flexShrink: 1 }}>{label}</Txt>
         {icon && !busy && <Icon name={icon} size={18} color={fg} />}
       </View>
@@ -327,6 +327,28 @@ export function Choices<T extends string>({ options, value, onChange }: { option
         );
       })}
     </View>
+  );
+}
+
+/**
+ * The app's one spinner. Android's native ActivityIndicator stops turning when the phone's system animations are
+ * reduced or off (battery savers, MIUI), and a still arc reads as a frozen app. This one rotates on the native
+ * driver whatever the system setting, at the same speed everywhere (~0.8 s a turn, Material's pace).
+ */
+export function Spinner({ color, size = 20 }: { color?: string; size?: number }) {
+  const c = useColors();
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 800, easing: Easing.linear, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const w = Math.max(2, Math.round(size / 8));
+  return (
+    <Animated.View accessibilityRole="progressbar" accessibilityLabel="Loading"
+      style={{ width: size, height: size, borderRadius: size / 2, borderWidth: w, borderColor: color ?? c.primary,
+        borderTopColor: "transparent", transform: [{ rotate }] }} />
   );
 }
 

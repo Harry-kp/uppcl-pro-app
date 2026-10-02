@@ -6,7 +6,7 @@
  * (pgresponse?refNo=…) → receipt. See docs/payment-reverse-engineering.md.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
@@ -21,7 +21,7 @@ import { UPPCL_SMART_URL } from "../src/boot";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
-import { Button, Insight, Segmented, Skeleton, SlowNote, Txt, familyFor, Field } from "../src/ui";
+import { Spinner, Button, Insight, Segmented, Skeleton, SlowNote, Txt, familyFor, Field } from "../src/ui";
 import { Icon } from "../src/icons";
 import { openLink } from "../src/links";
 
@@ -36,6 +36,7 @@ export default function Pay() {
   const [type, setType] = useState<PayType>("1");
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
+  const [gatewayReady, setGatewayReady] = useState(false); // BillDesk's page has drawn: drop our loading screen
   const [payError, setPayError] = useState<unknown>(null);
   const [gateway, setGateway] = useState<Gateway | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
@@ -131,23 +132,24 @@ export default function Pay() {
   const awaiting = payable === 0 && billDate && billingPeriod(billDate).from < lastMonth
     ? lastMonth.toLocaleDateString(locale, { month: "long" }) : null;
 
+  const dueText = payable > 0 && due ? t("due_on", { date: due.toLocaleDateString(locale, { day: "numeric", month: "short" }) }) : null;
+  // One action per sheet: the amount, one Pay button, one quiet "different amount" link. Everything else is a caption.
   return (
-    <SheetFrame title={t("pay_title")}>
-      <View style={[styles.acct, { backgroundColor: c.bg }]}>
-        <Icon name="receiptLong" size={18} color={c.primary} />
-        <Txt v="label" style={{ flex: 1 }} numberOfLines={1}>
-          {payable > 0 && billMonth ? t("pay_bill_of", { month: billMonth, id: acctTail }) : t("pay_account", { id: acctTail })}
-        </Txt>
-        {payable > 0 && due && <Txt v="caption" color="muted">{t("due_on", { date: due.toLocaleDateString(locale, { day: "numeric", month: "short" }) })}</Txt>}
-      </View>
-
-      <View style={{ alignItems: "center", gap: 2, paddingVertical: 4 }}>
-        <Txt v="caption" color="muted">{payable > 0 ? t("amount_due") : t("nothing_due")}</Txt>
-        {payable > 0 && <Txt v="hero" numeric color="big" style={{ fontSize: 44, lineHeight: 48 }}>₹{rupees(payable, { decimals: 0 })}</Txt>}
+    <SheetFrame title={payable > 0 && billMonth ? t("pay_title_month", { month: billMonth }) : t("pay_title")}
+      sub={[dueText, `A/c ••${acctTail.slice(-4)}`].filter(Boolean).join(" · ")} locked={busy}>
+      <View style={{ alignItems: "center", gap: 4, paddingVertical: 8 }}>
+        {payable > 0 ? (
+          <Txt v="hero" numeric color="big" style={{ fontSize: 48, lineHeight: 52 }}>₹{rupees(payable, { decimals: 0 })}</Txt>
+        ) : <Txt v="heading">{t("nothing_due")}</Txt>}
+        {/* UPPCL's on-time rebate is already in this amount (bill portal's payableAmt): say so in one line. */}
+        {!!onTime && (
+          <View style={styles.note}>
+            <Icon name="savings" size={16} color={c.ok} />
+            <Txt v="caption" color="ok">{t("pay_rebate_line", { saving: rupees(onTime.saving, { decimals: 0 }), date: onTime.by.toLocaleDateString(locale, { day: "numeric", month: "short" }) })}</Txt>
+          </View>
+        )}
       </View>
       {!!awaiting && <Insight tone="accent" icon="event" text={t("pay_awaiting_bill", { month: awaiting })} />}
-      {/* UPPCL's own on-time amount (bill portal). Message only: the amounts paid follow the portal's payableAmt. */}
-      {!!onTime && <Insight tone="ok" icon="savings" text={t("pay_on_time", { date: onTime.by.toLocaleDateString(locale, { day: "numeric", month: "short" }), amount: rupees(onTime.amount, { decimals: 0 }), saving: rupees(onTime.saving, { decimals: 0 }) })} />}
 
       {editing && (
         <View style={{ gap: 8 }}>
@@ -173,18 +175,21 @@ export default function Pay() {
       )}
 
       {!!payError && <ErrorNote error={payError} compact />}
-      <Button label={t("pay_cta", { amount: rupees(n || 0, { decimals: 0 }) })} onPress={pay} busy={busy} disabled={!!rule || !n} />
-      {!editing && (
-        <Pressable accessibilityRole="button" onPress={() => setCustom(true)} style={styles.link}>
-          <Txt v="label" color="primary" weight="semibold">{t("pay_different")}</Txt>
-        </Pressable>
-      )}
-      <View style={[styles.note, { justifyContent: "center" }]}>
-        <Icon name="lock" size={14} color={c.muted} />
-        <Txt v="caption" color="muted" style={{ flexShrink: 1 }}>{t("pay_billdesk_note")}</Txt>
+      {/* Busy says what's happening ("Opening BillDesk…"), and the sheet can't be dismissed mid-request. */}
+      <Button label={busy ? t("pay_opening") : t("pay_cta", { amount: rupees(n || 0, { decimals: 0 }) })} onPress={pay} busy={busy} disabled={!!rule || !n} />
+      <View style={styles.foot}>
+        <View style={[styles.note, { flex: 1 }]}>
+          <Icon name="lock" size={14} color={c.muted} />
+          <Txt v="caption" color="muted" style={{ flexShrink: 1 }}>{t("pay_billdesk_short")}</Txt>
+        </View>
+        {!editing && !busy && (
+          <Pressable accessibilityRole="button" onPress={() => setCustom(true)} hitSlop={10}>
+            <Txt v="label" color="primary" weight="semibold">{t("pay_other_amount")}</Txt>
+          </Pressable>
+        )}
       </View>
 
-      <Modal visible={!!gateway} animationType="slide" onRequestClose={() => setGateway(null)}>
+      <Modal visible={!!gateway} animationType="slide" onRequestClose={() => setGateway(null)} onShow={() => setGatewayReady(false)}>
         <View style={[styles.sheetHead, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("cancel")} onPress={() => setGateway(null)} hitSlop={10} style={styles.close}>
             <Icon name="arrowBack" size={22} color={c.text} />
@@ -199,10 +204,20 @@ export default function Pay() {
             // Catch UPPCL's result URL before it loads: we show our own result instead of their page.
             onShouldStartLoadWithRequest={(req) => { if (/pgresponse/i.test(req.url)) { onNav({ url: req.url } as WebViewNavigation); return false; } return true; }}
             onNavigationStateChange={onNav}
-            startInLoadingState
+            // Our auto-post form loads instantly; BillDesk's page then shows a grey screen for seconds while its
+            // script starts. Keep our own loading screen until BillDesk's page has loaded and had a moment to draw.
+            // ponytail: fixed 700 ms after load; a message from BillDesk's page would be exact, add if it flickers.
+            onLoadEnd={(e) => { if (/^https:/.test(e.nativeEvent.url)) setTimeout(() => setGatewayReady(true), 700); }}
             javaScriptEnabled
             setSupportMultipleWindows={false}
           />
+        )}
+        {gateway && !gatewayReady && (
+          <View style={[StyleSheet.absoluteFill, styles.loading, { top: 100, backgroundColor: c.bg }]}>
+            <Spinner size={36} />
+            <Txt v="body" weight="semibold">{t("pay_opening")}</Txt>
+            <Txt v="caption" color="muted">{t("pay_opening_sub")}</Txt>
+          </View>
         )}
       </Modal>
     </SheetFrame>
@@ -210,16 +225,19 @@ export default function Pay() {
 }
 
 /** The route renders as a transparent modal (see app/_layout.tsx): dimmed Home behind, sheet at the bottom. */
-function SheetFrame({ title, children }: { title: string; children: ReactNode }) {
+function SheetFrame({ title, sub, locked, children }: { title: string; sub?: string; locked?: boolean; children: ReactNode }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: "flex-end" }}>
-      <Pressable accessibilityLabel="Close" onPress={() => router.back()} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,10,25,0.45)" }]} />
+      <Pressable accessibilityLabel="Close" onPress={() => !locked && router.back()} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,10,25,0.72)" }]} />
       <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: 16 + insets.bottom }]}>
         <View style={[styles.grabber, { backgroundColor: c.line }]} />
         <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ gap: 12 }}>
-          <Txt v="heading">{title}</Txt>
+          <View style={{ gap: 2 }}>
+            <Txt v="heading">{title}</Txt>
+            {!!sub && <Txt v="caption" color="muted" numeric>{sub}</Txt>}
+          </View>
           {children}
         </ScrollView>
       </View>
@@ -240,7 +258,7 @@ function Result({ receipt, checking, onCheck }: { receipt: PaymentReceipt; check
   return (
     <SheetFrame title={t("pay_title")}>
       <View style={{ alignItems: "center", gap: 10, paddingVertical: 12 }}>
-        {checking ? <ActivityIndicator color={c.primary} /> : (
+        {checking ? <Spinner size={28} /> : (
           <Icon name={receipt.status === "success" ? "checkCircle" : receipt.status === "pending" ? "schedule" : "warning"} size={48} color={c[tone]} />
         )}
         <Txt v="title" style={{ textAlign: "center" }}>
@@ -264,11 +282,11 @@ function Result({ receipt, checking, onCheck }: { receipt: PaymentReceipt; check
 const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingTop: 8, maxHeight: "92%" },
   grabber: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 8 },
-  acct: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  link: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   amountRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   input: { flex: 1, borderWidth: 1.5, fontSize: 24, minHeight: 56 },
-  note: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  note: { flexDirection: "row", alignItems: "center", gap: 6 },
+  foot: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 40 },
+  loading: { alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
   sheetHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 48, paddingBottom: 10, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   close: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
 });

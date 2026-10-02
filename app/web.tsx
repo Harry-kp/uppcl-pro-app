@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useColors } from "../src/theme";
 import { isInAppUrl } from "../src/links";
 import { useI18n } from "../src/i18n";
-import { BackHeader, Txt } from "../src/ui";
+import { Spinner, BackHeader, Txt } from "../src/ui";
 
 /** A web page inside the app, for phones with no browser (see src/links.ts). */
 export default function WebPage() {
@@ -21,7 +21,7 @@ export default function WebPage() {
       <View style={styles.head}><BackHeader title={host} /></View>
       {!ok ? <View style={styles.center}><Txt v="body" color="muted">{t("link_blocked")}</Txt></View> : <View style={{ flex: 1, marginTop: 8 }}>
         <WebView source={{ uri: url }} onLoadEnd={() => setLoading(false)} style={{ backgroundColor: c.bg }} />
-        {loading && <View style={[StyleSheet.absoluteFill, styles.center]}><ActivityIndicator color={c.primary} /></View>}
+        {loading && <View style={[StyleSheet.absoluteFill, styles.center]}><Spinner size={28} /></View>}
       </View>}
     </SafeAreaView>
   );

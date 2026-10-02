@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useConsumption, useDashboard, useDayReadings, useLatestInvoice, useSavingTip, useYearlyHistory, type MonthlyInvoice } from "@shared/api";
 import { busiestHours, derivePostpaid, hourlyUnits, monthFromDaily } from "@shared/insights";
