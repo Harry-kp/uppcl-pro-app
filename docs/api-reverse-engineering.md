@@ -473,8 +473,8 @@ brackets — cleaned at parse time (`mobile10`, `personName`).
   `isPaperlessBillEnabled`, `dataSource`. `connectionDate` equals the smart-meter install date — not "connected since".
 
 **Avoid**
-- `connectionbudget/search` returns the account's **password hash and old password hashes** (`user[].password`,
-  `oldPasswords[]`). Never fetch or cache it (the app's SWR cache is a plain JSON file).
+- `connectionbudget/search`: returns more account data than the app needs. Never fetch or cache it (the app's SWR
+  cache is a plain JSON file).
 - `eventsummary/consumptionAggregation` always answers `[]` — use the daily `power` instead.
 - `ticket/create` is UPPCL SMART's help-desk ticket, not a 1912 power complaint; `ticket/ticket-category` is empty
   for PVVNL. Power complaints go by SMS (`NO POWER <account> <discom>` to 5616195), 1912, or the discom's WhatsApp.
