@@ -158,7 +158,7 @@
     "not_supported_yet": "इन्हें बदलना अभी इस ऐप में नहीं होता।",
     "change_on_official": "UPPCL की आधिकारिक साइट पर बदलें",
     "pay_title_month": "{month} का बिल भरें",
-    "pay_rebate_line": "₹{saving} की समय पर भुगतान छूट शामिल · {date} तक भरें",
+    "pay_rebate_line": "₹{saving} की समय पर भुगतान छूट शामिल",
     "pay_opening": "BillDesk खुल रहा है…",
     "pay_opening_sub": "UPPCL का सुरक्षित भुगतान पेज",
     "pay_billdesk_short": "BillDesk से सुरक्षित · UPI, कार्ड, नेट बैंकिंग",

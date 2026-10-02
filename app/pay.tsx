@@ -141,11 +141,12 @@ export default function Pay() {
         {payable > 0 ? (
           <Txt v="hero" numeric color="big" style={{ fontSize: 48, lineHeight: 52 }}>₹{rupees(payable, { decimals: 0 })}</Txt>
         ) : <Txt v="heading">{t("nothing_due")}</Txt>}
-        {/* UPPCL's on-time rebate is already in this amount (bill portal's payableAmt): say so in one line. */}
+        {/* UPPCL's on-time rebate is already in this amount (bill portal's payableAmt). Its deadline is the due date,
+            already in the caption above: don't repeat it. */}
         {!!onTime && (
           <View style={styles.note}>
             <Icon name="savings" size={16} color={c.ok} />
-            <Txt v="caption" color="ok">{t("pay_rebate_line", { saving: rupees(onTime.saving, { decimals: 0 }), date: onTime.by.toLocaleDateString(locale, { day: "numeric", month: "short" }) })}</Txt>
+            <Txt v="caption" color="ok">{t("pay_rebate_line", { saving: rupees(onTime.saving, { decimals: 0 }) })}</Txt>
           </View>
         )}
       </View>

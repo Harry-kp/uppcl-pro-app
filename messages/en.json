@@ -158,7 +158,7 @@
     "not_supported_yet": "Changing these isn't supported in this app yet.",
     "change_on_official": "Change them on UPPCL's official site",
     "pay_title_month": "Pay {month} bill",
-    "pay_rebate_line": "Includes ₹{saving} on-time rebate · pay by {date}",
+    "pay_rebate_line": "Includes ₹{saving} on-time rebate",
     "pay_opening": "Opening BillDesk…",
     "pay_opening_sub": "UPPCL's secure payment page",
     "pay_billdesk_short": "Secured by BillDesk · UPI, cards, net banking",
