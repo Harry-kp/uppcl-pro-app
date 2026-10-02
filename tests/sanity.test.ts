@@ -13,7 +13,7 @@ mock.module("react-native", () => ({ Linking: { openURL: async () => {} } }));
 mock.module("expo-router", () => ({ router: { push: () => {} } }));
 
 import { ProxyError, type DashboardResponse } from "@shared/api";
-import { onTimeSaving, payAmountError, type PayBillHome } from "@shared/payment";
+import { onTimeSaving, payAmountError, paymentRef, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { billRebate, busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
@@ -397,4 +397,10 @@ describe("UPPCL dates read as India's calendar date on any phone time zone", () 
     expect(parseUppclDate("2026-10-16T00:00:00+05:30")?.getDate()).toBe(16);
     expect(parseUppclDate("2026-09-30T00:00:00")?.getDate()).toBe(30); // meter readings: unchanged
   });
+});
+
+describe("paymentRef", () => {
+  test("trackId when UPPCL sends one", () => expect(paymentRef({ trackId: "PV123", message: "M|999|NA" })).toBe("PV123"));
+  test("trackId null (Oct 2026): BillDesk's order id from the message", () =>
+    expect(paymentRef({ trackId: null, message: "UPPCLX|123456789012345678901234|NA|1485.00|NA" })).toBe("123456789012345678901234"));
 });

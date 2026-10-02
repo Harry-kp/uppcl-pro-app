@@ -86,11 +86,22 @@ export async function startBillPayment(home: PayBillHome, type: PayType, amount:
       serviceName: null, matchTypeCode: null,
     },
   };
-  const res = await wssPost<{ bdRequestDTO?: { message?: string; url?: string; trackId?: string }; statusMsg?: string }>(
+  const res = await wssPost<{ bdRequestDTO?: { message?: string; url?: string; trackId?: string | null }; statusMsg?: string }>(
     "v2/InstaPayment/processPaymentRequestWithPG", body);
   const bd = res.bdRequestDTO;
-  if (!bd?.message || !bd.url || !bd.trackId) throw new ProxyError(502, res.statusMsg || "Could not start the payment", undefined, "wss");
-  return { url: bd.url, message: bd.message, trackId: String(bd.trackId) };
+  if (!bd?.message || !bd.url) throw new ProxyError(502, res.statusMsg || "Could not start the payment", undefined, "wss");
+  return { url: bd.url, message: bd.message, trackId: paymentRef(bd) };
+}
+
+/**
+ * The reference UPPCL tracks the payment by (the receipt lookup takes it). BillDesk's return URL carries it as
+ * ?refNo=, which the Pay screen prefers; this is the fallback for "check again". Since Oct 2026 UPPCL sends
+ * trackId: null for BillDesk (its own site never reads it), so take BillDesk's order id: field 2 of the
+ * pipe-separated message ("MERCHANT|<order id>|NA|…"). Requiring trackId blocked every payment ("HTTP 502").
+ */
+export function paymentRef(bd: { trackId?: unknown; message?: string }): string {
+  if (bd.trackId) return String(bd.trackId);
+  return (bd.message ?? "").split("|")[1] ?? "";
 }
 
 /** "DD-MM-YYYY" / "DD-MMM-YYYY" / ISO → "YYYY-MM-DD" (what the portal's payment request wants). */

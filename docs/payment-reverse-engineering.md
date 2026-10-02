@@ -344,3 +344,12 @@ The resend timer is `resendInSeconds:300`.
   `{kno,discomName,fromDate,toDate}`, `POST /v2/Utility/getPageMarConf`
   `{date:"YYYY-MM-dd HH:mm:ss",pageName:"LogIn"}` (maintenance banner, `PAGE_MSG_200`),
   `POST /v2/Utility/updateSMPostpaid`.
+
+## October 2026: `trackId` is null for BillDesk
+
+`processPaymentRequestWithPG` now answers `bdRequestDTO = {url, message, trackId: null, key: null, rurl: null,
+paymentMode: null}`. UPPCL's own site never reads `trackId` for BillDesk (only for PayU), so nothing broke for
+them; the app required it and refused every payment ("bill portal HTTP 502", which was our own error, not
+UPPCL's). The payment reference now comes from BillDesk's return URL (`?refNo=`) as before, with a fallback
+to BillDesk's order id: field 2 of the pipe-separated `message` (`shared/payment.ts` `paymentRef`).
+Verified on a device: the BillDesk page opens for UPPCL with the amount; the payment itself wasn't completed.
