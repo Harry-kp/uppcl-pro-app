@@ -5,7 +5,7 @@ import {
   useBillHistory, useDashboard, useInvoices, usePayments, useWssArrears,
   type BillInvoice,
 } from "@shared/api";
-import { billRebate } from "@shared/insights";
+import { billRebate, withPaymentsFeed } from "@shared/insights";
 import { billingPeriod, rupees, toNum } from "@shared/utils";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -29,10 +29,12 @@ export default function Bills() {
   const [allBills, setAllBills] = useState(false);
   const [allPayments, setAllPayments] = useState(false);
 
-  const statements: BillInvoice[] = ((postpaid ? invoices.data?.data : history.data?.data) ?? [])
+  const sorted: BillInvoice[] = ((postpaid ? invoices.data?.data : history.data?.data) ?? [])
     .filter((b) => b.invoice_id)
     .sort((a, b) => String(b.bill_dt).localeCompare(String(a.bill_dt)))
     .slice(0, 12);
+  // A bill UPPCL's record still calls unpaid can already be paid in its payments feed (it lags days).
+  const statements = postpaid ? withPaymentsFeed(sorted, payments.data?.data ?? []) : sorted;
   const rebates = postpaid ? statements.map(billRebate).filter((r): r is number => r !== null) : [];
   const savedTotal = rebates.reduce((a, r) => a + r, 0);
 
@@ -118,7 +120,7 @@ export default function Bills() {
           const amt = toNum(inv.bill_amt);
           const credit = amt < 0; // negative bill = UPPCL owes you, carried forward
           const paid = Boolean((inv.payment_dt || "").trim());
-          const saved = postpaid ? billRebate(inv) : null;
+          const saved = postpaid && !("fromPayments" in inv && inv.fromPayments) ? billRebate(inv) : null; // rebate: only UPPCL's record can confirm
           return (
             <Row key={inv.invoice_id} first={i === 0}
               title={month(inv.bill_dt)}

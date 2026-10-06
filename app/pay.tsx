@@ -25,6 +25,8 @@ import { Spinner, Button, Insight, Segmented, Skeleton, SlowNote, Txt, familyFor
 import { Icon } from "../src/icons";
 import { appLinkFor, openLink } from "../src/links";
 import { JUST_PAID_KEY, keystore } from "../src/boot";
+import qrcode from "qrcode-generator";
+import Svg, { Path } from "react-native-svg";
 
 type Gateway = { url: string; message: string; trackId: string };
 
@@ -46,6 +48,8 @@ export default function Pay() {
   const [custom, setCustom] = useState(false); // "Pay a different amount" opened
   const gatewayOpen = useRef(false); // BillDesk page showing; guards against handling its return twice
   const [upiNote, setUpiNote] = useState<"opened" | "none" | null>(null); // handed BillDesk's UPI request to a UPI app
+  const [upiLink, setUpiLink] = useState<string | null>(null); // that request, for the QR (scan from another phone)
+  const [showQr, setShowQr] = useState(false);
 
   // BillDesk's "pay with a UPI app" sends upi:// or intent:// links. A WebView can't open those (it showed an
   // error page, so UPI apps never opened); hand them to the phone, which opens GPay / PhonePe / Paytm with
@@ -56,8 +60,11 @@ export default function Pay() {
   function allowLoad(url: string): boolean {
     if (/^(https:|about:blank|data:text\/html|blob:https:)/i.test(url)) return true;
     const target = appLinkFor(url);
-    if (target && !/^(javascript|file|content|http):/i.test(target))
-      Linking.openURL(target).then(() => setUpiNote("opened"), () => setUpiNote("none"));
+    if (target && !/^(javascript|file|content|http):/i.test(target)) {
+      if (/^upi:/i.test(target)) setUpiLink(target);
+      // No UPI app on this phone: show the same request as a QR straight away.
+      Linking.openURL(target).then(() => setUpiNote("opened"), () => { setUpiNote("none"); if (/^upi:/i.test(target)) setShowQr(true); });
+    }
     return false;
   }
 
@@ -207,7 +214,7 @@ export default function Pay() {
         )}
       </View>
 
-      <Modal visible={!!gateway} animationType="slide" onRequestClose={() => setGateway(null)} onShow={() => { setGatewayReady(false); setUpiNote(null); }}>
+      <Modal visible={!!gateway} animationType="slide" onRequestClose={() => setGateway(null)} onShow={() => { setGatewayReady(false); setUpiNote(null); setUpiLink(null); setShowQr(false); }}>
         <View style={[styles.sheetHead, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
           <Pressable accessibilityRole="button" accessibilityLabel={t("cancel")} onPress={() => setGateway(null)} hitSlop={10} style={styles.close}>
             <Icon name="arrowBack" size={22} color={c.text} />
@@ -221,8 +228,14 @@ export default function Pay() {
             <Txt v="caption" color={upiNote === "none" ? "critical" : "pillText"} style={{ flex: 1 }}>
               {upiNote === "opened" ? t("pay_upi_back") : upiNote === "none" ? t("pay_upi_none") : t("pay_upi_tip")}
             </Txt>
+            {!!upiLink && !showQr && (
+              <Pressable accessibilityRole="button" onPress={() => setShowQr(true)} hitSlop={10}>
+                <Txt v="label" weight="semibold" color={upiNote === "none" ? "critical" : "pillText"}>{t("pay_show_qr")}</Txt>
+              </Pressable>
+            )}
           </View>
         )}
+        {!!upiLink && showQr && <UpiQrCard link={upiLink} onClose={() => setShowQr(false)} />}
         {gateway && (
           <WebView
             source={{ html: gatewayHtml }}
@@ -315,9 +328,42 @@ const styles = StyleSheet.create({
   input: { flex: 1, borderWidth: 1.5, fontSize: 24, minHeight: 56 },
   note: { flexDirection: "row", alignItems: "center", gap: 6 },
   foot: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 40 },
+  qrWrap: { position: "absolute", left: 0, right: 0, bottom: 0, top: 100, alignItems: "center", justifyContent: "center", padding: 16, zIndex: 2 },
+  qrCard: { alignItems: "center", gap: 10, padding: 20, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, width: "100%", maxWidth: 360 },
   tip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
   loading: { alignItems: "center", justifyContent: "center", gap: 10, padding: 24 },
   sheetHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 48, paddingBottom: 10, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   close: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
 });
 
+/**
+ * BillDesk's own UPI request for this order (upi://pay?pa=…&am=…&tr=…) as a QR: scan it with any UPI app on
+ * another phone. Same payment as tapping the UPI app; BillDesk's page underneath confirms it by itself.
+ */
+function UpiQrCard({ link, onClose }: { link: string; onClose: () => void }) {
+  const c = useColors();
+  const { t } = useI18n();
+  const q = new URLSearchParams(link.split("?")[1] ?? "");
+  const qr = qrcode(0, "M");
+  qr.addData(link);
+  qr.make();
+  const n = qr.getModuleCount();
+  let d = "";
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.isDark(y, x)) d += `M${x + 4} ${y + 4}h1v1h-1z`;
+  return (
+    <View style={[styles.qrWrap, { backgroundColor: c.bg }]}>
+      <View style={[styles.qrCard, { backgroundColor: c.surface, borderColor: c.line }]}>
+        <Txt v="heading" style={{ textAlign: "center" }}>{t("pay_qr_title")}</Txt>
+        <View style={{ backgroundColor: "#FFFFFF", padding: 8, borderRadius: 12 }}>
+          <Svg width={240} height={240} viewBox={`0 0 ${n + 8} ${n + 8}`}>
+            <Path d={d} fill="#000000" />
+          </Svg>
+        </View>
+        <Txt v="value" numeric>₹{q.get("am") ?? ""}</Txt>
+        <Txt v="caption" color="muted" style={{ textAlign: "center" }}>{t("pay_qr_to", { name: q.get("pn") ?? "UPPCL", vpa: q.get("pa") ?? "" })}</Txt>
+        <Txt v="caption" color="muted" style={{ textAlign: "center" }}>{t("pay_qr_note")}</Txt>
+        <Button kind="soft" label={t("pay_qr_hide")} onPress={onClose} />
+      </View>
+    </View>
+  );
+}

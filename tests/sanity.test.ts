@@ -15,7 +15,7 @@ mock.module("expo-router", () => ({ router: { push: () => {} } }));
 import { ProxyError, type DashboardResponse } from "@shared/api";
 import { onTimeSaving, payAmountError, paymentRef, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
-import { billRebate, busiestHours, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
+import { billRebate, busiestHours, withPaymentsFeed, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
@@ -415,5 +415,22 @@ describe("appLinkFor (BillDesk's UPI links → the phone)", () => {
   test("intent without a scheme, or not a link: null", () => {
     expect(appLinkFor("intent://pay#Intent;package=com.x;end")).toBeNull();
     expect(appLinkFor("not a url")).toBeNull();
+  });
+});
+
+describe("withPaymentsFeed (bill record lags the payments feed)", () => {
+  const bills = [
+    { bill_dt: "2026-10-01T00:00:00", bill_amt: "1500", payment_dt: "", payment_amt: "" },
+    { bill_dt: "2026-09-03T00:00:00", bill_amt: "1612", payment_dt: "2026-09-11T00:00:00", payment_amt: "1597" },
+  ];
+  test("a payment after the bill marks it paid, flagged", () => {
+    const [oct] = withPaymentsFeed(bills, [{ payment_dt: "2026-10-07T13:04:06", amt: "1485.00" }, { payment_dt: "2026-09-11T01:04:06", amt: "1597" }]);
+    expect(oct.payment_dt).toBe("2026-10-07T13:04:06");
+    expect(oct.fromPayments).toBe(true);
+  });
+  test("too little paid, or nothing: stays unpaid; already-paid bills untouched", () => {
+    expect(withPaymentsFeed(bills, [{ payment_dt: "2026-10-07T00:00:00", amt: "149" }])[0].payment_dt).toBe("");
+    expect(withPaymentsFeed(bills, [])[0].payment_dt).toBe("");
+    expect(withPaymentsFeed(bills, [])[1].payment_amt).toBe("1597");
   });
 });

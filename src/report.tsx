@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
-import { fileSupplyComplaint, HELPLINE_TEL, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { fileSupplyComplaint, HELPLINE_TEL, is1912LoginOnly, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
@@ -151,10 +151,11 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
           {slow && <Insight tone="warn" icon="schedule" text={t("rp_slow")} />}
           {slow && <ReportFallback data={data} problem="no_power" onDone={close} />}
-          {!!prepError && <ErrorNote error={prepError} onRetry={retry} />}
+          {/* 1912 is OTP-login-only now: say it plainly, no "UPPCL is having a problem" + retry that can't work. */}
+          {!!prepError && (is1912LoginOnly(prepError) ? <Insight tone="accent" icon="info" text={t("rp_1912_login")} /> : <ErrorNote error={prepError} onRetry={retry} />)}
           {!!fileError && <ErrorNote error={fileError} onRetry={() => void file()} />}
           {/* 1912 couldn't place the account (e.g. the bill's city isn't a 1912 district): the full form lets them pick. */}
-          {!!prepError && link(t("rp_pick_district_me"), full)}
+          {!!prepError && !is1912LoginOnly(prepError) && link(t("rp_pick_district_me"), full)}
           {failed && <ReportFallback data={data} problem="no_power" onDone={close} />}
           {link(t("rp_something_else"), full)}
         </>

@@ -30,6 +30,10 @@ const b64 = (text: string) => {
 };
 
 let sessionAt = 0;
+
+const LOGIN_ONLY = "1912 portal now requires an OTP login (anonymous access removed)";
+/** UPPCL's 1912 portal no longer serves anonymous visitors: lookups and in-app filing can't work. */
+export const is1912LoginOnly = (e: unknown) => (e as { reason?: string } | null)?.reason === LOGIN_ONLY;
 const SESSION_TTL = 15 * 60_000;
 
 // One anonymous session serves every form's lookups (verified); the form id travels in the headers.
@@ -39,6 +43,8 @@ async function ensureSession(force = false, form = FORM_ID) {
   // Each hop sets cookies; fetch follows the redirects and the native cookie jar keeps them.
   for (const path of [`UI/Anonymous?PROJECTID=${PROJECT_ID}&FORMID=${form}`, `UI/Form?FormId=${form}`]) {
     const r = await send("complaints", path, { headers: { accept: "text/html" }, cache: "no-store" });
+    // Oct 2026: UPPCL removed anonymous access (UI/Anonymous → 404; the portal is now OTP login only).
+    if (r.status === 404) throw new ProxyError(404, LOGIN_ONLY, undefined, "complaints");
     if (!r.ok) throw new ProxyError(r.status, `1912 portal session: HTTP ${r.status}`, undefined, "complaints");
   }
   sessionAt = Date.now();

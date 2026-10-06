@@ -212,3 +212,23 @@ export function billRebate(b: { bill_amt: string; payment_amt?: string | null; p
   const gap = Math.round(bill - paid);
   return gap > 0 && gap < bill * 0.05 ? gap : null;
 }
+
+/**
+ * UPPCL's bill record (billHistory) can lag the payments feed by days: a bill paid on 7 Oct still said "unpaid".
+ * Fill a bill's payment from the payments made between its bill date and the next bill (newest first in, same
+ * order out). Marked `fromPayments` so callers don't claim things only UPPCL's record can confirm (the rebate).
+ */
+export function withPaymentsFeed<B extends { bill_dt: string; bill_amt: string; payment_dt?: string | null; payment_amt?: string | null }>(
+  bills: B[], payments: { payment_dt: string; amt: string }[],
+): (B & { fromPayments?: boolean })[] {
+  const t = (d: string | null | undefined) => parseUppclDate(d)?.getTime() ?? NaN;
+  return bills.map((b, i) => {
+    if ((b.payment_dt ?? "").trim() || !(toNum(b.bill_amt) > 0)) return b;
+    const from = t(b.bill_dt), to = i > 0 ? t(bills[i - 1].bill_dt) : Infinity;
+    const paid = payments.filter((p) => t(p.payment_dt) >= from && t(p.payment_dt) < to);
+    const sum = paid.reduce((a, p) => a + toNum(p.amt), 0);
+    if (!paid.length || sum < toNum(b.bill_amt) * 0.95) return b;
+    const last = paid.map((p) => p.payment_dt).sort().pop()!;
+    return { ...b, payment_dt: last, payment_amt: String(sum), fromPayments: true };
+  });
+}

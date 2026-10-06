@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMe, useMyComplaints, useTenantPreferences, useTickets, useWssConsumer, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { HELPLINE_TEL, openFor } from "@shared/complaints";
+import { HELPLINE_TEL, is1912LoginOnly, openFor } from "@shared/complaints";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
-import { Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote, Field } from "../../src/ui";
+import { Insight, Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote, Field } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
 import { ReportSheet } from "../../src/report";
@@ -65,8 +65,13 @@ export default function Complaints() {
       <Card style={{ padding: 0, gap: 0 }}>
         {complaints.error && list.length === 0 ? (
           // The 1912 portal is a separate UPPCL system and goes down on its own; never show "no complaints" then.
-          <View style={{ padding: 8 }}>
-            <ErrorNote error={complaints.error} onRetry={() => complaints.mutate()} />
+          <View style={{ padding: 8, gap: 8 }}>
+            {is1912LoginOnly(complaints.error) ? (
+              <>
+                <Insight tone="accent" icon="info" text={t("cx_1912_login")} />
+                <Button kind="soft" label={t("cx_open_1912")} icon="openInNew" onPress={() => openLink("https://1912.uppcl.org/")} />
+              </>
+            ) : <ErrorNote error={complaints.error} onRetry={() => complaints.mutate()} />}
           </View>
         ) : list.length === 0 ? (
           complaints.isLoading || !me ? (

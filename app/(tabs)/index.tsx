@@ -376,7 +376,27 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     [data, outstanding, inv, yearly],
   );
 
-  const overdue = d.daysToDue !== null && d.daysToDue < 0 && !d.billPaid;
+  // Paid in the app recently. Two cases while something still shows due:
+  //  - UPPCL hasn't counted it yet (balance still about the whole bill): say "Paid", don't offer Pay again.
+  //  - UPPCL counted it but a small amount remains (seen: ₹1,485 paid with the on-time rebate, ₹15 still asked):
+  //    show that remainder honestly, with Pay. Never "no need to pay" for money UPPCL still asks for.
+  const paidRecently = (() => {
+    try {
+      const j = JSON.parse(keystore.getItem(JUST_PAID_KEY) ?? "null") as { amount: number; at: number } | null;
+      return j && Date.now() - j.at < 30 * 86_400_000 && d.hasDues ? j : null;
+    } catch { return null; }
+  })();
+  const justPaid = paidRecently && d.outstandingAmt >= paidRecently.amount * 0.5 ? paidRecently : null;
+  const leftAfterPay = paidRecently && !justPaid ? paidRecently : null;
+  // Paid the bill's on-time amount by the due date (the bill: ₹1,500, "₹1,485 if paid by 16 Oct"). UPPCL's balance
+  // then still shows the ₹15 rebate until it applies it: that is not owed. Seen 7 Oct 2026.
+  const settledWithRebate = (() => {
+    if (!leftAfterPay || !inv) return false;
+    const bill = toNum(inv.bill_amt), gap = bill - leftAfterPay.amount;
+    const due = parseUppclDate(inv.due_dt)?.getTime();
+    return gap > 0 && gap <= bill * 0.02 && Math.abs(d.outstandingAmt - gap) <= 1 && !!due && leftAfterPay.at <= due + 86_399_000;
+  })();
+  const overdue = d.daysToDue !== null && d.daysToDue < 0 && !d.billPaid && !settledWithRebate;
   const now = new Date();
   const month = (dt: Date) => dt.toLocaleDateString(locale, { month: "long" });
   const thisMonth = month(now);
@@ -388,12 +408,12 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     : { text: t("last_bill_due", { month: billMonth, amount: rupees(d.lastBillAmt, { decimals: 0 }), date: new Date(inv.due_dt).toLocaleDateString(locale, { day: "numeric", month: "short" }) }), chip: t("month_unpaid", { month: billMonth }), tone: overdue ? ("critical" as const) : ("warn" as const) };
 
   useEffect(() => {
-    saveSnapshot(d.hasDues
+    saveSnapshot(d.hasDues && !settledWithRebate
       ? { label: t("amount_due"), big: `₹${rupees(d.outstandingAmt, { decimals: 0 })}`, unit: "", line: billStatus?.text ?? "", tone: overdue ? "critical" : "warn", updated: new Date().toISOString(), lang }
       : d.pendingBill
         ? { label: t("bill_on_way", { month: month(d.pendingBill.month) }), big: `₹${rupees(d.pendingBill.amount, { decimals: 0 })}`, unit: "", line: t("bill_expected", { next: thisMonth }), tone: "ok", updated: new Date().toISOString(), lang }
         : { label: t("month_so_far", { month: thisMonth }), big: `₹${rupees(d.cycleKwh * d.effectiveRate, { decimals: 0 })}`, unit: "", line: billStatus?.text ?? t("not_billed", { next: nextMonth }), tone: "ok", updated: new Date().toISOString(), lang });
-  }, [d.hasDues, d.outstandingAmt, d.cycleKwh, d.effectiveRate, d.pendingBill?.amount, billStatus?.text, overdue, thisMonth, nextMonth, lang, t]);
+  }, [settledWithRebate, d.hasDues, d.outstandingAmt, d.cycleKwh, d.effectiveRate, d.pendingBill?.amount, billStatus?.text, overdue, thisMonth, nextMonth, lang, t]);
 
   async function download() {
     if (!inv) return;
@@ -423,13 +443,6 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     .map((x) => new Date(x));
   const budget = useFocusBudget();
   const shown = d.pendingBill?.amount ?? d.projectedBill; // the bill the hero is talking about
-  // Just paid in the app, but UPPCL's balance still shows it due (it lags a few hours): say "Paid", don't offer Pay.
-  const justPaid = (() => {
-    try {
-      const j = JSON.parse(keystore.getItem(JUST_PAID_KEY) ?? "null") as { amount: number; at: number } | null;
-      return j && Date.now() - j.at < 3 * 86_400_000 && d.hasDues && d.outstandingAmt <= j.amount + 1 ? j : null;
-    } catch { return null; }
-  })();
   useEffect(() => { if (!d.hasDues) keystore.removeItem(JUST_PAID_KEY); }, [d.hasDues]);
   const vsPct = d.pendingBill ? d.pendingBill.vsLast : d.projVsLast; // compare whichever bill Home is showing
   const dueDay = (x: string) => new Date(x).toLocaleDateString(locale, { day: "numeric", month: "short" });
@@ -439,7 +452,16 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     <>
       <Card style={styles.hero}>
         <Glow />
-        {d.hasDues ? (
+        {settledWithRebate && leftAfterPay ? (
+          <>
+            <Txt v="label" color="muted">{t("bill_paid_full", { month: billMonth ?? "" })}</Txt>
+            <Txt v="hero" numeric color="big">₹{rupees(leftAfterPay.amount, { decimals: 0 })}</Txt>
+            <View style={styles.chips}>
+              <Pill tone="ok" icon="savings" label={t("paid_with_rebate", { saving: rupees(d.outstandingAmt, { decimals: 0 }) })} />
+            </View>
+            <Txt v="caption" color="muted">{t("rebate_pending_note", { amount: rupees(d.outstandingAmt, { decimals: 0 }) })}</Txt>
+          </>
+        ) : d.hasDues ? (
           <>
             <Txt v="label" color="muted">{t("amount_due")}</Txt>
             <Txt v="hero" numeric color={overdue ? "critical" : "big"}>₹{rupees(d.outstandingAmt, { decimals: 0 })}</Txt>
@@ -457,7 +479,12 @@ function Postpaid({ data }: { data: DashboardResponse }) {
                 <Txt v="caption" color="muted">{t("paid_updating")}</Txt>
               </View>
             ) : (
-              <Button label={t("pay_now", { amount: rupees(d.outstandingAmt, { decimals: 0 }) })} onPress={() => router.push("/pay")} />
+              <>
+                {leftAfterPay && (
+                  <Txt v="caption" color="muted">{t("paid_remainder", { paid: rupees(leftAfterPay.amount, { decimals: 0 }), left: rupees(d.outstandingAmt, { decimals: 0 }) })}</Txt>
+                )}
+                <Button label={t("pay_now", { amount: rupees(d.outstandingAmt, { decimals: 0 }) })} onPress={() => router.push("/pay")} />
+              </>
             )}
           </>
         ) : (

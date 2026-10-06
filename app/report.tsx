@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { mutate, useDashboard } from "@shared/api";
-import { chooseDivision, chooseSubstation, fileSupplyComplaint, HELPLINE_TEL, listDistricts, prepareSupplyComplaint, withContact, type Place, type SupplyDraft } from "@shared/complaints";
+import { chooseDivision, chooseSubstation, fileSupplyComplaint, HELPLINE_TEL, is1912LoginOnly, listDistricts, prepareSupplyComplaint, withContact, type Place, type SupplyDraft } from "@shared/complaints";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { Icon, type IconName } from "../src/icons";
@@ -98,7 +98,7 @@ export default function Report() {
         <Row icon="call" label={t("rp_row_contact")} value={contact ? `••${contact.slice(-4)}` : t("rp_optional")} onPress={() => setEdit("contact")} />
       </Card>
 
-      {!!prepError && <ErrorNote error={prepError} onRetry={own.retry} />}
+      {!!prepError && (is1912LoginOnly(prepError) ? <Insight tone="accent" icon="info" text={t("rp_1912_login")} /> : <ErrorNote error={prepError} onRetry={own.retry} />)}
       {!!error && <ErrorNote error={error} onRetry={() => void file()} />}
       {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
       {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
