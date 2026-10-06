@@ -396,7 +396,8 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     const due = parseUppclDate(inv.due_dt)?.getTime();
     return gap > 0 && gap <= bill * 0.02 && Math.abs(d.outstandingAmt - gap) <= 1 && !!due && leftAfterPay.at <= due + 86_399_000;
   })();
-  const overdue = d.daysToDue !== null && d.daysToDue < 0 && !d.billPaid && !settledWithRebate;
+  const hasDues = d.hasDues && !settledWithRebate;
+  const overdue = d.daysToDue !== null && d.daysToDue < 0 && !d.billPaid && hasDues;
   const now = new Date();
   const month = (dt: Date) => dt.toLocaleDateString(locale, { month: "long" });
   const thisMonth = month(now);
@@ -404,16 +405,16 @@ function Postpaid({ data }: { data: DashboardResponse }) {
   // A bill dated in month M covers M−1 (see billingPeriod), so name the bill by the month it covers.
   const billMonth = inv ? billingPeriod(inv.bill_dt).from.toLocaleDateString(locale, { month: "long" }) : null;
   const billStatus = !inv || !billMonth ? null
-    : d.billPaid ? { text: t("last_bill_paid", { month: billMonth }), chip: t("month_paid", { month: billMonth }), tone: "ok" as const }
+    : d.billPaid || settledWithRebate ? { text: t("last_bill_paid", { month: billMonth }), chip: t("month_paid", { month: billMonth }), tone: "ok" as const }
     : { text: t("last_bill_due", { month: billMonth, amount: rupees(d.lastBillAmt, { decimals: 0 }), date: new Date(inv.due_dt).toLocaleDateString(locale, { day: "numeric", month: "short" }) }), chip: t("month_unpaid", { month: billMonth }), tone: overdue ? ("critical" as const) : ("warn" as const) };
 
   useEffect(() => {
-    saveSnapshot(d.hasDues && !settledWithRebate
+    saveSnapshot(hasDues
       ? { label: t("amount_due"), big: `₹${rupees(d.outstandingAmt, { decimals: 0 })}`, unit: "", line: billStatus?.text ?? "", tone: overdue ? "critical" : "warn", updated: new Date().toISOString(), lang }
       : d.pendingBill
         ? { label: t("bill_on_way", { month: month(d.pendingBill.month) }), big: `₹${rupees(d.pendingBill.amount, { decimals: 0 })}`, unit: "", line: t("bill_expected", { next: thisMonth }), tone: "ok", updated: new Date().toISOString(), lang }
         : { label: t("month_so_far", { month: thisMonth }), big: `₹${rupees(d.cycleKwh * d.effectiveRate, { decimals: 0 })}`, unit: "", line: billStatus?.text ?? t("not_billed", { next: nextMonth }), tone: "ok", updated: new Date().toISOString(), lang });
-  }, [settledWithRebate, d.hasDues, d.outstandingAmt, d.cycleKwh, d.effectiveRate, d.pendingBill?.amount, billStatus?.text, overdue, thisMonth, nextMonth, lang, t]);
+  }, [hasDues, d.outstandingAmt, d.cycleKwh, d.effectiveRate, d.pendingBill?.amount, billStatus?.text, overdue, thisMonth, nextMonth, lang, t]);
 
   async function download() {
     if (!inv) return;
@@ -452,16 +453,7 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     <>
       <Card style={styles.hero}>
         <Glow />
-        {settledWithRebate && leftAfterPay ? (
-          <>
-            <Txt v="label" color="muted">{t("bill_paid_full", { month: billMonth ?? "" })}</Txt>
-            <Txt v="hero" numeric color="big">₹{rupees(leftAfterPay.amount, { decimals: 0 })}</Txt>
-            <View style={styles.chips}>
-              <Pill tone="ok" icon="savings" label={t("paid_with_rebate", { saving: rupees(d.outstandingAmt, { decimals: 0 }) })} />
-            </View>
-            <Txt v="caption" color="muted">{t("rebate_pending_note", { amount: rupees(d.outstandingAmt, { decimals: 0 }) })}</Txt>
-          </>
-        ) : d.hasDues ? (
+        {hasDues ? (
           <>
             <Txt v="label" color="muted">{t("amount_due")}</Txt>
             <Txt v="hero" numeric color={overdue ? "critical" : "big"}>₹{rupees(d.outstandingAmt, { decimals: 0 })}</Txt>
@@ -529,7 +521,7 @@ function Postpaid({ data }: { data: DashboardResponse }) {
       {!!outstandingError && !outstanding && <Insight tone="warn" icon="warning" text={t("due_unknown")} />}
       {warnings.map((w) => <Insight key={w.id} tone={w.tone} icon={w.icon} text={w.text} />)}
 
-      <QuickActions data={data} onBill={inv ? download : () => router.push("/bills")} billBusy={downloading} hasDues={d.hasDues} />
+      <QuickActions data={data} onBill={inv ? download : () => router.push("/bills")} billBusy={downloading} hasDues={hasDues} />
       {!!pdfError && <ErrorNote error={pdfError} compact />}
 
       {last7.length > 0 && (
