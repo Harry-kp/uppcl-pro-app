@@ -80,6 +80,18 @@
               "resizeMode": "horizontal|vertical",
               "previewImage": "./assets/widget-preview.png",
               "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "MeterWide",
+              "label": "Bijli Saathi · wide",
+              "description": "Bill due or balance, with Pay and No power buttons",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "previewImage": "./assets/widget-preview.png",
+              "updatePeriodMillis": 1800000
             }
           ]
         }
@@ -98,6 +110,18 @@
             },
             "qa_pay": {
               "foregroundImage": "./assets/qa-pay.png",
+              "backgroundColor": "#181A2E"
+            },
+            "qa_call": {
+              "foregroundImage": "./assets/qa-call.png",
+              "backgroundColor": "#181A2E"
+            },
+            "qa_status": {
+              "foregroundImage": "./assets/qa-status.png",
+              "backgroundColor": "#181A2E"
+            },
+            "qa_usage": {
+              "foregroundImage": "./assets/qa-usage.png",
               "backgroundColor": "#181A2E"
             }
           }

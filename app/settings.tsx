@@ -7,7 +7,7 @@ import * as Clipboard from "expo-clipboard";
 import { logout, mutate, useDashboard, useMe } from "@shared/api";
 import { FINGERPRINT_KEY, JUST_PAID_KEY, keystore, NAME_KEY } from "../src/boot";
 import { alertsEnabled, disableAlerts, enableAlerts, getBudget, sendTestNotification, setBudget } from "../src/alerts";
-import { clearSnapshot, WIDGET_NAME } from "../src/widget";
+import { clearSnapshot, WIDGET_NAME, setWidgetLocked } from "../src/widget";
 import { getWidgetInfo, requestPinWidget } from "react-native-android-widget";
 import { clearPersistentCache } from "../src/cache";
 import { APP_VERSION, FROM_STORE, REPO, reportProblem, useUpdate } from "../src/github";
@@ -63,6 +63,7 @@ export default function Settings() {
       if (!r.success) return;
     }
     keystore.setItem(FINGERPRINT_KEY, on ? "1" : "0");
+    setWidgetLocked(on);
     setBio(on);
   }
 

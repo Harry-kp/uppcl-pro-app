@@ -1,6 +1,6 @@
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { useMe, useMyComplaints } from "@shared/api";
+import { useComplaintDetail, useMyComplaints } from "@shared/api";
 import { openFor, sourceKind } from "@shared/complaints";
 import { parseUppclDate } from "@shared/utils";
 import { useI18n } from "../../src/i18n";
@@ -11,16 +11,19 @@ import { Icon } from "../../src/icons";
 export default function ComplaintDetail() {
   const c = useColors();
   const { t, locale, span } = useI18n();
-  const { no, phone } = useLocalSearchParams<{ no: string; phone?: string }>();
-  const { data: me } = useMe();
-  const { data } = useMyComplaints(phone ?? me?.data?.[0]?.phone); // already cached by the list
-  const x = data?.complaints.find((k) => k.complaint_no === no);
+  const { no } = useLocalSearchParams<{ no: string }>();
+  const { data } = useMyComplaints(); // already cached by the list
+  const row = data?.complaints.find((k) => k.complaint_no === no);
+  const { data: full, isLoading: more } = useComplaintDetail(no); // remarks, officers, area: ~4 s more
+  const x = full ?? row;
   // "30/09/2026 07:42:00 PM" (BUG-063): with the time, since how long a fix took is the point here.
-  const when = (d: string | null) => parseUppclDate(d)?.toLocaleString(locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) ?? null;
+  // The signed-in list has dates only ("19-May-2026"): then no made-up "12:00 am".
+  const when = (d: string | null) => parseUppclDate(d)?.toLocaleString(locale, d?.includes(":")
+    ? { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "short", year: "numeric" }) ?? null;
 
   if (!x) return (
     <Screen>
-      <BackHeader title={t("complaint_no", { no: no ?? "" })} />
+      <BackHeader title={`#${no ?? ""}`} />
       <Card><Skeleton w="50%" h={20} /><Skeleton w="70%" h={14} /><Skeleton w="60%" h={14} /></Card>
       <Card style={{ padding: 0, gap: 0 }}><SkeletonRows n={3} /></Card>
       <SlowNote loading />
@@ -39,7 +42,7 @@ export default function ComplaintDetail() {
 
   return (
     <Screen>
-      <BackHeader title={t("complaint_no", { no: x.complaint_no })} />
+      <BackHeader title={`#${x.complaint_no}`} />
 
       <Card>
         <View style={styles.head}>
@@ -66,10 +69,12 @@ export default function ComplaintDetail() {
         </Card>
       )}
 
+      {!full && more && <Card style={{ padding: 0, gap: 0 }}><SkeletonRows n={3} /></Card>}
+
       {officers.length > 0 && (
         <>
           <View style={{ marginTop: 8, gap: 2 }}>
-            <Txt v="heading">{t("handled_by")}</Txt>
+            <Txt v="heading">{t(x.is_open ? "handled_by" : "handled_by_past")}</Txt>
             {x.is_open && <Txt v="caption" color="muted">{t("cx_call_order")}</Txt>}
           </View>
           <Card style={{ padding: 0, gap: 0 }}>

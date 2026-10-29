@@ -25,6 +25,55 @@ function b64Encode(bytes: Uint8Array): string {
   return btoa(s);
 }
 
+// ─── RSA-OAEP (1912 portal login) ─────────────────────────────────────────────
+// The 1912 portal encrypts login payloads with RSA-OAEP/SHA-256 under a per-request public key
+// (`/auth/challenge`, SPKI base64). Hermes has BigInt but no Web Crypto, so: parse the key, pad, modpow.
+
+const bytesToBig = (b: Uint8Array) => BigInt("0x" + (bytesToHex(b) || "0"));
+function bigToBytes(n: bigint, len: number): Uint8Array {
+  const hex = n.toString(16).padStart(len * 2, "0");
+  return hexToBytes(hex);
+}
+function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
+  let r = 1n; base %= mod;
+  for (; exp > 0n; exp >>= 1n, base = (base * base) % mod) if (exp & 1n) r = (r * base) % mod;
+  return r;
+}
+/** DER walk: [tag, length, value]. Only what SPKI RSA keys use (definite lengths). */
+function der(b: Uint8Array, at: number): { tag: number; start: number; end: number } {
+  let len = b[at + 1], p = at + 2;
+  if (len & 0x80) { const n = len & 0x7f; len = 0; for (let i = 0; i < n; i++) len = (len << 8) | b[p++]; }
+  return { tag: b[at], start: p, end: p + len };
+}
+/** SPKI (base64) → { n, e } of an RSA public key. */
+export function parseRsaPublicKey(spkiB64: string): { n: bigint; e: bigint } {
+  const b = Uint8Array.from(atob(spkiB64), (c) => c.charCodeAt(0));
+  const spki = der(b, 0), alg = der(b, spki.start), bits = der(b, alg.end); // SEQUENCE { AlgorithmIdentifier, BIT STRING }
+  const pk = der(b, bits.start + 1); // skip the BIT STRING's unused-bits byte → RSAPublicKey SEQUENCE
+  const nT = der(b, pk.start), eT = der(b, nT.end);
+  return { n: bytesToBig(b.subarray(nT.start, nT.end)), e: bytesToBig(b.subarray(eT.start, eT.end)) };
+}
+function mgf1(seed: Uint8Array, len: number): Uint8Array {
+  const out = new Uint8Array(len);
+  for (let c = 0, i = 0; i < len; c++) {
+    const h = sha256(new Uint8Array([...seed, c >>> 24, (c >>> 16) & 255, (c >>> 8) & 255, c & 255]));
+    out.set(h.subarray(0, Math.min(32, len - i)), i); i += 32;
+  }
+  return out;
+}
+/** RSA-OAEP (SHA-256, MGF1-SHA-256, empty label) of `plaintext`, base64 — what `crypto.subtle.encrypt` gives. */
+export function rsaOaepEncrypt(spkiB64: string, plaintext: string, seed = randomBytes(32)): string {
+  const { n, e } = parseRsaPublicKey(spkiB64);
+  const k = Math.ceil(n.toString(2).length / 8), m = utf8ToBytes(plaintext);
+  if (m.length > k - 66) throw new Error("RSA-OAEP: message too long");
+  const db = new Uint8Array(k - 33); // lHash ‖ zero padding ‖ 0x01 ‖ message
+  db.set(sha256(new Uint8Array(0)), 0); db[k - 34 - m.length] = 1; db.set(m, k - 33 - m.length);
+  const dbMask = mgf1(seed, k - 33), maskedDb = db.map((x, i) => x ^ dbMask[i]);
+  const seedMask = mgf1(maskedDb, 32), maskedSeed = seed.map((x, i) => x ^ seedMask[i]);
+  const em = new Uint8Array([0, ...maskedSeed, ...maskedDb]);
+  return b64Encode(bigToBytes(modPow(bytesToBig(em), e, n), k));
+}
+
 // ─── ALTCHA proof-of-work ─────────────────────────────────────────────────────
 
 export interface AltchaChallenge {

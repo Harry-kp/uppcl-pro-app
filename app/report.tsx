@@ -2,25 +2,25 @@
  * The full complaint form (from "Something else?" on the No power sheet), built the mobile way: a short list
  * of rows showing the current answer ("Problem · No power ›"); tapping a row opens a bottom sheet to change it.
  * Everything starts filled in (problem, the user's home, a timed note), so most people only press File.
+ * Someone else's connection is just their account number: filed here if it's on the user's 1912 number, else by SMS.
  * Danger isn't a complaint type: it's a call, its own red row at the end.
  */
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { mutate, useDashboard } from "@shared/api";
-import { chooseDivision, chooseSubstation, fileSupplyComplaint, HELPLINE_TEL, is1912LoginOnly, listDistricts, prepareSupplyComplaint, withContact, type Place, type SupplyDraft } from "@shared/complaints";
+import { fileSupplyComplaint, HELPLINE_TEL, is1912NotLinked, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { Icon, type IconName } from "../src/icons";
-import { Filed, ReportFallback, useOwnDraft } from "../src/report";
+import { cantFileKey, Filed, ReportFallback, useOwnDraft } from "../src/report";
 import { useColors } from "../src/theme";
 import { BackHeader, Button, Card, Choices, Insight, Screen, Sheet, Skeleton, Txt, Field } from "../src/ui";
 
 type Supply = "no_power" | "voltage" | "phase";
-type Edit = "problem" | "where" | "affected" | "note" | "contact" | "division" | "substation" | null;
+type Edit = "problem" | "where" | "affected" | "note" | null;
 
 export default function Report() {
-  const c = useColors();
   const { t } = useI18n();
   const params = useLocalSearchParams<{ problem?: Supply }>();
   const { data } = useDashboard();
@@ -29,48 +29,48 @@ export default function Report() {
   const own = useOwnDraft(data, supply, whose === "mine");
   const [edit, setEdit] = useState<Edit>(null);
 
-  // Someone else's connection: account + district → (division) → (substation).
+  // Someone else's connection: just their account number. 1912 files it in-app only if it's added to the
+  // user's 1912 number; otherwise it goes by SMS / WhatsApp / call (their number in the text).
   const [otherAcct, setOtherAcct] = useState("");
-  const [districts, setDistricts] = useState<Place[]>([]);
-  const [districtQ, setDistrictQ] = useState("");
-  const [district, setDistrict] = useState<Place | null>(null);
-  const [other, setOther] = useState<SupplyDraft | null>(null);
-  useEffect(() => { if (edit === "where" && !districts.length) listDistricts().then(setDistricts, () => {}); }, [edit]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setOther(null); if (whose === "other") setWhose("mine"); }, [supply]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [other, setOther] = useState<{ draft: SupplyDraft | null; error: unknown; checking: boolean }>({ draft: null, error: null, checking: false });
+  useEffect(() => {
+    if (whose !== "other" || otherAcct.length !== 10) return;
+    let live = true;
+    setOther({ draft: null, error: null, checking: true });
+    prepareSupplyComplaint({ account: otherAcct, problem: supply === "voltage" ? "voltage" : "no_power", outage: "Individual" })
+      .then((d) => live && setOther({ draft: d, error: null, checking: false }), (e) => live && setOther({ draft: null, error: e, checking: false }));
+    return () => { live = false; };
+  }, [whose, otherAcct, supply]);
 
-  const draft = whose === "mine" ? own.draft : other;
-  const setDraft = whose === "mine" ? own.setDraft : setOther;
+  const mine = whose === "mine";
+  const draft = mine ? own.draft : other.draft;
   const [outage, setOutage] = useState<"Individual" | "Area">("Individual");
   const [note, setNote] = useState("");
   useEffect(() => { setNote(t(`rp_note_${supply}`, { time: new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) })); }, [supply]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [contact, setContact] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [filed, setFiled] = useState<{ ok: boolean; complaintNo: string | null; message: string } | null>(null);
 
-  async function run<T>(f: () => Promise<T>, then: (v: T) => void) {
+  const file = async () => {
+    if (!draft) return;
     setBusy(true); setError(null);
-    try { then(await f()); } catch (e) { setError(e); } finally { setBusy(false); }
-  }
-  const find = () => district && run(() => prepareSupplyComplaint({
-    account: otherAcct, city: null, districtId: district.id, problem: supply === "voltage" ? "voltage" : "no_power", outage: "Individual",
-  }), (d) => { setOther(d); setWhose("other"); setEdit(null); });
-  const file = () => draft && run(() => {
-    let d: SupplyDraft = { ...draft, controls: { ...draft.controls, 95303: supply === "voltage" ? "" : outage } };
-    if (contact) d = withContact(d, contact, whose === "other" ? "Others" : "Family");
-    return fileSupplyComplaint(d, note);
-  }, (r) => { setFiled(r); void mutate((k) => typeof k === "string" && k.startsWith("/complaints")); });
+    try {
+      setFiled(await fileSupplyComplaint({ ...draft, controls: { ...draft.controls, 95303: supply === "voltage" ? "" : outage } }, note));
+      void mutate((k) => typeof k === "string" && k.startsWith("/complaints"));
+    } catch (e) { setError(e); } finally { setBusy(false); }
+  };
 
-  const dq = districtQ.trim().toLowerCase();
-  const matches = dq ? districts.filter((x) => x.name.toLowerCase().includes(dq)).slice(0, 6) : [];
-  const prepError = whose === "mine" ? own.error : null;
-  const tail = (s: string | undefined) => (s ? `••${s.slice(-4)}` : "");
-  const needDivision = !!draft && draft.divisions.length > 0;
-  const needSubstation = !!draft && !draft.substation && draft.substations.length > 0;
+  const prepError = mine ? own.error : other.error;
+  const tail = (s: string) => `••${s.slice(-4)}`;
+  // Someone else's and 1912 won't file it here (not added to this number, or the check failed): the texts are the way,
+  // so the questions only the in-app form carries are hidden.
+  const otherByText = !mine && !!other.error;
+  const paused = !!cantFileKey(prepError) || otherByText;
+  const waiting = mine ? !draft && !prepError : other.checking || otherAcct.length !== 10;
   const canFile = !!draft?.substation && !draft.blocked && !!note.trim() && !busy;
   // A disabled button always says what it's waiting for.
-  const fileLabel = busy ? t("rp_filing") : !draft ? (prepError ? t("rp_file") : t("rp_getting_ready"))
-    : needDivision || needSubstation ? t("rp_need_substation") : !note.trim() ? t("rp_need_note") : t("rp_file");
+  const fileLabel = busy ? t("rp_filing") : !mine && otherAcct.length !== 10 ? t("rp_acct_digits", { n: otherAcct.length })
+    : !draft ? t("rp_getting_ready") : !note.trim() ? t("rp_need_note") : mine ? t("rp_file") : t("rp_file_for", { acct: tail(otherAcct) });
 
   if (filed?.ok) return (
     <Screen>
@@ -80,29 +80,30 @@ export default function Report() {
   );
 
   return (
-    <Screen footer={<Button label={fileLabel} busy={busy || (!draft && !prepError)} disabled={!canFile} onPress={() => void file()} />}>
+    // While the app can't file, no dead primary button: the SMS/WhatsApp/call ways below are the action.
+    <Screen footer={paused ? undefined : <Button label={fileLabel} busy={busy || (waiting && otherAcct.length === 10) || (mine && waiting)} disabled={!canFile} onPress={() => void file()} />}>
       <BackHeader title={t("rp_form_title")} />
 
       <Card style={{ padding: 0, gap: 0 }}>
         <Row first icon="bolt" label={t("rp_row_problem")} value={t(`rp_chip_${supply}`)} onPress={() => setEdit("problem")} />
-        <Row icon={whose === "mine" ? "home" : "person"} label={t("rp_row_where")}
-          value={whose === "mine" ? t("rp_mine") : (other?.name ?? t("rp_found_no_name"))}
-          sub={draft?.substation ? `${draft.substation} · ${tail(draft.account)}` : draft ? tail(draft.account) : undefined}
-          loading={!draft && !prepError} onPress={() => setEdit("where")} />
-        {needDivision && <Row icon="info" label={t("rp_row_division")} value={t("rp_choose")} attention onPress={() => setEdit("division")} />}
-        {needSubstation && <Row icon="info" label={t("rp_row_substation")} value={t("rp_choose")} attention onPress={() => setEdit("substation")} />}
-        {supply !== "voltage" && ( // 1912 asks this for no supply only
+        <Row icon={mine ? "home" : "person"} label={t("rp_row_where")}
+          value={mine ? t("rp_mine") : t("rp_someone_elses_short")}
+          sub={!mine ? [otherAcct.length === 10 ? tail(otherAcct) : t("rp_acct_digits", { n: otherAcct.length }), draft?.substation].filter(Boolean).join(" · ")
+            : draft?.substation ? `${draft.substation} · ${tail(draft.account)}` : draft ? tail(draft.account) : undefined}
+          loading={mine ? waiting : other.checking} attention={!mine && otherAcct.length !== 10} onPress={() => setEdit("where")} />
+        {supply !== "voltage" && !otherByText && ( // 1912 asks this for no supply only; an SMS can't carry it
           <Row icon="widgets" label={t("rp_row_affected")} value={outage === "Individual" ? t("rp_just_me") : t("rp_area")} onPress={() => setEdit("affected")} />
         )}
-        <Row icon="chat" label={t("rp_row_note")} sub={note} onPress={() => setEdit("note")} />
-        <Row icon="call" label={t("rp_row_contact")} value={contact ? `••${contact.slice(-4)}` : t("rp_optional")} onPress={() => setEdit("contact")} />
+        {!otherByText && <Row icon="chat" label={t("rp_row_note")} sub={note} onPress={() => setEdit("note")} />}
       </Card>
 
-      {!!prepError && (is1912LoginOnly(prepError) ? <Insight tone="accent" icon="info" text={t("rp_1912_login")} /> : <ErrorNote error={prepError} onRetry={own.retry} />)}
+      {otherByText && <Insight tone="accent" icon="info" text={t(is1912NotLinked(other.error) ? "rp_other_by_text" : (cantFileKey(other.error) ?? "rp_other_by_text"))} />}
+      {mine && !!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={own.retry} />)}
       {!!error && <ErrorNote error={error} onRetry={() => void file()} />}
       {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
       {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
-      {(!!error || !!prepError || !!draft?.blocked || (filed && !filed.ok)) && data && <ReportFallback data={data} problem={supply} />}
+      {(!!error || !!prepError || !!draft?.blocked || (filed && !filed.ok)) && data &&
+        <ReportFallback data={data} problem={supply} only={paused} account={mine ? undefined : otherAcct} />}
 
       {/* Danger is a call, not a form. */}
       <Card style={{ padding: 0, gap: 0 }}>
@@ -126,48 +127,21 @@ export default function Report() {
         <Button label={t("rp_done")} disabled={!note.trim()} onPress={() => setEdit(null)} />
       </Sheet>
 
-      <Sheet visible={edit === "contact"} title={t("rp_row_contact")} onClose={() => setEdit(null)}>
-        <Txt v="label" color="muted">{t("rp_contact_why")}</Txt>
-        <Field value={contact} onChangeText={(x) => setContact(x.replace(/\D/g, "").slice(0, 10))} keyboardType="phone-pad" autoFocus
-          placeholder={t("rp_contact_ph")} accessibilityLabel={t("rp_row_contact")} />
-        <Button label={t("rp_done")} disabled={!!contact && contact.length !== 10} onPress={() => setEdit(null)} />
-        {!!contact && <Button kind="soft" label={t("rp_remove")} onPress={() => { setContact(""); setEdit(null); }} />}
-      </Sheet>
-
       <Sheet visible={edit === "where"} title={t("rp_row_where")} onClose={() => setEdit(null)}>
-        <Choices<"mine" | "other"> value={whose === "mine" ? "mine" : "other"}
-          onChange={(v) => { if (v === "mine") { setWhose("mine"); setEdit(null); } else setWhose("other"); }}
+        <Choices<"mine" | "other"> value={whose}
+          onChange={(v) => { setWhose(v); if (v === "mine") setEdit(null); }}
           options={[{ value: "mine", label: t("rp_mine") }, { value: "other", label: t("rp_someone_elses") }]} />
-        {whose === "other" && (
+        {!mine && (
           <>
-            <Field value={otherAcct} onChangeText={(x) => setOtherAcct(x.replace(/\D/g, "").slice(0, 12))} keyboardType="number-pad"
-              placeholder={t("rp_their_account")} accessibilityLabel={t("rp_their_account")} />
-            {district ? (
-              <Row first icon="event" label={t("rp_district")} value={district.name} onPress={() => setDistrict(null)} />
-            ) : (
-              <>
-                <Field value={districtQ} onChangeText={setDistrictQ} placeholder={t("rp_their_district")}
-                  accessibilityLabel={t("rp_their_district")} />
-                <Choices value="" onChange={(id) => { setDistrict(districts.find((x) => x.id === id) ?? null); setDistrictQ(""); }}
-                  options={matches.map((x) => ({ value: x.id, label: x.name }))} />
-              </>
-            )}
-            {!!error && <ErrorNote error={error} compact />}
-            <Button label={t("rp_find")} busy={busy} disabled={otherAcct.length < 10 || !district} onPress={() => void find()} />
+            <Txt v="label" color="muted">{t("rp_their_account")}</Txt>
+            {/* Exactly 10 digits (pasted spaces / dashes dropped); the sheet closes itself on the 10th. */}
+            <Field value={otherAcct} autoFocus keyboardType="number-pad" inputMode="numeric" maxLength={10}
+              placeholder="12345 67890" accessibilityLabel={t("rp_their_account")} style={{ fontSize: 22, letterSpacing: 2 }}
+              onChangeText={(x) => { const d = x.replace(/\D/g, "").slice(0, 10); setOtherAcct(d); if (d.length === 10) setEdit(null); }} />
+            <Button label={otherAcct.length === 10 ? t("rp_done") : t("rp_acct_digits", { n: otherAcct.length })}
+              disabled={otherAcct.length !== 10} onPress={() => setEdit(null)} />
           </>
         )}
-      </Sheet>
-
-      <Sheet visible={edit === "division"} title={t("rp_row_division")} onClose={() => setEdit(null)}>
-        <Txt v="label" color="muted">{t("rp_pick_division")}</Txt>
-        {!!draft && <Choices value="" onChange={(id) => { setEdit(null); void run(() => chooseDivision(draft, id), setDraft); }}
-          options={draft.divisions.map((x) => ({ value: x.id, label: x.name }))} />}
-      </Sheet>
-
-      <Sheet visible={edit === "substation"} title={t("rp_row_substation")} onClose={() => setEdit(null)}>
-        <Txt v="label" color="muted">{t("rp_pick_substation")}</Txt>
-        {!!draft && <Choices value="" onChange={(id) => { setEdit(null); void run(() => chooseSubstation(draft, id), setDraft); }}
-          options={draft.substations.map((x) => ({ value: x.id, label: x.name }))} />}
       </Sheet>
     </Screen>
   );

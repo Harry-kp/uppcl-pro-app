@@ -165,8 +165,7 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
   // Complaint filing (shared/complaints.ts): a ready draft, and a pretend complaint number. Never 1912.
   if (key === "site") return d.site; // payments and PDFs look the account up first: never UPPCL in sample mode
   if (key === "complaints:prepare") return { problem: "no_power", outage: "Individual", account: d.site.connectionId, district: { id: "0", name: "Sample district" },
-    name: "Asha Verma", mobile: "9000000001", substation: "Test Nagar", subdivision: "Test sub-division", divisions: [], substations: [], blocked: null, controls: {} };
-  if (key === "complaints:districts") return [{ id: "0", name: "Sample district" }];
+    name: "Asha Verma", mobile: "9000000001", substation: "Test Nagar", subdivision: "Test sub-division", blocked: null, controls: {} };
   if (key === "complaints:file") return { ok: true, complaintNo: "SAMPLE-0001", message: "Sample data: nothing was sent to UPPCL." };
   if (key.startsWith("receipt:")) return TEST_PDF;
   const [path, query = ""] = key.split("?");

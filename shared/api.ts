@@ -11,7 +11,7 @@
 import useSWR, { mutate as defaultMutate, unload as defaultUnload, type ScopedMutator, type Unloader } from "swr";
 import { solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
-import { complaints } from "./complaints";
+import { complaintDetail, complaints, connected1912, forget1912 } from "./complaints";
 import { indiaTime } from "./utils";
 import {
   getSession,
@@ -290,6 +290,7 @@ async function loginSteps(username: string, password: string, captchaToken: stri
 
 export async function logout(): Promise<void> {
   clearSession();
+  forget1912(); // the 1912 OTP session and its number go with the account
 }
 
 // ─── UPPCL /wss legacy bill portal (official bills/receipts/meter data) ───────
@@ -409,6 +410,7 @@ function ids(site: SiteRecord): { cid: string; did: string; tid: string } {
 async function fetcher<T>(key: string): Promise<T> {
   const mocked = platform.mock?.(key); if (mocked !== undefined) return mocked as T; // data seam: sample data (src/demo.ts)
   // Complaints: UPPCL's 1912 portal, anonymous (no user creds), straight from the phone.
+  if (key.startsWith("/complaints/detail/")) return complaintDetail(decodeURIComponent(key.slice("/complaints/detail/".length))) as Promise<T>;
   if (key.startsWith("/complaints")) return complaints(key.slice("/complaints".length)) as Promise<T>;
 
   // Health is client-side only
@@ -1001,9 +1003,16 @@ export interface ComplaintDetail {
   raw_fields: Record<string, string>;
 }
 
-export const useMyComplaints = (phone: string | null | undefined) =>
-  useSWR<{ phone: string; complaints: ComplaintDetail[] }>(
+/** One complaint in full (remarks, officers, area); the list row shows meanwhile. Keyed under /complaints so sign-in refreshes it. */
+export const useComplaintDetail = (no: string | undefined) =>
+  useSWR<ComplaintDetail | null>(connected1912() && no ? `/complaints/detail/${encodeURIComponent(no)}` : null, fetcher, { ...swrOpts, shouldRetryOnError: false });
+
+/** The number signed in to 1912 (OTP). Its last answer stays cached when the session ends: is1912LoginOnly(error) then. */
+export const useMyComplaints = () => {
+  const phone = connected1912();
+  return useSWR<{ phone: string; complaints: ComplaintDetail[] }>(
     phone ? `/complaints?action=my&phone=${phone}` : null,
     fetcher,
-    { ...swrOpts, revalidateOnFocus: true }
+    { ...swrOpts, revalidateOnFocus: true, shouldRetryOnError: false } // a needed code won't appear by retrying
   );
+};

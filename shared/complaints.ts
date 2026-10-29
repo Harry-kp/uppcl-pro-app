@@ -7,13 +7,12 @@
  * them, so this no longer needs the web project's server route.
  */
 import { cbc } from "@noble/ciphers/aes.js";
-import { ProxyError, send } from "./api";
+import { ProxyError, send, type ComplaintDetail } from "./api";
+import { rsaOaepEncrypt } from "./crypto";
 import { platform } from "./platform";
 import { parseUppclDate } from "./utils";
 
-const PROJECT_ID = "119", FORM_ID = "4235", ROLE_ID = "883", COMPANY_ID = "64";
-const EVENT_CONTROL = "38068";
-const LIST = { event: "38064", child: "38068", childAc: "30065", parent: "38062" };
+const COMPANY_ID = "64";
 
 // The portal's header "encryption": AES-128-CBC with a constant published key/IV (not a secret).
 const KEY = new TextEncoder().encode("80".repeat(8));
@@ -29,49 +28,107 @@ const b64 = (text: string) => {
   return btoa(bin);
 };
 
-let sessionAt = 0;
+// ─── 1912 consumer sign-in (Oct 2026: the anonymous forms are gone) ───────────
+// Mobile + OTP, as UPPCL's own consumer app does it (buildId com.mobi.UPPCLConsumer). Each payload is
+// RSA-OAEP encrypted under a one-time key from /auth/challenge. The session is ASP.NET cookies (native
+// cookie jar) plus the ids the landing page carries; those ids live in the vault. One session per number:
+// signing in elsewhere (the website) ends this one.
 
-const LOGIN_ONLY = "1912 portal now requires an OTP login (anonymous access removed)";
-/** UPPCL's 1912 portal no longer serves anonymous visitors: lookups and in-app filing can't work. */
+const LOGIN_ONLY = "1912 needs a one-time code to show or file complaints";
+/** 1912 needs (another) OTP sign-in before it answers. */
 export const is1912LoginOnly = (e: unknown) => (e as { reason?: string } | null)?.reason === LOGIN_ONLY;
-const SESSION_TTL = 15 * 60_000;
+const needLogin = () => new ProxyError(401, LOGIN_ONLY, undefined, "complaints");
 
-// One anonymous session serves every form's lookups (verified); the form id travels in the headers.
-async function ensureSession(force = false, form = FORM_ID) {
-  refuseSample();
-  if (!force && Date.now() - sessionAt < SESSION_TTL) return;
-  // Each hop sets cookies; fetch follows the redirects and the native cookie jar keeps them.
-  for (const path of [`UI/Anonymous?PROJECTID=${PROJECT_ID}&FORMID=${form}`, `UI/Form?FormId=${form}`]) {
-    const r = await send("complaints", path, { headers: { accept: "text/html" }, cache: "no-store" });
-    // Oct 2026: UPPCL removed anonymous access (UI/Anonymous → 404; the portal is now OTP login only).
-    if (r.status === 404) throw new ProxyError(404, LOGIN_ONLY, undefined, "complaints");
-    if (!r.ok) throw new ProxyError(r.status, `1912 portal session: HTTP ${r.status}`, undefined, "complaints");
-  }
-  sessionAt = Date.now();
+interface Auth1912 { mobile: string; login: string; role: string; token: string; project: string; registered: boolean; at: number }
+const AUTH_KEY = "1912-auth-v1", MOBILE_KEY = "1912-mobile-v1";
+const AUTH_TTL = 6 * 3600_000; // ponytail: UPPCL's real limit is unmeasured; 401 clears it sooner anyway
+
+function auth(): Auth1912 | null {
+  try {
+    const a = JSON.parse(platform.storage?.getItem(AUTH_KEY) ?? "null") as Auth1912 | null;
+    return a && Date.now() - a.at < AUTH_TTL ? a : null;
+  } catch { return null; }
+}
+const dropAuth = () => platform.storage?.removeItem(AUTH_KEY);
+
+/** The number last signed in to 1912 (kept after the session ends, so cached complaints still show). */
+export function connected1912(): string | null {
+  if (sample()) return "9000000001";
+  return platform.storage?.getItem(MOBILE_KEY) ?? null;
+}
+/** Signed in right now (no code needed for the next call). */
+export const signedIn1912 = () => sample() || !!auth();
+/** Signed in, but this number hasn't done 1912's one-time "Register yourself" (KYC). */
+export const needsKyc1912 = () => !sample() && auth()?.registered === false;
+export function forget1912(): void { dropAuth(); platform.storage?.removeItem(MOBILE_KEY); }
+
+async function sealed(payload: string): Promise<string> {
+  const r = await send("complaints", "auth/challenge", { headers: { accept: "application/json" }, cache: "no-store" });
+  if (!r.ok) throw new ProxyError(r.status, `1912 sign-in: HTTP ${r.status}`, undefined, "complaints");
+  const { publicKey, nonce, timestamp } = await r.json() as { publicKey: string; nonce: string; timestamp: string };
+  return rsaOaepEncrypt(publicKey, `${payload}|${nonce}|${timestamp}`);
 }
 
-const apiHeaders = (form: string) => ({
+async function account(action: string, payload: string): Promise<{ Status?: string; Message?: string; FormsID?: number }> {
+  const r = await send("complaints", `UserAccounts/${action}`, {
+    method: "POST", cache: "no-store",
+    headers: { "content-type": "application/x-www-form-urlencoded", referer: "https://1912.uppcl.org/" },
+    body: `encryptedPayload=${encodeURIComponent(await sealed(payload))}`,
+  });
+  if (!r.ok) throw new ProxyError(r.status, `1912 sign-in: HTTP ${r.status}`, undefined, "complaints");
+  return r.json();
+}
+
+/** Texts a sign-in code to `mobile` (1912 sends it; any Indian mobile, not only the bill's). */
+export async function send1912Otp(mobile: string): Promise<void> {
+  if (sample()) return;
+  const m = mobile10(mobile);
+  if (!m) throw new ProxyError(400, "Enter a 10-digit mobile number", undefined, "app", "app");
+  await send("complaints", "", { headers: { accept: "text/html" }, cache: "no-store" }); // session + antiforgery cookies
+  const j = await account("SendOTPForMobile", `${m}|com.mobi.UPPCLConsumer`);
+  if (j.Status !== "1") throw new ProxyError(400, j.Message || "1912 couldn't send a code", undefined, "complaints");
+}
+
+/** Checks the code and keeps the session. Wrong or expired code → ProxyError 400 with UPPCL's message. */
+export async function verify1912Otp(mobile: string, otp: string): Promise<void> {
+  const m = mobile10(mobile)!;
+  if (sample()) { platform.storage?.setItem(MOBILE_KEY, m); return; }
+  const j = await account("ValidateOTPForMobileLogin", `${m}|${otp.trim()}`);
+  if (j.Status !== "1" || !j.FormsID) throw new ProxyError(400, j.Message || "Wrong code", undefined, "complaints");
+  // The landing page carries the ids every later call needs.
+  const html = await (await send("complaints", `UI/Form?FormId=${j.FormsID}`, { headers: { accept: "text/html" }, cache: "no-store" })).text();
+  const hid = (id: string) => new RegExp(`id="${id}" value="([^"]*)"`).exec(html)?.[1] ?? "";
+  const a: Auth1912 = { mobile: m, login: hid("xlogin"), role: hid("xrole_id"), token: hid("xcode"), project: hid("xproject_id"),
+    registered: j.FormsID !== KYC_FORM, at: Date.now() };
+  if (!a.login || !a.role || !a.token) throw new ProxyError(502, "1912 signed in but sent an unexpected page", undefined, "complaints");
+  platform.storage?.setItem(AUTH_KEY, JSON.stringify(a));
+  platform.storage?.setItem(MOBILE_KEY, m);
+}
+
+const KYC_FORM = 9208, LIST_FORM = "9216";
+
+const apiHeaders = (form: string, a: Auth1912) => ({
   accept: "application/xml, text/xml, */*; q=0.01",
   "content-type": "application/json",
   version: "1",
   "x-requested-with": "XMLHttpRequest",
-  appsavylogin: enc("anonymous"), formid: enc(form), roleid: enc(ROLE_ID), sourcetype: enc("WEB"), token: enc(""),
+  referer: `https://1912.uppcl.org/UI/Form?FormId=${form}`,
+  appsavylogin: enc(a.login), formid: enc(form), roleid: enc(a.role), sourcetype: enc("WEB"), token: enc(a.token),
 });
 
 /** Sample data is on (demo mode): 1912 must never be called, above all never a save with an invented account. */
 const sample = () => platform.mock?.("scenario:active") === true; // data seam: sample data (src/demo.ts)
 const refuseSample = () => { if (sample()) throw new ProxyError(0, "Sample data: not sent to UPPCL", undefined, "app", "app"); };
 
-async function postApi(inputXml: string, form = FORM_ID, retry = true): Promise<string> {
+async function postApi(inputXml: string, form: string): Promise<string> {
   refuseSample();
-  await ensureSession();
+  const a = auth();
+  if (!a) throw needLogin();
   const r = await send("complaints", "api/AppsavyServices/GetRelationalDataA", {
-    method: "POST",
-    cache: "no-store",
-    headers: apiHeaders(form),
+    method: "POST", cache: "no-store", headers: apiHeaders(form, a),
     body: JSON.stringify({ inputxml: b64(inputXml), DocVersion: 1 }),
   });
-  if (r.status === 401 && retry) { sessionAt = 0; return postApi(inputXml, form, false); }
+  if (r.status === 401) { dropAuth(); throw needLogin(); } // expired, or signed in elsewhere
   if (!r.ok) throw new ProxyError(r.status, `1912 portal: HTTP ${r.status}`, undefined, "complaints");
   return r.text();
 }
@@ -123,13 +180,43 @@ const unxml = (v: string) => v.replace(/&lt;/g, "<").replace(/&gt;/g, ">").repla
 const xmlAttr = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")
   .replace(/[^\x20-\x7e]/gu, (ch) => `&#${ch.codePointAt(0)};`);
 
-const header = (event: string) =>
-  '<?xml version="1.0"?><Request VERSION="2" LANGUAGE_ID="" LOCATION="">' +
-  `<Company Company_Id="${COMPANY_ID}" /><Project Project_Id="${PROJECT_ID}" />` +
-  '<User User_Id="anonymous" /><IUVLogin IUVLogin_Id="anonymous" />' +
-  `<ROLE ROLE_ID="${ROLE_ID}" /><Event Control_Id="${event}" />`;
+const FILING_PAUSED = "In-app filing is paused while it moves to 1912's signed-in form";
+const NOT_LINKED = "This connection isn't added to your 1912 account yet";
+/** 1912 files only for connections added to the signed-in number ("Register Account" on 1912, once, with an OTP). */
+export const is1912NotLinked = (e: unknown) => (e as { reason?: string } | null)?.reason === NOT_LINKED;
+/** In-app filing is off until the signed-in "Register Complaint" form (9212) is verified; use SMS / call / WhatsApp. */
+export const is1912FilingPaused = (e: unknown) => (e as { reason?: string } | null)?.reason === FILING_PAUSED;
+// On: the signed-in 9212 save is built from the page's own fnSaveData and the values it fills (captured, never sent).
+// ponytail: first real filing is the owner's to make; set true again if it's refused.
+const FILING_OFF: boolean = false;
+const filingPaused = () => new ProxyError(503, FILING_PAUSED, undefined, "complaints");
 
-// [control id, AC id] of every field on the complaint detail form.
+const header = (event: string) => {
+  const a = auth();
+  if (!a) throw needLogin();
+  return '<?xml version="1.0"?><Request VERSION="2" LANGUAGE_ID="" LOCATION="">' +
+    `<Company Company_Id="${COMPANY_ID}" /><Project Project_Id="${a.project}" />` +
+    `<User User_Id="${a.login}" /><IUVLogin IUVLogin_Id="${a.login}" />` +
+    `<ROLE ROLE_ID="${a.role}" /><Event Control_Id="${event}" />`;
+};
+
+// "Complaint Status" (form 9216): the signed-in number's complaints, by status (CP pending, CC closed).
+const listOf = async (status: "CP" | "CC") => (await lookup("94181", [["94185", "83881", [["94180", ""], ["100027", status]]]], LIST_FORM))["94185"] ?? [];
+
+const fromRow = (r: Row): ComplaintDetail => {
+  const status = r.COMP_STATUS || "";
+  return {
+    data_id: r.COMP_NO, complaint_no: r.COMP_NO, status, is_open: !/close/i.test(status),
+    entry_date: r.REG_DATE || null, closing_date: r.CL_DATE || null, consumer_name: r.CO_NAME || null, mobile_no: mobile10(r.MOBILE_NO),
+    type: sentence(r.COMP_TYPE_NAME || null), sub_type: sentence(r.COMP_SUB_TYPE || null), substation: r.SUBSTATION || null,
+    address: null, customer_account: null, remarks: null, closing_remarks: null, closed_by: null, source: null,
+    je_name: null, je_mobile: null, ae_name: null, ae_mobile: null, xen_name: null, xen_mobile: null,
+    subdivision: null, assigned_to: null, base_level: null, initial_user: null, raw_fields: r,
+  };
+};
+
+// The full record (your remarks, closing note, officers, area). The old status lookups answer again once signed in,
+// keyed by DATA_ID (from the by-phone list). ~4 s, so it loads when a complaint is opened, not for the whole list.
 const DETAIL_FIELDS: [number, number][] = [
   [52071, 39534], [38886, 30729], [38802, 30652], [38801, 30649], [132178, 171344], [132179, 171345],
   [141575, 196468], [52072, 39533], [52070, 39532], [49309, 37796], [44465, 33863], [44464, 33861],
@@ -140,50 +227,38 @@ const DETAIL_FIELDS: [number, number][] = [
   [144430, 198595], [93222, 81760], [38812, 30669],
 ];
 
-async function detail(dataId: string): Promise<Record<string, unknown>> {
-  const xml = header(EVENT_CONTROL) + DETAIL_FIELDS.map(([cid, ac]) =>
-    `<Child Control_Id="${cid}" Report="HTML" AC_ID="${ac}"><Parent Control_Id="${EVENT_CONTROL}" Value="${dataId}" Data_Form_Id=""/></Child>`,
-  ).join("") + "</Request>";
-  const merged: Row = {};
-  for (const row of parseRowsets(await postApi(xml))) for (const [k, v] of Object.entries(row)) if (v && !merged[k]) merged[k] = v;
-  const pick = (k: string) => merged[k] || null;
-  const status = pick("COMPLAINT_STATUS");
+/** One complaint in full, by number; null when it isn't this number's. */
+export async function complaintDetail(no: string): Promise<ComplaintDetail | null> {
+  const a = auth();
+  if (!a) throw needLogin();
+  const mine = (await lookup("38064", [["38068", "30065", [["38062", a.mobile]]]], LIST_FORM))["38068"] ?? [];
+  const id = mine.find((r) => r.COMPLAINT_NO === no)?.DATA_ID;
+  if (!id) return null;
+  const got = await lookup("38068", DETAIL_FIELDS.map(([c, ac]) => [String(c), String(ac), [["38068", id]]]), LIST_FORM);
+  const m: Row = {};
+  for (const rows of Object.values(got)) for (const r of rows) for (const [k, v] of Object.entries(r)) if (v && !m[k]) m[k] = v;
+  const pick = (k: string) => m[k] || null;
+  const status = pick("COMPLAINT_STATUS") ?? "";
   return {
-    data_id: pick("DATA_ID"), complaint_no: pick("COMPLAINT_NO"), status, is_open: status ? !status.toUpperCase().includes("CLOSE") : false,
-    entry_date: pick("ENTRYDATE"), closing_date: pick("CLOSINGDATE"), consumer_name: pick("CONSUMER_NAME"), mobile_no: pick("MOBILENO"),
+    data_id: id, complaint_no: no, status, is_open: !/close/i.test(status),
+    entry_date: pick("ENTRYDATE"), closing_date: pick("CLOSINGDATE"), consumer_name: pick("CONSUMER_NAME"), mobile_no: mobile10(pick("MOBILENO")),
     address: pick("ADDRESS"), customer_account: pick("CUSTOMERACNTNO"), remarks: pick("REMARKS"), closing_remarks: pick("CLOSINGREMARKS"),
     closed_by: pick("CLOSEDBY"), type: sentence(pick("COM_TYPE_NAME")), sub_type: sentence(pick("COM_SUB_TYPE_NAME")), source: pick("SRC"),
     // UPPCL's officer fields are messy: capitals, cut-off brackets, numbers padded with 00, a line name in JE_NAME.
     je_name: personName(pick("JE_NAME")), je_mobile: mobile10(pick("JE_MOBILE")), ae_name: personName(pick("AE_NAME")), ae_mobile: mobile10(pick("AE_MOBILE")),
     xen_name: personName(pick("XEN_NAME")), xen_mobile: mobile10(pick("XEN_MOBILE")), subdivision: pick("SUBDIVISION"), substation: pick("SUBSTATION"),
-    assigned_to: pick("ASSIGNED_TO"), base_level: pick("BASE_LEVEL"), initial_user: pick("INITIALUSER"), raw_fields: merged,
+    assigned_to: pick("ASSIGNED_TO"), base_level: pick("BASE_LEVEL"), initial_user: pick("INITIALUSER"), raw_fields: m,
   };
 }
 
-async function listByPhone(phone: string) {
-  const xml = header(LIST.event) +
-    `<Child Control_Id="${LIST.child}" Report="HTML" AC_ID="${LIST.childAc}"><Parent Control_Id="${LIST.parent}" Value="${phone}" Data_Form_Id=""/></Child></Request>`;
-  return parseRowsets(await postApi(xml)).map((row) => ({ data_id: row.DATA_ID, complaint_no: row.COMPLAINT_NO }));
-}
-
-/** "30/09/2026 10:15:00 PM" → ms, for newest-first sorting. */
-function entryTime(raw: unknown): number {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)$/i.exec(String(raw ?? "").trim());
-  if (!m) return 0;
-  const h = (Number(m[4]) % 12) + (/pm/i.test(m[7]) ? 12 : 0);
-  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), h, Number(m[5]), Number(m[6])).getTime();
-}
-
-/** Same answers the old web route gave: `?action=my&phone=…` → { phone, complaints }, `?action=detail&data_id=…` → one complaint. */
-export async function complaints(query: string): Promise<unknown> {
-  const q = new URLSearchParams(query.replace(/^\?/, ""));
-  const phone = q.get("phone"), dataId = q.get("data_id");
-  if (q.get("action") === "detail" && dataId) return detail(dataId);
-  if (!phone) throw new ProxyError(400, "phone required", undefined, "app", "app");
-  const list = await listByPhone(phone);
-  // ponytail: detail for the first 20 only (one call each); a household has a handful, a shared number can have hundreds.
-  const all = await Promise.all(list.filter((c) => c.data_id).slice(0, 20).map((c) => detail(c.data_id)));
-  return { phone, complaints: all.sort((a, b) => entryTime(b.entry_date) - entryTime(a.entry_date)) };
+/** `?action=my` → { phone, complaints }: the signed-in number's complaints, open first, newest first. */
+export async function complaints(_query: string): Promise<{ phone: string; complaints: ComplaintDetail[] }> {
+  const a = auth();
+  if (!a) throw needLogin();
+  const [open, closed] = await Promise.all([listOf("CP"), listOf("CC")]);
+  const list = [...open, ...closed].filter((r) => r.COMP_NO).map(fromRow);
+  const at = (x: ComplaintDetail) => parseUppclDate(x.entry_date)?.getTime() ?? 0;
+  return { phone: a.mobile, complaints: list.sort((x, y) => Number(y.is_open) - Number(x.is_open) || at(y) - at(x)) };
 }
 
 /** How the complaint was filed, from UPPCL's source field ("1912", "1912 Web", "WhatsApp"…). */
@@ -199,18 +274,16 @@ export function sourceKind(src: string | null | undefined): "call" | "web" | "wh
 
 /** Filed → closed (or → now while open), in ms; null when UPPCL's dates don't parse. */
 export function openFor(c: { entry_date: string | null; closing_date: string | null; is_open: boolean }, now = Date.now()): number | null {
+  if (!c.entry_date?.includes(":") || (!c.is_open && !c.closing_date?.includes(":"))) return null; // dates without a time
   const from = parseUppclDate(c.entry_date)?.getTime();
   const to = c.is_open ? now : parseUppclDate(c.closing_date)?.getTime();
   return from && to && to >= from ? to - from : null;
 }
 
 // ─── Filing a supply complaint (no power, low voltage): form 6444 ────────────
-// Replays what the 1912 portal's "Consumer Complaint Registration" page does (docs §11.1): district →
-// complaint type → account search → area (substation, JE) → validate → save. Everything before the save
-// is a lookup. SUPPLY RELATED needs no OTP and no captcha. The save writes a real ticket for the line JE,
-// so it lives in fileSupplyComplaint only, and runs only on the user's explicit tap.
+// Filing a supply complaint (no power / low voltage) on 1912. Everything before the save is a lookup; the save
+// writes a real ticket for the line JE, so it lives in fileSupplyComplaint only, on the user's explicit tap.
 
-const REG_FORM = "6444";
 export type SupplyProblem = "no_power" | "voltage";
 const SUB_TYPE: Record<SupplyProblem, string> = { no_power: "CST120", voltage: "CST147" }; // NO SUPPLY, VOLTAGE FLUCTUATION
 
@@ -225,18 +298,16 @@ export interface SupplyDraft {
   mobile: string | null;
   substation: string | null;
   subdivision: string | null;
-  /** When the account's record has no area and its division couldn't be matched: the district's divisions (chooseDivision). */
-  divisions: Place[];
-  /** When the account's record has no substation, the ones in its division; the user picks (chooseSubstation). */
-  substations: (Place & { subdivision: Place })[];
   /** UPPCL's reason it won't take this complaint now (e.g. one is already open); no Save then. */
   blocked: string | null;
   /** Every control the save carries, id → value. Opaque to the UI. */
   controls: Record<string, string>;
+  /** Which 1912 form the controls are for ("9212" signed-in Register Complaint). */
+  form?: string;
 }
 
 type Child = [control: string, ac: string, parents?: [string, string][]];
-async function lookup(event: string, kids: Child[], form = REG_FORM): Promise<Record<string, Row[]>> {
+async function lookup(event: string, kids: Child[], form: string): Promise<Record<string, Row[]>> {
   const xml = header(event) + kids.map(([cid, ac, parents = []]) =>
     `<Child Control_Id="${cid}" Report="HTML" AC_ID="${ac}">` +
     parents.map(([p, v]) => `<Parent Control_Id="${p}" Value="${xmlAttr(v)}" Data_Form_Id=""/>`).join("") + "</Child>",
@@ -248,163 +319,71 @@ const place = (rows: Row[] | undefined): Place | null => {
   const v = rows?.[0] ? Object.values(rows[0]) : [];
   return v[0] ? { id: v[0], name: v[1] ?? v[0] } : null;
 };
-const places = (rows: Row[] | undefined): Place[] =>
-  (rows ?? []).map((r) => Object.values(r)).filter((v) => v[0]).map((v) => ({ id: v[0], name: v[1] ?? v[0] }));
-
-/** "EUDD IV RAMPUR" ≈ "EUDD-4 RAMPUR", "Shanti Nagar Phase 2" ≈ "Shantinagar Phase-II": one spelling for matching. */
-export function placeKey(v: string): string {
-  const roman: Record<string, string> = { i: "1", ii: "2", iii: "3", iv: "4", v: "5", vi: "6", vii: "7", viii: "8", ix: "9", x: "10" };
-  return v.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").map((w) => roman[w] ?? w).join("");
-}
-
-// What form 6444 saves, in the page's order (every TO_BE_SAVED control except the Save button), with the
-// value the page holds when nothing filled it: "" for empty inputs and "--Select--" dropdowns, label defaults.
-const SAVED: [id: string, initial: string][] = [
-  ["59929", ""], ["141592", "OR"], ["59932", ""], ["59933", ""], ["59934", ""], ["59935", ""], ["59937", ""], ["59936", ""],
-  ["59944", ""], ["59945", ""], ["59930", "CT019"], ["59931", ""], ["95303", ""], ["147236", ""], ["147238", ""], ["147237", ""],
-  ["147239", ""], ["147241", ""], ["147240", ""], ["147242", ""], ["59941", ""], ["59942", ""], ["59943", ""], ["145779", ""],
-  ["143626", ""], ["143142", ""], ["130747", ""], ["59946", ""], ["90110", ""], ["59947", ""], ["59948", ""], ["59949", ""],
-  ["75039", "1912"], ["76574", ""], ["100098", ""], ["60033", "N"], ["96559", ""], ["60044", ""], ["60032", ""], ["60042", ""],
-  ["60043", ""], ["60034", "0"], ["85982", ""], ["85966", ""], ["90123", ""], ["90590", ""], ["95491", ""], ["95492", ""],
-  ["101422", ""], ["121175", ""], ["121236", ""], ["130595", ""],
-];
-// Mandatory on the page (it refuses to save without them); REMARKS is checked at save time.
-const REQUIRED: [id: string, what: string][] = [
-  ["59929", "district"], ["59932", "discom"], ["59933", "zone"], ["59934", "circle"], ["59935", "division"], ["59936", "sub-division"],
-  ["59937", "substation"], ["59944", "mobile number"], ["59931", "complaint type"], ["59941", "area type"], ["59942", "consumer name"],
-  ["60044", "1912 agent"], ["60032", "section"], ["60042", "JE's number"], ["60043", "JE's name"],
-];
-
-/**
- * Everything up to the Save button: look the account up on 1912 and fill what the page would.
- * `division` is the bill portal's ("EUDD IV RAMPUR"); `substationHint` any text naming the substation
- * (a past complaint's substation, the address) to pick one when UPPCL's record of the account has none.
- */
-/** 1912's districts, for filing on someone else's connection (the user picks theirs). */
-export async function listDistricts(): Promise<Place[]> {
-  if (sample()) return platform.mock!("complaints:districts") as Place[];
-  return places((await lookup("0", [["59929", "60180"]]))["59929"]);
-}
-
-/**
- * The account's 1912 district: the one the user picked, else the bill address's city ("GHAZIABAD"), else the
- * district named inside the division ("EUDD IV RAMPUR"; longest name wins, so "MAU" can't match "AZAMGARH MAU…").
- * The city isn't always the district (Noida's is Gautam Buddha Nagar): then the user picks it (listDistricts).
- */
-export function pickDistrict(all: Place[], input: { districtId?: string | null; city?: string | null; division?: string | null }): Place | undefined {
-  if (input.districtId) return all.find((d) => d.id === input.districtId);
-  const city = placeKey(input.city ?? "");
-  const exact = city ? all.find((d) => placeKey(d.name) === city) : undefined;
-  if (exact) return exact;
-  const div = placeKey(input.division ?? "");
-  return div ? all.filter((d) => placeKey(d.name).length >= 4 && div.includes(placeKey(d.name))).sort((a, b) => b.name.length - a.name.length)[0] : undefined;
-}
-
-export async function prepareSupplyComplaint(input: {
-  account: string; city: string | null; districtId?: string | null; division?: string | null; substationHint?: string | null;
-  problem: SupplyProblem; outage: "Individual" | "Area";
-}): Promise<SupplyDraft> {
+/** Everything up to the Save button, for a connection added to the signed-in 1912 number (is1912NotLinked if not). */
+export async function prepareSupplyComplaint(input: { account: string; problem: SupplyProblem; outage: "Individual" | "Area" }): Promise<SupplyDraft> {
   if (sample()) return { ...(platform.mock!("complaints:prepare") as SupplyDraft), problem: input.problem };
-  const c: Record<string, string> = Object.fromEntries(SAVED);
+  return prepare9212(input);
+}
+
+// ─── Signed-in "Register Complaint" (form 9212) ──────────────────────────────
+// Read from 1912's own page (GetControlsA + EventManagerV3.fnSaveData), driven by hand on a linked account, Oct 2026:
+// the page lists the number's linked accounts; "Select Account" fills district/substation/name/address from it;
+// the sub-type's change runs 1912's "can this be filed now?" check; Register saves the 28 controls below.
+const FORM_9212 = "9212";
+const SAVED_9212 = ["94160", "94158", "95914", "94162", "147223", "147225", "147226", "147228", "147227", "147229", "147224", "100149",
+  "94168", "148864", "100379", "148103", "94156", "100388", "94167", "94163", "94159", "94166", "95916", "95915", "149519", "95921", "145725", "147231"];
+const notLinked = () => new ProxyError(409, NOT_LINKED, undefined, "complaints");
+
+async function prepare9212(input: { account: string; problem: SupplyProblem; outage: "Individual" | "Area" }): Promise<SupplyDraft> {
+  const load = await lookup("0", [["142641", "198991"], ["145725", "201033"], ["95921", "88454"]], FORM_9212);
+  const row = (load["142641"] ?? []).find((r) => r.ACCOUNT_NO === input.account);
+  if (!row) throw notLinked();
+  const A: [string, string][] = [["142641.29434", row.DATAID ?? ""], ["142641.29429", row.LBL ?? ""]];
+  const ev = "142641.29431"; // the row's "Select Account"
+  const sel = await lookup(ev, [
+    ["94168", "194172", A], ["94157", "194173", A], ["94161", "194179", A], ["94159", "194174", A],
+    ["94167", "194177", A], ["94163", "194178", A], ["94166", "194175", A],
+    ["148864", "205219", A], ["148103", "204642", [A[1], A[0]]], ["149519", "205795", [A[0], A[0]]],
+  ], FORM_9212);
+  const substation = place(sel["94159"]);
   const sub = SUB_TYPE[input.problem];
-
-  const load = await lookup("0", [["59929", "60180"], ["96559", "89446"], ["75039", "99106"]]);
-  const district = pickDistrict(places(load["59929"]), input);
-  if (!district) throw new ProxyError(404, `1912 doesn't list the district "${input.city ?? "?"}"`, undefined, "complaints");
-  const P: [string, string][] = [["129225", input.account], ["59929", district.id]];
-  const [byDistrict, found] = await Promise.all([
-    lookup("59929", [["60044", "160216", [["59929", district.id]]], ["59932", "46474", [["59929", district.id]]]]),
-    lookup("129228", [["129229", "160687", P], ["129275", "159715", P]]),
-  ]);
-  const row = found["129229"]?.[0];
-  if (!row) throw new ProxyError(404, `1912 can't find this account in ${district.name}`, undefined, "complaints");
-
+  const c: Record<string, string> = Object.fromEntries(SAVED_9212.map((id) => [id, ""]));
   Object.assign(c, {
-    59929: district.id, 96559: first(load["96559"]), 75039: first(load["75039"]) || c[75039], 60044: first(byDistrict["60044"]),
-    59932: place(byDistrict["59932"])?.id ?? "",
-    59944: mobile10(first(found["129275"]) || row.MOBILE) ?? "", 59945: row.ACCOUNT_NO || input.account,
-    59930: "CT019", 59931: sub, 95303: input.problem === "no_power" ? input.outage : "", // low voltage hides "outage type"
-    59942: row.CONSUMER_NAME ?? "", 59946: row.ADDRESS ?? "", 90110: row.METER_NO ?? "", 145779: row.LOAD ?? "", 130595: row.SM_VENDOR_CODE ?? "",
+    94160: "CT019", 94158: sub, 95914: input.problem === "no_power" ? (input.outage === "Area" ? "Whole Area" : "Individual") : "",
+    100149: row.ACCOUNT_NO ?? input.account, 94168: place(sel["94168"])?.id ?? "", 94159: substation?.id ?? "",
+    94167: first(sel["94167"]) || row.CONSUMER_NAME || "", 94163: first(sel["94163"]) || input.account, 94166: first(sel["94166"]) || row.ADDRESS || "",
+    148864: first(sel["148864"]) || row.METER_NO || "", 148103: first(sel["148103"]) || row.SM_VENDOR || "", 149519: first(sel["149519"]),
+    145725: mobile10(first(load["145725"])) ?? "", 95921: first(load["95921"]),
   });
   const draft: SupplyDraft = {
-    problem: input.problem, outage: input.outage, account: c[59945], district,
-    name: c[59942] || null, mobile: c[59944] || null, substation: null, subdivision: null, divisions: [], substations: [], blocked: null, controls: c,
+    problem: input.problem, outage: input.outage, account: c[94163], district: place(sel["94168"]) ?? { id: c[94168], name: "" },
+    name: c[94167] || null, mobile: c[145725] || null, substation: substation?.name ?? null, subdivision: place(sel["94161"])?.name ?? null,
+    blocked: null, controls: c, form: FORM_9212,
   };
-
-  if (row.SUBSTATION_CODE && row.DIVISION_CODE) {
-    // The account is mapped: the page's "select account" fills the whole area from it.
-    // ponytail: written from the page's events, not seen live (the test account isn't mapped).
-    const G: [string, string][] = [["129229.25463", row.DIVISION_CODE], ["129229.25464", row.SUBSTATION_CODE]];
-    const S: [string, string][] = [["129229.25464", row.SUBSTATION_CODE]];
-    const a = await lookup("129229.25384", [
-      ["59932", "208361", G], ["59933", "208362", G], ["59934", "208363", G], ["59935", "208364", G], ["59936", "208365", G], ["59937", "208366", G],
-      ["60043", "160704", S], ["60042", "160705", S], ["60032", "160706", S], ["60033", "160707", S], ["59941", "173171", S],
-    ]);
-    const area = { 59932: place(a["59932"]), 59933: place(a["59933"]), 59934: place(a["59934"]), 59935: place(a["59935"]), 59936: place(a["59936"]), 59937: place(a["59937"]) };
-    for (const [id, p] of Object.entries(area)) if (p) c[id] = p.id;
-    for (const id of ["60043", "60042", "60032", "60033", "59941"]) c[id] = first(a[id]) || c[id];
-    draft.substation = area[59937]?.name ?? null;
-    draft.subdivision = area[59936]?.name ?? null;
-    return validate(draft);
-  }
-
-  // Not mapped (seen live on a smart postpaid account): pick the area the way a person would on the page,
-  // division (matched to the bill portal's) → circle, zone, sub-divisions → their substations.
-  const lists = await lookup("59929", [["59935", "46477", [["59929", district.id]]]]);
-  const divisions = places(lists["59935"]);
-  const division = divisions.find((d) => input.division && placeKey(d.name) === placeKey(input.division));
-  // Someone else's connection (or an unknown spelling): the user picks the division, then the substation.
-  if (!division) return { ...draft, divisions };
-  return withDivision(draft, division.id, input.substationHint);
+  if (!c[94159]) return { ...draft, blocked: "1912 has no substation for this connection" };
+  return check9212(draft);
 }
 
-/** The user's division (one of draft.divisions): lists its substations to pick from. */
-export async function chooseDivision(draft: SupplyDraft, divisionId: string): Promise<SupplyDraft> {
-  return withDivision(draft, divisionId, null);
+/** Picking the sub-type runs 1912's checks: its codes, and "0" = can be filed now (else why not, e.g. one is already open). */
+async function check9212(draft: SupplyDraft): Promise<SupplyDraft> {
+  const c = { ...draft.controls };
+  const S: [string, string][] = [["94158", c[94158]]];
+  const v = await lookup("94158", [
+    ["95916", "88434", S], ["95915", "93715", S], ["147231", "203020", S],
+    ["151602", "210455", [["94158", c[94158]], ["145725", c[145725]], ["94159", c[94159]], ["94163", c[94163]]]],
+    ["151601", "210456", [["94163", c[94163]], ["94159", c[94159]], ["145725", c[145725]], ["94158", c[94158]]]],
+  ], FORM_9212);
+  Object.assign(c, { 95916: first(v["95916"]) || c[94158], 95915: first(v["95915"]), 147231: first(v["147231"]) || "0" });
+  const ok = (first(v["151602"]) || "0") === "0";
+  return { ...draft, controls: c, blocked: ok ? null : first(v["151601"]) || "1912 won't take this complaint right now" };
 }
 
-async function withDivision(draft: SupplyDraft, divisionId: string, substationHint: string | null | undefined): Promise<SupplyDraft> {
-  const dv = await lookup("59935", [["59934", "47159", [["59935", divisionId]]], ["59933", "47160", [["59935", divisionId]]], ["59936", "46479", [["59935", divisionId]]]]);
-  const c = { ...draft.controls, 59935: divisionId, 59934: place(dv["59934"])?.id ?? "", 59933: place(dv["59933"])?.id ?? "" };
-  const subdivisions = places(dv["59936"]);
-  const lists2 = await Promise.all(subdivisions.map((s) => lookup("59936", [["59937", "46480", [["59936", s.id]]]])));
-  const next: SupplyDraft = { ...draft, controls: c, divisions: [], substation: null, subdivision: null,
-    substations: lists2.flatMap((l, i) => places(l["59937"]).map((p) => ({ ...p, subdivision: subdivisions[i] }))) };
-  const hint = placeKey(substationHint ?? "");
-  const pick = hint ? next.substations.find((s) => hint.includes(placeKey(s.name)) || placeKey(s.name) === hint) : undefined;
-  return pick ? chooseSubstation(next, pick.id) : next;
-}
-
-/** A second number the engineer can call (1912's "alternate mobile"); not checked, no OTP. */
-export function withContact(draft: SupplyDraft, mobile: string | null, who: "Myself" | "Family" | "Others"): SupplyDraft {
-  const m = mobile10(mobile);
-  return { ...draft, controls: { ...draft.controls, 143142: m ?? "", 143626: m ? who : "" } };
-}
-
-/** The user's substation (one of draft.substations): fills the JE, section and agent the page does, then validates. */
-export async function chooseSubstation(draft: SupplyDraft, substationId: string): Promise<SupplyDraft> {
-  const s = draft.substations.find((x) => x.id === substationId);
-  if (!s) throw new ProxyError(400, "Not one of this division's substations", undefined, "app", "app");
-  const S: [string, string][] = [["59937", s.id]];
-  const a = await lookup("59937", [
-    ["60034", "46509", S], ["60032", "46511", S], ["60033", "46518", S], ["60042", "46513", S], ["60043", "46514", S], ["60044", "46521", S], ["59941", "85045", S],
-  ]);
-  const c: Record<string, string> = { ...draft.controls, 59937: s.id, 59936: s.subdivision.id };
-  for (const id of ["60034", "60032", "60033", "60042", "60043", "60044", "59941"]) c[id] = first(a[id]) || c[id];
-  return validate({ ...draft, controls: c, substation: s.name, subdivision: s.subdivision.name });
-}
-
-/** The page's "validate" step: UPPCL says 0 to allow a save, else why not (seen: 0, empty message). */
-async function validate(draft: SupplyDraft): Promise<SupplyDraft> {
-  const c = draft.controls;
-  const missing = REQUIRED.filter(([id]) => !c[id]).map(([, what]) => what);
-  if (missing.length) return { ...draft, blocked: `1912 has no ${missing.join(", ")} for this account` };
-  const v = await lookup("151533", [
-    ["151532", "210295", [["59944", c[59944]], ["59945", c[59945]], ["59931", c[59931]], ["59937", c[59937]]]],
-    ["151534", "210296", [["59937", c[59937]], ["59944", c[59944]], ["59945", c[59945]], ["59931", c[59931]]]],
-  ]);
-  const ok = first(v["151532"]) === "0";
-  return { ...draft, blocked: ok ? null : first(v["151534"]) || "1912 won't take this complaint right now" };
+/** The XML 9212's Register sends (EventManagerV3 fnSaveData), as the signed-in user. Pure, so it can be checked. */
+export function save9212Xml(draft: SupplyDraft, remarks: string, who: { login: string; role: string }, now = new Date()): string {
+  const values: Record<string, string> = { ...draft.controls, 94162: cleanRemarks(remarks) };
+  return `<?xml version="1.0"?><FORM IUVLOGINID="${xmlAttr(who.login)}" USERID="${xmlAttr(who.login)}" ROLE_ID="${who.role}" ID="${FORM_9212}" COMPANY_ID="${COMPANY_ID}" EventControlID="94164" SRC="W">` +
+    `<DATA DATE="${saveDate(now)}"><UNIQUEID VALUE="${uniqueId(now)}"/><LATITUDE VALUE="" /><LONGITUDE VALUE="" />` +
+    SAVED_9212.map((id) => `<CONTROL ID="${id}" VALUE="${xmlAttr(values[id] ?? "")}" />`).join("") + "</DATA></FORM>";
 }
 
 /** The remarks field refuses < > , $ | ' " (its own regex); keep the words, drop those. */
@@ -413,16 +392,9 @@ export const cleanRemarks = (text: string) => text.replace(/[<>,$|'"]/g, " ").re
 const MONTHS3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const pad = (n: number) => String(n).padStart(2, "0");
 const hex4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-
-/** The exact XML the page's Save sends (EventManagerV3 fnSaveData). Pure, so it can be checked. */
-export function supplySaveXml(draft: SupplyDraft, remarks: string, now = new Date()): string {
-  const date = `${pad(now.getDate())}-${MONTHS3[now.getMonth()]}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const unique = [now.getFullYear(), now.getMonth() + 1, now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds()].reduce((u, n) => u + n + hex4(), hex4());
-  const values: Record<string, string> = { ...draft.controls, 59949: cleanRemarks(remarks) };
-  return `<?xml version="1.0"?><FORM IUVLOGINID="anonymous" USERID="anonymous" ROLE_ID="${ROLE_ID}" ID="${REG_FORM}" COMPANY_ID="${COMPANY_ID}" EventControlID="59950" SRC="W">` +
-    `<DATA DATE="${date}"><UNIQUEID VALUE="${unique}"/><LATITUDE VALUE="" /><LONGITUDE VALUE="" />` +
-    SAVED.map(([id, initial]) => `<CONTROL ID="${id}" VALUE="${xmlAttr(values[id] ?? initial)}" />`).join("") + "</DATA></FORM>";
-}
+/** "01-Oct-2026 21:05:09" and the page's GetUniqueID, as fnSaveData stamps every save. */
+const saveDate = (now: Date) => `${pad(now.getDate())}-${MONTHS3[now.getMonth()]}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+const uniqueId = (now: Date) => [now.getFullYear(), now.getMonth() + 1, now.getDate(), now.getHours(), now.getMinutes(), now.getSeconds()].reduce((u, n) => u + n + hex4(), hex4());
 
 /** "…Your Complaint No. is MV01012612345" → "MV01012612345". */
 export function complaintNoIn(text: string): string | null {
@@ -437,24 +409,30 @@ export async function fileSupplyComplaint(draft: SupplyDraft, remarks: string): 
   if (sample()) return platform.mock!("complaints:file") as { ok: boolean; complaintNo: string | null; message: string };
   if (draft.blocked) return { ok: false, complaintNo: null, message: draft.blocked };
   if (!cleanRemarks(remarks)) return { ok: false, complaintNo: null, message: "Say what's wrong in a few words" };
-  await ensureSession(true, REG_FORM); // the page saves from its own form's session
+  if (FILING_OFF) throw filingPaused();
   refuseSample(); // belt and braces: the one call that creates a real ticket
+  const a = auth();
+  if (!a) throw needLogin();
+  if (draft.form !== FORM_9212) throw notLinked(); // the anonymous form (6444) no longer files
+  // The screens set "who's affected" on the old form's id (95303); 9212 names it 95914, "Whole Area" for an area.
+  const outage = draft.controls[95303];
+  const d = outage && draft.problem === "no_power" ? { ...draft, controls: { ...draft.controls, 95914: outage === "Area" ? "Whole Area" : "Individual" } } : draft;
   const r = await send("complaints", "api/AppsavyServices/UploadSurveyDataNewA", {
-    method: "POST", cache: "no-store", headers: apiHeaders(REG_FORM),
-    body: JSON.stringify({ xmlString: b64(supplySaveXml(draft, remarks)), EventControlID: "59950", DocVersion: 1 }),
+    method: "POST", cache: "no-store", headers: apiHeaders(FORM_9212, a),
+    body: JSON.stringify({ xmlString: b64(save9212Xml(d, remarks, a)), EventControlID: "94164", DocVersion: 1 }),
   });
   if (!r.ok) throw new ProxyError(r.status, `1912 portal: HTTP ${r.status}`, undefined, "complaints");
   const raw = await r.text();
   const ok = /<RESULT>\s*1\s*<\/RESULT>/i.test(raw);
   const message = unxml(/<RESULTMESSAGE>([\s\S]*?)<\/RESULTMESSAGE>/i.exec(raw)?.[1]?.trim() ?? "");
   if (!ok) return { ok: false, complaintNo: null, message: message || "1912 didn't take the complaint" };
-  // The page then opens "Registration Status" (form 8165), whose message names the number, looked up by mobile.
+  // The number is usually in the message; else it's the newest pending one on this number (Complaint Status).
   let complaintNo = complaintNoIn(message);
-  if (!complaintNo && draft.controls[59944]) {
+  if (!complaintNo) {
     try {
-      const s = await lookup("0", [["83611", "68430", [["83612", draft.controls[59944]]]]], "8165");
-      complaintNo = complaintNoIn(first(s["83611"]));
-    } catch { /* the Complaints tab lists it by phone anyway */ }
+      const at = (r: Row) => parseUppclDate(r.REG_DATE)?.getTime() ?? 0;
+      complaintNo = (await listOf("CP")).sort((x, y) => at(y) - at(x))[0]?.COMP_NO ?? null;
+    } catch { /* the Complaints tab lists it anyway */ }
   }
   return { ok: true, complaintNo, message };
 }

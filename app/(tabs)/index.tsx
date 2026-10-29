@@ -14,7 +14,7 @@ import { Bars } from "../../src/Bars";
 import { saveSnapshot } from "../../src/widget";
 import { HELPLINE_TEL, openFor } from "@shared/complaints";
 import { getBudget } from "../../src/alerts";
-import { JUST_PAID_KEY, keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
+import { FINGERPRINT_KEY, JUST_PAID_KEY, keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
 import { UpdateCard } from "../../src/github";
 import { ReportSheet } from "../../src/report";
 
@@ -78,7 +78,7 @@ function ComplaintStatus() {
   const c = useColors();
   const { t, span, ago } = useI18n();
   const { data: me } = useMe();
-  const { data } = useMyComplaints(me?.data?.[0]?.phone);
+  const { data } = useMyComplaints();
   const list = data?.complaints ?? [];
   const open = list.find((x) => x.is_open);
   const fixed = !open ? list.find((x) => { const at = parseUppclDate(x.closing_date)?.getTime(); return at && Date.now() - at < 24 * 3600_000; }) : undefined;
@@ -271,10 +271,14 @@ function Prepaid({ data }: { data: DashboardResponse }) {
   const urgent = shownDays !== null && shownDays <= 2;
   useEffect(() => {
     if (days === null) return;
+    const tone = Math.floor(days) <= 2 ? "critical" : Math.floor(days) <= 3 ? "warn" : "ok";
+    // Colour never alone: the word says it too.
+    const status = t(tone === "critical" ? "widget_recharge_now" : tone === "warn" ? "widget_recharge_soon" : "widget_balance_ok");
+    const balance = t("balance_only", { balance: rupees(data.balance.inr, { decimals: 0 }) });
     saveSnapshot({
       label: t("balance_lasts"), big: String(Math.floor(days)), unit: Math.floor(days) === 1 ? t("day") : t("days"),
-      line: t("balance_only", { balance: rupees(data.balance.inr, { decimals: 0 }) }),
-      tone: Math.floor(days) <= 2 ? "critical" : Math.floor(days) <= 3 ? "warn" : "ok", updated: new Date().toISOString(), lang,
+      line: tone === "ok" ? balance : `${status} · ${balance}`, status, pay: tone !== "ok",
+      tone, updated: new Date().toISOString(), lang, locked: keystore.getItem(FINGERPRINT_KEY) === "1",
     });
   }, [days, data.balance.inr, lang, t]);
   const perDay = Math.round(data.runway.avg_daily_spend);
@@ -409,12 +413,19 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     : { text: t("last_bill_due", { month: billMonth, amount: rupees(d.lastBillAmt, { decimals: 0 }), date: new Date(inv.due_dt).toLocaleDateString(locale, { day: "numeric", month: "short" }) }), chip: t("month_unpaid", { month: billMonth }), tone: overdue ? ("critical" as const) : ("warn" as const) };
 
   useEffect(() => {
+    // One answer per state; `status` is the same answer without money (shown instead when the app lock is on).
+    const base = { unit: "", updated: new Date().toISOString(), lang, locked: keystore.getItem(FINGERPRINT_KEY) === "1" };
+    const due = inv ? parseUppclDate(inv.due_dt)?.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" }) : null;
     saveSnapshot(hasDues
-      ? { label: t("amount_due"), big: `₹${rupees(d.outstandingAmt, { decimals: 0 })}`, unit: "", line: billStatus?.text ?? "", tone: overdue ? "critical" : "warn", updated: new Date().toISOString(), lang }
+      ? { ...base, label: t("amount_due"), big: `₹${rupees(d.outstandingAmt, { decimals: 0 })}`, pay: true, tone: overdue ? "critical" : "warn",
+          line: due ? t(overdue ? "overdue_since" : "widget_due_by", { date: due }) : "", status: t(overdue ? "widget_status_overdue" : "widget_status_due") }
       : d.pendingBill
-        ? { label: t("bill_on_way", { month: month(d.pendingBill.month) }), big: `₹${rupees(d.pendingBill.amount, { decimals: 0 })}`, unit: "", line: t("bill_expected", { next: thisMonth }), tone: "ok", updated: new Date().toISOString(), lang }
-        : { label: t("month_so_far", { month: thisMonth }), big: `₹${rupees(d.cycleKwh * d.effectiveRate, { decimals: 0 })}`, unit: "", line: billStatus?.text ?? t("not_billed", { next: nextMonth }), tone: "ok", updated: new Date().toISOString(), lang });
-  }, [hasDues, d.outstandingAmt, d.cycleKwh, d.effectiveRate, d.pendingBill?.amount, billStatus?.text, overdue, thisMonth, nextMonth, lang, t]);
+        ? { ...base, label: t("bill_on_way", { month: month(d.pendingBill.month) }), big: `₹${rupees(d.pendingBill.amount, { decimals: 0 })}`, line: t("bill_expected", { next: thisMonth }), tone: "ok", status: t("widget_status_on_way") }
+        // Nothing due: this month's running cost, like Home; a paid last bill rides along as the line.
+        : { ...base, label: t("month_so_far", { month: thisMonth }), big: `₹${rupees(d.cycleKwh * d.effectiveRate, { decimals: 0 })}`, tone: "ok",
+            line: billStatus?.tone === "ok" && billMonth ? t("widget_month_paid", { month: billMonth }) : t("not_billed", { next: nextMonth }),
+            status: billStatus?.tone === "ok" ? t("widget_paid") : t("widget_status_running") });
+  }, [hasDues, d.outstandingAmt, d.cycleKwh, d.effectiveRate, d.pendingBill?.amount, billStatus?.tone, billMonth, inv?.due_dt, overdue, thisMonth, nextMonth, lang, locale, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function download() {
     if (!inv) return;

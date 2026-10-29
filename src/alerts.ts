@@ -19,7 +19,7 @@ import { isAuthenticated } from "@shared/session";
 import { billingPeriod, daysBetween, rupees } from "@shared/utils";
 import en from "../messages/en.json";
 import hi from "../messages/hi.json";
-import { keystore } from "./boot";
+import { FINGERPRINT_KEY, keystore } from "./boot";
 import { saveSnapshot } from "./widget";
 
 const TASK = "uppcl-pro-alerts";
@@ -146,10 +146,13 @@ export async function checkAlerts(now: number = Date.now()): Promise<void> {
     }
     // Keep the widget fresh while the app is closed.
     if (days !== null) {
+      const tone = Math.floor(days) <= 2 ? "critical" : Math.floor(days) <= ALERT_DAYS ? "warn" : "ok";
+      const status = tone === "critical" ? s.widget_recharge_now : tone === "warn" ? s.widget_recharge_soon : s.widget_balance_ok;
+      const balance = fill(s.balance_only, { balance: rupees(data.balance.inr, { decimals: 0 }) });
       saveSnapshot({
         label: s.balance_lasts, big: String(Math.floor(days)), unit: Math.floor(days) === 1 ? s.day : s.days,
-        line: fill(s.balance_only, { balance: rupees(data.balance.inr, { decimals: 0 }) }),
-        tone: Math.floor(days) <= 2 ? "critical" : Math.floor(days) <= ALERT_DAYS ? "warn" : "ok", updated: new Date(now).toISOString(), lang: s.lang,
+        line: tone === "ok" ? balance : `${status} · ${balance}`, status, pay: tone !== "ok",
+        tone, updated: new Date(now).toISOString(), lang: s.lang, locked: keystore.getItem(FINGERPRINT_KEY) === "1",
       });
     }
   }

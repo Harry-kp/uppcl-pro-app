@@ -9,17 +9,19 @@ mock.module("expo-secure-store", () => ({
   deleteItemAsync: async (k: string) => void store.delete(k),
 }));
 
-mock.module("react-native", () => ({ Linking: { openURL: async () => {} } }));
+mock.module("react-native", () => ({ Linking: { openURL: async () => {} }, Platform: { OS: "android", Version: 28 } }));
 mock.module("expo-router", () => ({ router: { push: () => {} } }));
+mock.module("react-native-android-widget", () => ({ FlexWidget: () => null, TextWidget: () => null, requestWidgetUpdate: async () => {} }));
+mock.module("expo-file-system", () => ({ File: class { exists = false; write() {} textSync() { return ""; } delete() {} }, Paths: { document: "" } }));
 
 import { ProxyError, type DashboardResponse } from "@shared/api";
 import { onTimeSaving, payAmountError, paymentRef, type PayBillHome } from "@shared/payment";
-import { newVaultKey, openJson, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
+import { newVaultKey, openJson, rsaOaepEncrypt, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { billRebate, busiestHours, withPaymentsFeed, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
-const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, pickDistrict, placeKey, sourceKind, supplySaveXml, withContact } = await import("@shared/complaints");
+const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -257,6 +259,22 @@ describe("1912 complaint fields (as UPPCL sends them)", () => {
     expect(openFor(closed)).toBe((3 * 60 + 21) * 60_000 + 48_000);
     const open = { entry_date: "30/09/2026 10:00:00 PM", closing_date: null, is_open: true };
     expect(openFor(open, new Date(2026, 9, 1, 1, 0, 0).getTime())).toBe(3 * 3600_000);
+    // The signed-in list gives dates only ("19-May-2026"): no "fixed in 0 min".
+    expect(openFor({ entry_date: "19-May-2026", closing_date: "19-May-2026", is_open: false })).toBeNull();
+  });
+});
+
+describe("1912 sign-in payload (RSA-OAEP, SHA-256)", () => {
+  test("the server's private key opens what the app sealed, Hindi included", async () => {
+    const { generateKeyPairSync, privateDecrypt, constants } = await import("node:crypto");
+    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const spki = (publicKey.export({ type: "spki", format: "der" }) as Buffer).toString("base64");
+    const msg = "9000000001|com.mobi.UPPCLConsumer|नमस्ते|1761300000";
+    const sealed = rsaOaepEncrypt(spki, msg);
+    expect(Buffer.from(sealed, "base64").length).toBe(256);
+    const opened = privateDecrypt({ key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, Buffer.from(sealed, "base64"));
+    expect(opened.toString("utf8")).toBe(msg);
+    expect(rsaOaepEncrypt(spki, msg)).not.toBe(sealed); // random seed: never the same twice
   });
 });
 
@@ -302,38 +320,39 @@ describe("billRebate", () => {
   });
 });
 
-describe("1912 supply complaint (form 6444)", () => {
+describe("1912 supply complaint (signed-in form 9212)", () => {
   // Made-up values only.
+  const controls: Record<string, string> = { 94160: "CT019", 94158: "CST120", 95914: "Individual", 94163: "1234567890", 94159: "1001",
+    94167: "Test User", 94166: "A-1, Test Nagar & Co", 145725: "9000000000", 95916: "CST120", 95915: "Y", 147231: "0" };
   const draft = {
     problem: "no_power" as const, outage: "Individual" as const, account: "1234567890", district: { id: "1001", name: "TESTPUR" },
-    name: "Test User", mobile: "9000000000", substation: "Test SS", subdivision: "Test SD", substations: [], blocked: null,
-    controls: { 59929: "1001", 59944: "9000000000", 59945: "1234567890", 59930: "CT019", 59931: "CST120", 95303: "Individual", 59942: "Test User", 59946: "A-1, Test Nagar & Co" } as Record<string, string>,
+    name: "Test User", mobile: "9000000000", substation: "Test SS", subdivision: "Test SD", divisions: [], substations: [], blocked: null, controls, form: "9212",
   };
-  const xml = supplySaveXml(draft, `No supply since 9 pm, <b>"pole" | $ 'fuse'`, new Date(2026, 9, 1, 21, 5, 9));
+  const who = { login: "9000000000", role: "1450" };
+  const xml = save9212Xml(draft, `No supply since 9 pm, <b>"pole" | $ 'fuse'`, who, new Date(2026, 9, 1, 21, 5, 9));
 
-  test("the page's FORM envelope, date and save event", () => {
-    expect(xml.startsWith('<?xml version="1.0"?><FORM IUVLOGINID="anonymous" USERID="anonymous" ROLE_ID="883" ID="6444" COMPANY_ID="64" EventControlID="59950" SRC="W">')).toBe(true);
+  test("the page's FORM envelope, as the signed-in user, date and Register event", () => {
+    expect(xml.startsWith('<?xml version="1.0"?><FORM IUVLOGINID="9000000000" USERID="9000000000" ROLE_ID="1450" ID="9212" COMPANY_ID="64" EventControlID="94164" SRC="W">')).toBe(true);
     expect(xml).toContain('<DATA DATE="01-Oct-2026 21:05:09"><UNIQUEID VALUE="');
     expect(xml.endsWith("</DATA></FORM>")).toBe(true);
-    expect(xml).not.toContain('CONTROL ID="59950"'); // the Save button itself isn't data
+    expect(xml).not.toContain('CONTROL ID="94164"'); // the button itself isn't data
   });
-  test("every saved control is there once, with its value", () => {
-    for (const id of ["59929", "59932", "59937", "59944", "59945", "59931", "59942", "59949", "60043", "96559", "130595"])
-      expect(xml.split(`<CONTROL ID="${id}" `).length).toBe(2);
-    expect(xml).toContain('<CONTROL ID="59931" VALUE="CST120" />');
-    expect(xml).toContain('<CONTROL ID="141592" VALUE="OR" />'); // label default, as the page sends it
-    expect(xml).toContain('<CONTROL ID="59946" VALUE="A-1, Test Nagar &amp; Co" />'); // XML-escaped
+  test("all 28 saved controls, once each, with values", () => {
+    expect(xml.split("<CONTROL ID=").length - 1).toBe(28);
+    for (const id of ["94160", "94158", "95914", "94162", "94163", "94159", "94166", "145725"]) expect(xml.split(`<CONTROL ID="${id}" `).length).toBe(2);
+    expect(xml).toContain('<CONTROL ID="94158" VALUE="CST120" />');
+    expect(xml).toContain('<CONTROL ID="94166" VALUE="A-1, Test Nagar &amp; Co" />'); // XML-escaped
   });
   test("remarks lose the characters 1912 refuses; Hindi is kept as entities", () => {
     expect(cleanRemarks(`No supply since 9 pm, <b>"pole" | $ 'fuse'`)).toBe("No supply since 9 pm b pole fuse");
-    expect(xml).toContain('<CONTROL ID="59949" VALUE="No supply since 9 pm b pole fuse" />');
-    expect(supplySaveXml(draft, "बिजली नहीं")).toContain('VALUE="&#2348;&#2367;');
-    expect(supplySaveXml(draft, "बिजली नहीं")).toMatch(/^[\x20-\x7e]*$/); // ASCII on the wire
+    expect(xml).toContain('<CONTROL ID="94162" VALUE="No supply since 9 pm b pole fuse" />');
+    expect(save9212Xml(draft, "बिजली नहीं", who)).toContain('VALUE="&#2348;&#2367;');
+    expect(save9212Xml(draft, "बिजली नहीं", who)).toMatch(/^[\x20-\x7e]*$/); // ASCII on the wire
   });
-  test("place names match across UPPCL's spellings", () => {
-    expect(placeKey("EUDD IV RAMPUR")).toBe(placeKey("EUDD-4 RAMPUR"));
-    expect(placeKey("Test Nagar Phase 2")).toBe(placeKey("Test nagar Phase-II"));
-    expect(placeKey("EUDD-1 RAMPUR")).not.toBe(placeKey("EUDD-4 RAMPUR"));
+  test("SMS for someone else's connection: their account, no discom guessed", async () => {
+    const { noPowerSms } = await import("@shared/complaints");
+    expect(noPowerSms({ connectionId: "1234567890" })).toBe("NO POWER 1234567890");
+    expect(noPowerSms({ connectionId: "1234567890", tenantId: "pvvnl" })).toBe("NO POWER 1234567890 PVVNL");
   });
   test("complaint number from 1912's message", () => {
     expect(complaintNoIn("Your complaint for SUPPLY RELATED has been registered successfully. Your Complaint No. is MV01012600001")).toBe("MV01012600001");
@@ -349,35 +368,17 @@ describe("1912 supply complaint (form 6444)", () => {
   });
 });
 
-describe("pickDistrict", () => {
-  const all = [{ id: "1", name: "RAMPUR" }, { id: "2", name: "GAUTAM BUDDHA NAGAR" }, { id: "3", name: "MAU" }, { id: "4", name: "AZAMGARH" }];
-  test("picked by the user wins", () => expect(pickDistrict(all, { districtId: "3", city: "RAMPUR" })?.id).toBe("3"));
-  test("bill address city", () => expect(pickDistrict(all, { city: "Rampur" })?.id).toBe("1"));
-  test("city isn't a district: the district inside the division", () =>
-    expect(pickDistrict(all, { city: "NOIDA", division: "EUDD II GAUTAM BUDDHA NAGAR" })?.id).toBe("2"));
-  test("nothing matches: undefined (the user picks)", () => expect(pickDistrict(all, { city: "NOIDA", division: "EDD X" })).toBeUndefined());
-});
-
-describe("withContact", () => {
-  const d = { controls: { 59944: "9000000000" } } as never;
-  test("a valid second number is saved with who it belongs to", () =>
-    expect((withContact(d, "+91 90000 00001", "Family") as { controls: Record<string, string> }).controls).toMatchObject({ 143142: "9000000001", 143626: "Family" }));
-  test("not a mobile number: nothing saved", () =>
-    expect((withContact(d, "12345", "Others") as { controls: Record<string, string> }).controls).toMatchObject({ 143142: "", 143626: "" }));
-});
-
 describe("demo mode never reaches UPPCL", () => {
   test("signed in, complaint 'filed' locally, 1912 refused", async () => {
     const { configurePlatform } = await import("@shared/platform");
-    const { fileSupplyComplaint, listDistricts, prepareSupplyComplaint } = await import("@shared/complaints");
+    const { fileSupplyComplaint, prepareSupplyComplaint } = await import("@shared/complaints");
     const calls: string[] = [];
     configurePlatform({ mock: (k) => mockFor(k, { outcome: "success" }), request: async (u, p) => { calls.push(`${u}:${p}`); throw new Error("network used"); } });
     setScenario(DEMO);
     expect((mockFor("/health", { outcome: "success" }) as { authenticated: boolean }).authenticated).toBe(true);
-    const draft = await prepareSupplyComplaint({ account: "1234567890", city: null, problem: "no_power", outage: "Individual" });
+    const draft = await prepareSupplyComplaint({ account: "1234567890", problem: "no_power", outage: "Individual" });
     expect(draft.substation).toBeTruthy();
     expect((await fileSupplyComplaint(draft, "No power")).complaintNo).toBe("SAMPLE-0001");
-    expect((await listDistricts()).length).toBeGreaterThan(0);
     const { primarySite } = await import("@shared/api");
     expect((await primarySite()).connectionId).toBeTruthy(); // payments / PDFs start here
     expect(calls).toEqual([]); // nothing went to the network
@@ -432,5 +433,26 @@ describe("withPaymentsFeed (bill record lags the payments feed)", () => {
     expect(withPaymentsFeed(bills, [{ payment_dt: "2026-10-07T00:00:00", amt: "149" }])[0].payment_dt).toBe("");
     expect(withPaymentsFeed(bills, [])[0].payment_dt).toBe("");
     expect(withPaymentsFeed(bills, [])[1].payment_amt).toBe("1597");
+  });
+});
+
+describe("home-screen widget: what it may show", async () => {
+  const { shown } = await import("../src/widget");
+  const now = new Date(2026, 9, 28, 12).getTime();
+  const due = { label: "Amount due", big: "₹1,485", unit: "", line: "by Thu, 30 Oct", tone: "warn" as const, lang: "en" as const,
+    status: "Bill due", pay: true, updated: new Date(now - 3600_000).toISOString() };
+  test("fresh: the amount and the Pay button", () => {
+    expect(shown(due, now)).toMatchObject({ big: "₹1,485", line: "by Thu, 30 Oct", muted: false, pay: true });
+  });
+  test("over a day old: greyed, 'tap to refresh', no Pay (no paying twice off old data)", () => {
+    expect(shown({ ...due, updated: new Date(now - 30 * 3600_000).toISOString() }, now)).toMatchObject({ big: "₹1,485", line: "Tap to refresh", muted: true, pay: false });
+  });
+  test("over three days: no number at all", () => {
+    expect(shown({ ...due, updated: new Date(now - 4 * 86_400_000).toISOString() }, now)).toMatchObject({ big: "Open to update", wordy: true, pay: false });
+  });
+  test("app lock on: a word, never an amount", () => {
+    const s = shown({ ...due, locked: true }, now);
+    expect(s.big).toBe("Bill due");
+    expect(JSON.stringify(s)).not.toContain("₹");
   });
 });

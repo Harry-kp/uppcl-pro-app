@@ -5,14 +5,15 @@
  * signed-in account only. Everything else (low voltage, one phase, sparking, someone else's connection, a
  * second number) is the full form, app/report.tsx, behind "Something else?".
  *
- * Filing uses 1912's own anonymous web form (no OTP for supply complaints), only on the user's tap.
+ * Filing goes through 1912's signed-in "Register Complaint" (OTP sign-in, and the connection added to that
+ * number on 1912 once; cantFileKey says which is missing). Only ever on the user's tap.
  * Danger is always a call. When filing can't go through, SMS / WhatsApp / call are offered instead.
  */
 import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
-import { fileSupplyComplaint, HELPLINE_TEL, is1912LoginOnly, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { fileSupplyComplaint, HELPLINE_TEL, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
@@ -25,10 +26,6 @@ export type Problem = "no_power" | "voltage" | "phase" | "danger";
 /** The signed-in account's complaint, prepared with 1912 while `active` (substation matched from the
  *  account, a past complaint or the bill address). */
 export function useOwnDraft(data: DashboardResponse | undefined, supply: Exclude<Problem, "danger"> | null, active: boolean) {
-  const { data: me } = useMe();
-  const { data: complaints } = useMyComplaints(me?.data?.[0]?.phone);
-  const { data: consumer } = useWssConsumer();
-  const cd = consumer?.ConsumerDetails;
   const [draft, setDraft] = useState<SupplyDraft | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
@@ -37,13 +34,10 @@ export function useOwnDraft(data: DashboardResponse | undefined, supply: Exclude
     if (!active || !supply || !account) return;
     let live = true;
     setDraft(null); setError(null);
-    prepareSupplyComplaint({
-      account, city: cd?.premiseAddress?.city || cd?.billingAddresss?.city || null, division: cd?.division ?? null,
-      substationHint: complaints?.complaints.find((x) => x.substation)?.substation ?? cd?.currentAddress ?? null,
-      problem: supply === "voltage" ? "voltage" : "no_power", outage: "Individual",
-    }).then((d) => live && setDraft(d), (e) => live && setError(e));
+    prepareSupplyComplaint({ account, problem: supply === "voltage" ? "voltage" : "no_power", outage: "Individual" })
+      .then((d) => live && setDraft(d), (e) => live && setError(e));
     return () => { live = false; };
-  }, [active, supply, account, cd?.division, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, supply, account, attempt]);
   return { draft, setDraft, error, retry: () => setAttempt((n) => n + 1) };
 }
 
@@ -64,20 +58,35 @@ export function Filed({ complaintNo, place, onTrack }: { complaintNo: string | n
 }
 
 /** When in-app filing can't: the user-sent channels (SMS, the discom's WhatsApp, a call). */
-export function ReportFallback({ data, problem, onDone }: { data: DashboardResponse; problem: Problem; onDone?: () => void }) {
+/** Why the app can't file at all (the user-sent channels are then the only way), as a message key; null = a real error. */
+export function cantFileKey(e: unknown): "rp_filing_paused" | "rp_1912_login" | "rp_1912_link" | null {
+  return !e ? null : is1912FilingPaused(e) ? "rp_filing_paused" : is1912LoginOnly(e) ? "rp_1912_login" : is1912NotLinked(e) ? "rp_1912_link" : null;
+}
+
+/**
+ * The user-sent channels. `only`: the app can't file at all, so these ARE the way (no "other ways" caption,
+ * the first is primary). `account`: someone else's connection (their number in the texts, no discom guessed).
+ * The SMS keyword is "NO POWER", so it's offered for no power only; voltage / one phase is WhatsApp or a call.
+ */
+export function ReportFallback({ data, problem, onDone, only, account }: {
+  data: DashboardResponse; problem: Problem; onDone?: () => void; only?: boolean; account?: string;
+}) {
   const { t } = useI18n();
   const { data: prefs } = useTenantPreferences();
   const waRaw = (prefs?.data?.discomDetails?.whatsappNumber || "").replace(/[^0-9]/g, "");
   const wa = waRaw ? (waRaw.length === 10 ? `91${waRaw}` : waRaw) : null;
-  const account = String(data.site.connectionId), discom = String(data.site.tenantId ?? "").toUpperCase();
+  const site = account ? { connectionId: account } : { connectionId: String(data.site.connectionId), tenantId: data.site.tenantId };
+  const discom = String(site.tenantId ?? "").toUpperCase();
+  const sms = problem === "no_power";
+  const kind = (first: boolean) => (only && first ? undefined : "soft" as const);
   return (
     <View style={{ gap: 8 }}>
-      <Txt v="label" color="muted">{t("rp_other_ways")}</Txt>
-      <Button label={t("rp_send_sms")} kind="soft" icon="sms" onPress={() => { void Linking.openURL(noPowerSmsUrl(data.site, Platform.OS === "ios")); onDone?.(); }} />
-      {wa && <Button label={t("rp_send_wa")} kind="soft" icon="chat" onPress={() => {
-        openLink(`https://wa.me/${wa}?text=${encodeURIComponent(t("rp_wa_text", { problem: t(`rp_${problem}`), account, discom }))}`); onDone?.();
+      {!only && <Txt v="label" color="muted">{t("rp_other_ways")}</Txt>}
+      {sms && <Button label={t("rp_send_sms")} kind={kind(true)} icon="sms" onPress={() => { void Linking.openURL(noPowerSmsUrl(site, Platform.OS === "ios")); onDone?.(); }} />}
+      {wa && <Button label={t("rp_send_wa")} kind={kind(!sms)} icon="chat" onPress={() => {
+        openLink(`https://wa.me/${wa}?text=${encodeURIComponent(t(discom ? "rp_wa_text" : "rp_wa_text_other", { problem: t(`rp_${problem}`), account: site.connectionId, discom }))}`); onDone?.();
       }} />}
-      <Button label={t("rp_call_1912")} kind="soft" icon="call" onPress={() => { void Linking.openURL(`tel:${HELPLINE_TEL}`); onDone?.(); }} />
+      <Button label={t("rp_call_1912")} kind={kind(!sms && !wa)} icon="call" onPress={() => { void Linking.openURL(`tel:${HELPLINE_TEL}`); onDone?.(); }} />
     </View>
   );
 }
@@ -86,7 +95,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const c = useColors();
   const { t, span } = useI18n();
   const { data: me } = useMe();
-  const { data: complaints } = useMyComplaints(me?.data?.[0]?.phone);
+  const { data: complaints } = useMyComplaints();
   const { data: downtime } = useDowntime();
   const open = complaints?.complaints.find((x) => x.is_open);
   const planned = downtime?.data?.body || downtime?.data?.title;
@@ -152,11 +161,10 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           {slow && <Insight tone="warn" icon="schedule" text={t("rp_slow")} />}
           {slow && <ReportFallback data={data} problem="no_power" onDone={close} />}
           {/* 1912 is OTP-login-only now: say it plainly, no "UPPCL is having a problem" + retry that can't work. */}
-          {!!prepError && (is1912LoginOnly(prepError) ? <Insight tone="accent" icon="info" text={t("rp_1912_login")} /> : <ErrorNote error={prepError} onRetry={retry} />)}
+          {!!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={retry} />)}
           {!!fileError && <ErrorNote error={fileError} onRetry={() => void file()} />}
           {/* 1912 couldn't place the account (e.g. the bill's city isn't a 1912 district): the full form lets them pick. */}
-          {!!prepError && !is1912LoginOnly(prepError) && link(t("rp_pick_district_me"), full)}
-          {failed && <ReportFallback data={data} problem="no_power" onDone={close} />}
+          {failed && <ReportFallback data={data} problem="no_power" onDone={close} only={!!cantFileKey(prepError)} />}
           {link(t("rp_something_else"), full)}
         </>
       )}
