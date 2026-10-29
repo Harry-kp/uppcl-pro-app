@@ -26,7 +26,12 @@
     },
     "ios": {
       "bundleIdentifier": "com.harrykp.uppclpro",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.harrykp.uppclpro"
+        ]
+      }
     },
     "plugins": [
       "expo-router",
@@ -126,7 +131,8 @@
             }
           }
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": false

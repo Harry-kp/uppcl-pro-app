@@ -1,14 +1,15 @@
 name: iOS build (optional)
-# Manual only: Actions → "iOS build (optional)" → Run workflow → tag (e.g. v0.1.0).
+# Manual only: Actions → "iOS build (optional)" → Run workflow → tag (e.g. v0.1.0) or a branch (e.g. main).
 # There is no Apple Developer account yet, so nothing here is signed:
 #   - bijli-saathi-<tag>-simulator.zip  → unzip, drag BijliSaathi.app onto a running iOS Simulator (Xcode)
 #   - bijli-saathi-<tag>-unsigned.ipa   → re-sign + install with Sideloadly/AltStore using a free Apple ID
-# Both are attached to the existing GitHub Release for that tag (the Android APK is untouched).
+# Both are attached to the GitHub Release for that tag if there is one (the Android APK is untouched), and always
+# kept as a run artifact (a branch build has no release).
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag, e.g. v0.1.0
+        description: Release tag (e.g. v0.1.0) or branch (e.g. main)
         required: true
 
 permissions:
@@ -63,6 +64,11 @@ jobs:
             || { grep -nE "error:|failed|Error" device.log | tail -60; tail -80 device.log; exit 1; }
           app=$(find build/device/Build/Products -maxdepth 2 -name '*.app' | head -1)
           [ -n "$app" ] || { echo "no .app produced"; exit 1; }
+          # Ad-hoc signatures carry the entitlements (the App Group the widget reads), so Sideloadly sees and re-requests them.
+          codesign -f -s - --deep "$app"
+          for x in "$app"/PlugIns/*.appex; do codesign -f -s - --entitlements ios/.targets/$(basename "$x" .appex)/generated.entitlements "$x"; done
+          codesign -f -s - --entitlements "$(ls ios/*/*.entitlements | head -1)" "$app"
+          codesign -d --entitlements - "$app" | grep -q application-groups || { echo "app lost its App Group"; exit 1; }
           mkdir -p Payload && cp -R "$app" Payload/
           zip -qry "bijli-saathi-$TAG-unsigned.ipa" Payload
 
@@ -74,9 +80,16 @@ jobs:
           path: "*.log"
           if-no-files-found: ignore
 
-      - name: Attach to the GitHub Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bijli-saathi-ios-${{ github.event.inputs.tag }}
+          path: |
+            bijli-saathi-*.ipa
+            bijli-saathi-*.zip
+
+      - name: Attach to the GitHub Release (tags only)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || { echo "Release $TAG not found — run the Android release first"; exit 1; }
+          gh release view "$TAG" >/dev/null 2>&1 || { echo "No release $TAG: the build is in this run's artifacts"; exit 0; }
           gh release upload "$TAG" "bijli-saathi-$TAG-simulator.zip" "bijli-saathi-$TAG-unsigned.ipa" --clobber

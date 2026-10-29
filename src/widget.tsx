@@ -45,9 +45,32 @@ export function saveSnapshot(snap: WidgetSnapshot): void {
 }
 
 function redraw(snap: WidgetSnapshot | null) {
+  if (Platform.OS === "ios") return toIos(snap);
   for (const widgetName of NAMES) {
     void requestWidgetUpdate({ widgetName, renderWidget: (w) => (widgetName === WIDE_WIDGET_NAME ? wideView(snap, w.width) : widgetView(snap, w.width)) }).catch(() => {});
   }
+}
+
+// iOS: the widget extension (targets/widget/BijliWidget.swift) reads this from the App Group, with the strings it
+// can't compute (it has no string table) and a short answer for the ~20-character Lock Screen line.
+const APP_GROUP = "group.com.harrykp.uppclpro";
+function toIos(snap: WidgetSnapshot | null) {
+  try {
+    // Required lazily: the module is iOS-only native code, and this file also runs as Android's headless widget task.
+    const { ExtensionStorage } = require("@bacons/apple-targets") as typeof import("@bacons/apple-targets");
+    const store = new ExtensionStorage(APP_GROUP);
+    if (!snap) store.remove("snapshot");
+    else {
+      const m = (snap.lang === "hi" ? hi : en).app;
+      store.set("snapshot", JSON.stringify({
+        ...snap,
+        short: snap.unit ? `${snap.big} ${snap.unit}` : snap.status ?? snap.label, // days are not money; the rest is a status word
+        strings: { tapRefresh: m.widget_tap_refresh, openToUpdate: m.widget_open_to_update, updated: m.updated_at,
+          pay: snap.unit ? m.qa_recharge : m.qa_pay, noPower: m.qa_report, a11yPay: m.widget_a11y_pay, a11yNoPower: m.widget_a11y_no_power },
+      }));
+    }
+    ExtensionStorage.reloadWidget();
+  } catch { /* no App Group on this install (free signing): the widget says so itself */ }
 }
 
 /** The app lock was switched: redraw now, so amounts don't stay on the home screen until the next refresh. */
