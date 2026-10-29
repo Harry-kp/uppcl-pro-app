@@ -25,6 +25,14 @@ jobs:
     timeout-minutes: 90
     env:
       TAG: ${{ github.event.inputs.tag }}
+      # Speed: React Native's core already comes precompiled (Podfile default); ccache keeps the rest of the
+      # native compile (Expo modules, pods, the app) between runs, so a repeat build recompiles only what changed.
+      USE_CCACHE: "1"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_SLOPPINESS: clang_index_store,file_stat_matches,include_file_ctime,include_file_mtime,ivfsoverlay,pch_defines,modules,system_headers,time_macros
+      CCACHE_FILECLONE: "true"
+      CCACHE_DEPEND: "true"
+      CCACHE_INODECACHE: "true"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,6 +43,15 @@ jobs:
         run: |
           ls -d /Applications/Xcode_*.app; x=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           sudo xcode-select -s "$x" && xcodebuild -version
+      - name: ccache
+        run: brew install ccache && ccache --zero-stats
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ios-ccache-${{ hashFiles('bun.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ios-ccache-${{ hashFiles('bun.lock') }}-
+            ios-ccache-
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
 
@@ -77,6 +94,10 @@ jobs:
           codesign -d --entitlements - "$app" | grep -q application-groups || { echo "app lost its App Group"; exit 1; }
           mkdir -p Payload && cp -R "$app" Payload/
           zip -qry "bijli-saathi-$TAG-unsigned.ipa" Payload
+
+      - name: ccache hit rate
+        if: always()
+        run: ccache --show-stats || true
 
       - name: Keep full build logs
         if: always()
