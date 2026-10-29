@@ -11,6 +11,10 @@ on:
       tag:
         description: Release tag (e.g. v0.1.0) or branch (e.g. main)
         required: true
+      simulator:
+        description: Also build for the iOS Simulator (+~30 min; only useful with Xcode)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -45,6 +49,7 @@ jobs:
           echo "workspace $ws scheme $scheme"
 
       - name: Build for iOS Simulator
+        if: ${{ github.event.inputs.simulator == 'true' }}
         run: |
           set -o pipefail
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
@@ -60,7 +65,8 @@ jobs:
           set -o pipefail
           xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' \
-            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" > device.log 2>&1 \
+            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            DEBUG_INFORMATION_FORMAT=dwarf COMPILER_INDEX_STORE_ENABLE=NO > device.log 2>&1 \
             || { grep -nE "error:|failed|Error" device.log | tail -60; tail -80 device.log; exit 1; }
           app=$(find build/device/Build/Products -maxdepth 2 -name '*.app' | head -1)
           [ -n "$app" ] || { echo "no .app produced"; exit 1; }
@@ -86,10 +92,11 @@ jobs:
           path: |
             bijli-saathi-*.ipa
             bijli-saathi-*.zip
+          if-no-files-found: error
 
       - name: Attach to the GitHub Release (tags only)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || { echo "No release $TAG: the build is in this run's artifacts"; exit 0; }
-          gh release upload "$TAG" "bijli-saathi-$TAG-simulator.zip" "bijli-saathi-$TAG-unsigned.ipa" --clobber
+          gh release upload "$TAG" bijli-saathi-$TAG-*.{ipa,zip} --clobber 2>/dev/null || gh release upload "$TAG" "bijli-saathi-$TAG-unsigned.ipa" --clobber
