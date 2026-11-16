@@ -1,10 +1,11 @@
-/** "Your details": what UPPCL has on record for this connection. Read-only in this app for now. */
-import { Pressable, StyleSheet, View } from "react-native";
-import { useDashboard, useMe, useWssConsumer } from "@shared/api";
+/** "Your details": what UPPCL has on record for this connection. Bills by email can be switched here; the rest is read-only. */
+import { useState } from "react";
+import { Pressable, StyleSheet, Switch, View } from "react-native";
+import { setPaperlessBill, useDashboard, useMe, useWssConsumer } from "@shared/api";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
-import { BackHeader, Card, Insight, Screen, SkeletonRows, SlowNote, Txt } from "../src/ui";
+import { BackHeader, Button, Card, Insight, Screen, Sheet, SkeletonRows, SlowNote, Txt } from "../src/ui";
 import { Icon } from "../src/icons";
 import { openLink } from "../src/links";
 
@@ -53,7 +54,7 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
           {!!addr && <Detail label={t("address")} value={addr} lines={3} />}
           {/* Also in the UPPCL SMART record: no need to wait for the bill portal for these two. */}
           {!!known(String(site?.email ?? "")) && <Detail label={t("email")} value={String(site!.email)} />}
-          {typeof site?.isPaperlessBillEnabled === "boolean" && <Detail label={t("bills_by")} value={site.isPaperlessBillEnabled ? t("bills_by_email") : t("bills_by_paper")} />}
+          {site && <PaperlessRow site={site} />}
           <Pressable accessibilityRole="button" onPress={() => void mutate()}
             style={({ pressed }) => [styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
             <Icon name="refresh" size={20} color={c.primary} />
@@ -76,7 +77,7 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
         {!!known(cd.name) && <Detail first label={t("name")} value={cd.name!} />}
         {!!billPhone && <Detail first={!known(cd.name)} label={t("registered_mobile")} value={billPhone} />}
         {!!cd.email && <Detail label={t("email")} value={cd.email} />}
-        <Detail label={t("bills_by")} value={billsBy} />
+        {dash?.site ? <PaperlessRow site={dash.site} portalMode={billsBy} /> : <Detail label={t("bills_by")} value={billsBy} />}
         {!!address && <Detail label={t("billing_address")} value={address} lines={3} />}
         <View style={[styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
           <Icon name="info" size={20} color={c.muted} />
@@ -93,6 +94,62 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
   );
 }
 
+
+/**
+ * Bills by email: reads and writes UPPCL SMART's own flag (site/update), so the switch shows what it changed. The bill
+ * portal keeps its own copy and can lag a bill cycle: shown as a note when the two differ. On needs an email on file
+ * and a yes; off is harmless, so it's immediate with an Undo.
+ */
+function PaperlessRow({ site, portalMode }: { site: { email?: unknown; isPaperlessBillEnabled?: boolean }; portalMode?: string }) {
+  const c = useColors();
+  const { t } = useI18n();
+  const email = known(String(site.email ?? ""));
+  const [on, setOn] = useState(!!site.isPaperlessBillEnabled);
+  const [sheet, setSheet] = useState<"confirm" | "noEmail" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [undo, setUndo] = useState(false);
+  const masked = email.replace(/^(.)[^@]*(@.*)$/, "$1••••$2");
+  async function apply(v: boolean) {
+    setBusy(true); setError(null);
+    try { await setPaperlessBill(v); setOn(v); setSheet(null); setUndo(!v); }
+    catch (e) { setError(e); }
+    finally { setBusy(false); }
+  }
+  const portalDiffers = !!portalMode && (portalMode === t("bills_by_email")) !== on;
+  return (
+    <View style={[styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, flexDirection: "column", alignItems: "stretch", gap: 6 }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Txt v="caption" color="muted">{t("bills_by")}</Txt>
+          <Txt v="body" weight="semibold">{on ? t("pl_by_email", { email: masked || t("bills_by_email") }) : t("bills_by_paper")}</Txt>
+        </View>
+        <Switch value={on} disabled={busy} accessibilityLabel={t("pl_row")} trackColor={{ true: c.primary, false: c.track }} thumbColor={c.surface}
+          onValueChange={(v) => (v ? setSheet(email ? "confirm" : "noEmail") : void apply(false))} />
+      </View>
+      {portalDiffers && <Txt v="caption" color="muted">{t("pl_portal_differs", { mode: portalMode })}</Txt>}
+      {undo && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Txt v="caption" color="muted" style={{ flex: 1 }}>{t("pl_off_done")}</Txt>
+          <Pressable accessibilityRole="button" onPress={() => void apply(true)} hitSlop={12} style={{ minHeight: 48, justifyContent: "center" }}>
+            <Txt v="label" color="primary" weight="semibold">{t("undo")}</Txt>
+          </Pressable>
+        </View>
+      )}
+      {!!error && <ErrorNote error={error} compact />}
+      <Sheet visible={sheet === "confirm"} title={t("pl_on_title")} onClose={() => setSheet(null)}>
+        <Txt v="body">{t("pl_on_body", { email: masked })}</Txt>
+        {!!error && <ErrorNote error={error} compact />}
+        <Button label={t("pl_yes")} busy={busy} onPress={() => void apply(true)} />
+        <Button kind="soft" label={t("pl_keep")} onPress={() => setSheet(null)} />
+      </Sheet>
+      <Sheet visible={sheet === "noEmail"} title={t("pl_no_email")} onClose={() => setSheet(null)}>
+        <Txt v="body">{t("pl_no_email_body")}</Txt>
+        <Button kind="soft" icon="openInNew" label={t("change_on_official")} onPress={() => openLink(UPPCL_CONSUMER_URL)} />
+      </Sheet>
+    </View>
+  );
+}
 
 /** A label/value row. */
 function Detail({ label, value, first, lines = 1 }: { label: string; value: string; first?: boolean; lines?: number }) {

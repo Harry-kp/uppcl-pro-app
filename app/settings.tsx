@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Clipboard from "expo-clipboard";
-import { logout, mutate, useDashboard, useMe } from "@shared/api";
+import { logout, mutate, useDashboard, useGuests, useMe } from "@shared/api";
 import { FINGERPRINT_KEY, JUST_PAID_KEY, keystore, NAME_KEY } from "../src/boot";
 import { alertsEnabled, disableAlerts, enableAlerts, getBudget, sendTestNotification, setBudget } from "../src/alerts";
 import { clearSnapshot, WIDGET_NAME, setWidgetLocked } from "../src/widget";
@@ -25,6 +25,7 @@ export default function Settings() {
   const { t, lang, setLang, locale } = useI18n();
   const { data: me } = useMe();
   const { data: dash } = useDashboard();
+  const { data: guests } = useGuests();
   const postpaid = dash?.site.connectionType === "postpaid";
   const [canBio, setCanBio] = useState(false);
   const [bio, setBio] = useState(() => keystore.getItem(FINGERPRINT_KEY) === "1");
@@ -119,6 +120,7 @@ export default function Settings() {
           <Detail first lead label={t("account_no")} value={String(dash.site.connectionId)} copy
             sub={`${discomName(String(dash.site.tenantId))} · ${dash.site.connectionType === "postpaid" ? t("postpaid") : t("prepaid")}`} />
           <Row icon="person" label={t("your_details")} onPress={() => router.push("/profile")} />
+          <Row icon="group" label={t("sh_row")} value={guests?.length ? t("sh_count", { n: guests.length }) : undefined} onPress={() => router.push("/share")} />
           {/* Advanced observability lives on its own screen, not here. */}
           <Row icon="info" label={t("more_details")} onPress={() => router.push("/details")} />
         </Group>

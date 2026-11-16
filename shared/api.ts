@@ -199,13 +199,14 @@ async function proxy(
   base: "uppcl" | "bootstrap",
   path: string,
   body: Record<string, unknown> | null,
-  extraHeaders?: Record<string, string>
+  extraHeaders?: Record<string, string>,
+  method?: "PUT" | "DELETE",
 ): Promise<unknown> {
   const session = getSession();
   if (!session) throw new ProxyError(401, "No active session — sign in first");
 
   const call = () => send(base, path, {
-    method: body ? "POST" : "GET",
+    method: method ?? (body ? "POST" : "GET"),
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),
       apikey: UPPCL_API_KEY,
@@ -548,6 +549,8 @@ async function fetcher<T>(key: string): Promise<T> {
   // Route to the correct UPPCL endpoint
   if (key === "/dashboard") return fetchDashboard(site, cid, did, tid) as Promise<T>;
   if (key === "/me") return uppcl_post("user/search", { skip: 0, limit: 10 }) as Promise<T>;
+  if (key === "/guests") return guests() as Promise<T>;
+  if (key === "/invitations") return invitations() as Promise<T>;
   if (key === "/balance/outstanding") return uppcl_post("site/outstandingBalance", { connectionId: cid, tenantId: tid }) as Promise<T>;
 
   // Parameterized endpoints
@@ -927,6 +930,61 @@ export const useOutstanding = () =>
   useSWR<UpstreamEnvelope<{ consumerId: string; outstandingAmount: string; msi: string }>>(
     "/balance/outstanding", fetcher, swrOpts
   );
+
+// ─── Family access (UPPCL SMART "invite guest", tenantMasterData) ────────────
+// The owner invites someone by mobile or email until a date; UPPCL texts / emails them and, once they sign in to
+// UPPCL SMART with that number, they see this connection read-only. Writes only on the user's explicit tap.
+export interface Guest {
+  _id: string; first_name?: string; last_name?: string; phone?: string; email?: string;
+  status: "pending" | "active" | "expired" | string; endDate?: string; connectionId?: string; tenantId?: string; invitedBy?: unknown;
+}
+const GUEST_STATUSES = ["pending", "active", "expired"];
+export const useGuests = () => useSWR<Guest[]>(isAuthenticated() ? "/guests" : null, fetcher, swrOpts);
+/** Invitations other people sent to this login. */
+export const useInvitations = () => useSWR<Guest[]>(isAuthenticated() ? "/invitations" : null, fetcher, swrOpts);
+
+async function guests(): Promise<Guest[]> {
+  const site = await primarySite();
+  const r = await uppcl_post("tenantMasterData/search", { flags: { isFetchAsInvitedFrom: true }, connectionId: site.connectionId, tenantId: site.tenantId, statuses: GUEST_STATUSES }) as { data?: Guest[] };
+  return r.data ?? [];
+}
+async function invitations(): Promise<Guest[]> {
+  const r = await uppcl_post("tenantMasterData/search", { status: "pending", flags: { isPopulateInvitedBy: true, isFetchAsInvitedTo: true } }) as { data?: Guest[] };
+  return r.data ?? [];
+}
+
+/** `until`: the last day of access (UPPCL stores the end of that day). Resends when `resend` (a still-waiting invite). */
+export async function inviteGuest(g: { first: string; last: string; to: CodeTo; until: Date; resend?: boolean }): Promise<void> {
+  const site = await primarySite();
+  const end = new Date(g.until); end.setHours(23, 59, 59, 999);
+  await uppcl_post(g.resend ? "tenantMasterData/resend-invite" : "tenantMasterData/send-invite", {
+    first_name: g.first.trim(), last_name: g.last.trim(), connectionId: site.connectionId, tenantId: site.tenantId, endDate: end.toISOString(),
+    ...("phone" in g.to ? { phone: g.to.phone, phoneCountryCode: "+91" } : { email: g.to.email.trim().toLowerCase() }),
+  }, { enablecaptcha: "" });
+  await mutate("/guests");
+}
+export async function extendGuest(id: string, until: Date): Promise<void> {
+  const end = new Date(until); end.setHours(23, 59, 59, 999);
+  await uppcl_post(`tenantMasterData/extend-access/${encodeURIComponent(id)}`, { endDate: end.toISOString(), status: "active" });
+  await mutate("/guests");
+}
+export async function removeGuest(id: string): Promise<void> {
+  await proxy("uppcl", `tenantMasterData/delete/${encodeURIComponent(id)}`, {}, undefined, "DELETE");
+  await mutate("/guests");
+}
+export async function answerInvitation(inv: Guest, accept: boolean): Promise<void> {
+  await uppcl_post("tenantMasterData/accept-invitation", { _id: inv._id, connectionId: inv.connectionId, invitedBy: inv.invitedBy, status: accept ? "active" : "rejected", tenantId: inv.tenantId });
+  await mutate("/invitations");
+}
+
+// ─── Paperless bill (UPPCL SMART site/update) ────────────────────────────────
+/** Email bills on (paper off) or back to paper; keeps the saved site in step. Only on the user's tap. */
+export async function setPaperlessBill(on: boolean): Promise<void> {
+  const site = await primarySite();
+  const r = await proxy("uppcl", `site/update/${encodeURIComponent(site._id)}`, { isPaperlessBillEnabled: on }, undefined, "PUT") as { data?: SiteRecord };
+  setSite(r.data?._id ? r.data : { ...site, isPaperlessBillEnabled: on });
+  await mutate((k) => typeof k === "string" && (k === "/me" || k === "/dashboard"));
+}
 
 export const useMe = () =>
   useSWR<UpstreamEnvelope<MeUser[]>>("/me", fetcher, swrOpts);
