@@ -1,7 +1,8 @@
 /**
  * Client-side session management.
  *
- * JWT and site info live ONLY on the user's device — never on the server.
+ * Session info lives ONLY on the user's device — never on a server of ours. Since Nov 2026 UPPCL keeps the
+ * sign-in itself in cookies (the phone's native cookie jar); older sign-ins also carried a JWT.
  * Web: sessionStorage, gone when the tab closes. Mobile: the OS keystore
  * (see platform.ts). Users can also clear it via logout().
  */
@@ -11,7 +12,7 @@ const STORAGE_KEY = "uppcl_session";
 const EXPIRED_KEY = "uppcl_session_expired";
 
 export interface Session {
-  jwt: string;
+  jwt?: string; // only from sign-ins before UPPCL moved to cookies (Nov 2026)
   jwtExpiresMs: number;
   tenant: string;
   site?: SiteRecord;

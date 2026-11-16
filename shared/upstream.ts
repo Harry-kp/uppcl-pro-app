@@ -18,6 +18,7 @@ export function uppclBrowserHeaders(): Record<string, string> {
     origin: UPPCL_BASE,
     referer: `${UPPCL_BASE}/uppclsmart/`,
     "user-agent": USER_AGENT,
+    "x-auth-scope": "jiourja", // their web app sends it on every call since Nov 2026
   };
 }
 

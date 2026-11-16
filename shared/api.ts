@@ -9,7 +9,7 @@
  * plaintext JSON now. Only ALTCHA proof-of-work is still needed for login.
  */
 import useSWR, { mutate as defaultMutate, unload as defaultUnload, type ScopedMutator, type Unloader } from "swr";
-import { solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
+import { newSealKey, sealBody, solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
 import { complaintDetail, complaints, connected1912, forget1912 } from "./complaints";
 import { indiaTime } from "./utils";
@@ -100,8 +100,43 @@ export class ProxyError extends Error {
 }
 
 /** Every network call goes through here, so "no connection" is a tagged error, not a raw TypeError. */
+// UPPCL SMART seals these request bodies since Nov 2026 (their web app's list, the paths the app calls; "?" ignored).
+const SEALED = [/^auth\/v2\/login$/, /^bill\/(search|billDetails|billHistory)$/, /^site\/v2\/prepaidBalance$/, /^user\/search$/,
+  /^payment\/(initiate-payment|quick-payment|doubleVerification)$/, /^payment\/v2\/(create|search)$/];
+// UPPCL's published sealing key (prod, from their web bundle); not a secret.
+const UPPCL_SEAL_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4tUP/Y8AORlBkw4dNyHFa3nG67eWC86qtURhu+Ec43H/ovn+TZMC9IGO4EStSR3U/3cGImsLp4ZtHLKgwX6QwjgA2o5SQRadBsiQp3tP4cOadfNBMVxrlG1FDHqlqlu470acKQ6NNKKLFsInao2YGoXcJ9yTLHVTeT4x1RbAtEubeNhCgEjoBVHufItQmGRLiS9J0H4dlCXmR9SjjI17O6u6uODk5ph+GvQtDnCuGt8XEIMjuOu2Q65RTiG1OH7NhIM99Oe3KoBwno/9XUgxlvE/64ReRcAAFabrhuAHGyHBA5+wjT5TXcYY5d0z5s8ZRM4ce7uC57wBYOJX9XuBEQIDAQAB";
+let sealKey: Promise<{ kid: string; key: Uint8Array }> | null = null;
+
+/** Registers a sealing key with UPPCL once (per app run, and again if UPPCL forgets it). */
+function sealSession(): Promise<{ kid: string; key: Uint8Array }> {
+  sealKey ??= (async () => {
+    const k = newSealKey(UPPCL_SEAL_PUBLIC_KEY);
+    const r = await platform.request("uppcl", "crypto/session-key", {
+      method: "POST", cache: "no-store", body: JSON.stringify({ kid: k.kid, wrappedKey: k.wrappedKey }),
+      headers: { "content-type": "application/json", apikey: UPPCL_API_KEY },
+    });
+    if (!r.ok) throw new ProxyError(r.status, `UPPCL encryption handshake failed (HTTP ${r.status})`, undefined, "uppcl");
+    return { kid: k.kid, key: k.key };
+  })().catch((e) => { sealKey = null; throw e; });
+  return sealKey;
+}
+
+async function sealed(path: string, init: RequestInit & { body: string }, retried = false): Promise<Response> {
+  const { kid, key } = await sealSession();
+  const r = await platform.request("uppcl", path, {
+    ...init, body: sealBody(key, init.body), headers: { ...(init.headers as Record<string, string>), "x-enc-kid": kid },
+  });
+  if (r.status === 409 && !retried && (await r.clone().text()).includes("ENC_KEY_UNKNOWN")) {
+    sealKey = null; // UPPCL dropped our key (restart, expiry): register a new one, once
+    return sealed(path, init, true);
+  }
+  return r;
+}
+
 export async function send(upstream: "uppcl" | "bootstrap" | "wss" | "complaints", path: string, init?: RequestInit): Promise<Response> {
   try {
+    if (upstream === "uppcl" && typeof init?.body === "string" && SEALED.some((p) => p.test(path.split("?")[0])))
+      return await sealed(path, init as RequestInit & { body: string });
     return await platform.request(upstream, path, init);
   } catch (e) {
     // A failure of the network call itself means "no answer": the classic TypeError, our 30 s abort, or
@@ -145,30 +180,45 @@ function humanizeError(status: number, raw: string): string {
  * `base` selects the upstream: "uppcl" → /accounts/api, "bootstrap" → /bootstrap/api.
  * `extraHeaders` lets callers add e.g. `subtenantcode` (needed by bill/download, insight).
  */
+/** Old sign-ins carried a JWT; since Nov 2026 the sign-in rides cookies only, sent by the phone itself. */
+function authHeaders(): Record<string, string> {
+  const jwt = getJwt();
+  return jwt ? { token: jwt, authorization: `Bearer ${jwt}` } : {};
+}
+
+let refreshing: Promise<boolean> | null = null;
+/** Renews UPPCL's access cookie (POST auth/refresh with the refresh cookie); one at a time, true if it worked. */
+function refreshSession(): Promise<boolean> {
+  refreshing ??= send("uppcl", "auth/refresh", {
+    method: "POST", cache: "no-store", body: "{}", headers: { "content-type": "application/json", apikey: UPPCL_API_KEY },
+  }).then((r) => r.ok, () => false).finally(() => { refreshing = null; });
+  return refreshing;
+}
+
 async function proxy(
   base: "uppcl" | "bootstrap",
   path: string,
   body: Record<string, unknown> | null,
   extraHeaders?: Record<string, string>
 ): Promise<unknown> {
-  const jwt = getJwt();
-  if (!jwt) throw new ProxyError(401, "No active session — sign in first");
+  const session = getSession();
+  if (!session) throw new ProxyError(401, "No active session — sign in first");
 
-  const session = getSession()!;
-
-  const r = await send(base, path, {
+  const call = () => send(base, path, {
     method: body ? "POST" : "GET",
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),
       apikey: UPPCL_API_KEY,
       tenantid: tenantHeader(session.tenant),
-      token: jwt,
-      authorization: `Bearer ${jwt}`,
+      ...authHeaders(),
       ...extraHeaders,
     },
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
   });
+  let r = await call();
+  // UPPCL's access cookie is short-lived: renew it with the refresh cookie and try once more (their web app does the same).
+  if (r.status === 401 && await refreshSession()) r = await call();
 
   if (r.status === 200) {
     return JSON.parse(await r.text(), indiaTime);
@@ -264,7 +314,7 @@ async function loginSteps(username: string, password: string, captchaToken: stri
     const json = await r.json();
     const data = json.data;
     saveSession({
-      jwt: data.token,
+      ...(data.token ? { jwt: data.token } : {}), // none since Nov 2026: the sign-in is in cookies
       jwtExpiresMs: data.expires,
       tenant: data.user?.tenantCode ?? DEFAULT_TENANT,
 
@@ -289,6 +339,7 @@ async function loginSteps(username: string, password: string, captchaToken: stri
 }
 
 export async function logout(): Promise<void> {
+  if (getSession()) void send("uppcl", "auth/logout", { method: "POST", body: "{}", headers: { "content-type": "application/json", apikey: UPPCL_API_KEY } }).catch(() => {}); // ends the cookie sign-in
   clearSession();
   forget1912(); // the 1912 OTP session and its number go with the account
 }
@@ -349,14 +400,12 @@ export async function downloadReceiptPdf(payment: { _id: string; txn_id?: string
   const sample = platform.mock?.(`receipt:${payment._id}`) as string | undefined; // // data seam: sample data (src/demo.ts)
   if (sample) return platform.savePdf(sample, `receipt-${payment._id}.pdf`);
   const site = await primarySite();
-  const jwt = getJwt();
-  if (!jwt) throw new ProxyError(401, "No active session — sign in first");
+  if (!getSession()) throw new ProxyError(401, "No active session — sign in first");
   const r = await send("uppcl", "payment/v2/download", {
     method: "POST",
     cache: "no-store",
     headers: {
-      "content-type": "application/json", apikey: UPPCL_API_KEY, tenantid: tenantHeader(getSession()!.tenant),
-      token: jwt, authorization: `Bearer ${jwt}`,
+      "content-type": "application/json", apikey: UPPCL_API_KEY, tenantid: tenantHeader(getSession()!.tenant), ...authHeaders(),
     },
     body: JSON.stringify({ consumer_id: site.connectionId, paymentId: payment._id, language: "en", tenantId: site.tenantId }),
   });

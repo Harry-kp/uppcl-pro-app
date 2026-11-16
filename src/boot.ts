@@ -86,7 +86,8 @@ configurePlatform({
     // so the screen's own error + retry shows. UPPCL's slowest normal calls take ~10 s.
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), 30_000);
-    return fetch(url, { signal: abort.signal, ...init, headers: { ...baseHeaders(upstream), ...(init?.headers as Record<string, string>) } })
+    // credentials: UPPCL SMART's sign-in lives in cookies since Nov 2026 (and 1912's always has); always send them.
+    return fetch(url, { signal: abort.signal, credentials: "include", ...init, headers: { ...baseHeaders(upstream), ...(init?.headers as Record<string, string>) } })
       .finally(() => clearTimeout(timer));
   },
   storage: keystore,

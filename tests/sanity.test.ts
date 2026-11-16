@@ -278,6 +278,26 @@ describe("1912 sign-in payload (RSA-OAEP, SHA-256)", () => {
   });
 });
 
+describe("UPPCL SMART payload sealing (Nov 2026)", () => {
+  test("UPPCL's private key opens the wrapped key, and that key opens the sealed body (AES-GCM, base64url)", async () => {
+    const { generateKeyPairSync, privateDecrypt, createDecipheriv, constants } = await import("node:crypto");
+    const { newSealKey, sealBody } = await import("@shared/crypto");
+    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const spki = (publicKey.export({ type: "spki", format: "der" }) as Buffer).toString("base64");
+    const k = newSealKey(spki);
+    expect(k.kid).toMatch(/^[0-9a-f]{32}$/);
+    const raw = privateDecrypt({ key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, Buffer.from(k.wrappedKey, "base64"));
+    expect(Buffer.compare(raw, Buffer.from(k.key))).toBe(0);
+    const json = JSON.stringify({ username: "test@example.com", password: "नमस्ते-123", roleType: "user" });
+    const { payload, iv } = JSON.parse(sealBody(k.key, json)) as { payload: string; iv: string };
+    expect(payload + iv).not.toMatch(/[+/=]/); // base64url, unpadded
+    const bytes = Buffer.from(payload, "base64url");
+    const d = createDecipheriv("aes-256-gcm", raw, Buffer.from(iv, "base64url"));
+    d.setAuthTag(bytes.subarray(bytes.length - 16));
+    expect(Buffer.concat([d.update(bytes.subarray(0, bytes.length - 16)), d.final()]).toString("utf8")).toBe(json);
+  });
+});
+
 describe("session", () => {
   test("a session that runs out on its own is reported as expired, not silently dropped", async () => {
     const { configurePlatform } = await import("@shared/platform");

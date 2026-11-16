@@ -2,8 +2,8 @@
  * Client-side crypto, shared by web and mobile. Pure JS (@noble) because
  * React Native has no Web Crypto (`crypto.subtle`).
  *
- * UPPCL dropped RSA-OAEP + AES-GCM encryption on their API — all endpoints
- * now accept plaintext JSON. The only crypto still needed:
+ * UPPCL SMART seals some request bodies again (Nov 2026: sign-in, bills, payments; newSealKey/sealBody).
+ * Other crypto:
  *   1. solveAltcha() — SHA-256 proof-of-work for login captcha
  *   2. wssEncrypt()/wssDecrypt() — AES-256-CBC for the /wss bill portal
  *
@@ -62,9 +62,9 @@ function mgf1(seed: Uint8Array, len: number): Uint8Array {
   return out;
 }
 /** RSA-OAEP (SHA-256, MGF1-SHA-256, empty label) of `plaintext`, base64 — what `crypto.subtle.encrypt` gives. */
-export function rsaOaepEncrypt(spkiB64: string, plaintext: string, seed = randomBytes(32)): string {
+export function rsaOaepEncrypt(spkiB64: string, plaintext: string | Uint8Array, seed = randomBytes(32)): string {
   const { n, e } = parseRsaPublicKey(spkiB64);
-  const k = Math.ceil(n.toString(2).length / 8), m = utf8ToBytes(plaintext);
+  const k = Math.ceil(n.toString(2).length / 8), m = typeof plaintext === "string" ? utf8ToBytes(plaintext) : plaintext;
   if (m.length > k - 66) throw new Error("RSA-OAEP: message too long");
   const db = new Uint8Array(k - 33); // lHash ‖ zero padding ‖ 0x01 ‖ message
   db.set(sha256(new Uint8Array(0)), 0); db[k - 34 - m.length] = 1; db.set(m, k - 33 - m.length);
@@ -72,6 +72,24 @@ export function rsaOaepEncrypt(spkiB64: string, plaintext: string, seed = random
   const seedMask = mgf1(maskedDb, 32), maskedSeed = seed.map((x, i) => x ^ seedMask[i]);
   const em = new Uint8Array([0, ...maskedSeed, ...maskedDb]);
   return b64Encode(bigToBytes(modPow(bytesToBig(em), e, n), k));
+}
+
+// ─── UPPCL SMART payload sealing (Nov 2026) ───────────────────────────────────
+// Their web app (cryptoService) registers a random AES-256 key per session, RSA-OAEP-wrapped under a published
+// public key, at /crypto/session-key under a random key id; protected request bodies are then
+// {payload, iv}: AES-GCM (ciphertext ‖ tag) and its 12-byte IV, both base64url, with header x-enc-kid.
+
+const b64url = (b: Uint8Array) => b64Encode(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+/** A fresh sealing key: `wrappedKey` (base64) goes to /crypto/session-key with `kid`; keep `key` to seal. */
+export function newSealKey(publicKeySpki: string): { kid: string; key: Uint8Array; wrappedKey: string } {
+  const key = randomBytes(32);
+  return { kid: bytesToHex(randomBytes(16)), key, wrappedKey: rsaOaepEncrypt(publicKeySpki, key) };
+}
+
+/** A JSON body as UPPCL's sealed form: {"payload": …, "iv": …}. */
+export function sealBody(key: Uint8Array, json: string, iv = randomBytes(12)): string {
+  return JSON.stringify({ payload: b64url(gcm(key, iv).encrypt(utf8ToBytes(json))), iv: b64url(iv) });
 }
 
 // ─── ALTCHA proof-of-work ─────────────────────────────────────────────────────
