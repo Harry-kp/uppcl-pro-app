@@ -14,6 +14,7 @@ import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
 import { fileSupplyComplaint, HELPLINE_TEL, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
@@ -100,6 +101,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const open = complaints?.complaints.find((x) => x.is_open);
   const planned = downtime?.data?.body || downtime?.data?.title;
   const { draft, error: prepError, retry } = useOwnDraft(data, "no_power", visible); // prepared as the sheet opens
+  const [connect, setConnect] = useState(false);
   const slow = useSlow(visible && !draft && !prepError); // 1912 can hang: don't leave people waiting on "Getting ready…"
   const [extra, setExtra] = useState(""); // optional words added to the automatic note
   const [busy, setBusy] = useState(false);
@@ -162,6 +164,9 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           {slow && <ReportFallback data={data} problem="no_power" onDone={close} />}
           {/* 1912 is OTP-login-only now: say it plainly, no "UPPCL is having a problem" + retry that can't work. */}
           {!!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={retry} />)}
+          {/* Not signed in to 1912 (or it expired): connect right here, then the complaint prepares itself. */}
+          {cantFileKey(prepError) === "rp_1912_login" && <Button label={t("c19_connect")} icon="chat" onPress={() => setConnect(true)} />}
+          <Connect1912Sheet visible={connect} onClose={() => setConnect(false)} onDone={retry} />
           {!!fileError && <ErrorNote error={fileError} onRetry={() => void file()} />}
           {/* 1912 couldn't place the account (e.g. the bill's city isn't a 1912 district): the full form lets them pick. */}
           {failed && <ReportFallback data={data} problem="no_power" onDone={close} only={!!cantFileKey(prepError)} />}

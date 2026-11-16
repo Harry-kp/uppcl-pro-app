@@ -183,7 +183,7 @@ export default function Settings() {
           onPress={() => { setLeaving(true); void signOut().finally(() => setLeaving(false)); }} />
         <Button kind="soft" label={t("cancel")} disabled={leaving} onPress={() => setSheet(null)} />
       </Sheet>
-      <BudgetSheet visible={sheet === "budget"} onClose={() => setSheet(null)} />
+      <BudgetSheet visible={sheet === "budget"} onClose={() => setSheet(null)} alertsOn={alerts} onTurnOnAlerts={() => void toggleAlerts(true)} />
       {/* Turning reminders on needs the password (kept encrypted so the check can sign in while the app is closed). */}
       <Sheet visible={askPw} title={alertsLabel} onClose={() => { setAskPw(false); setPw(""); }}>
         <Txt v="label" color="muted">{postpaid ? t("alerts_post_desc") : t("alerts_desc")}</Txt>
@@ -233,12 +233,14 @@ function Row({ icon, label, value, valueTone, right, onPress, first, tone }: {
 }
 
 /** One number the user picks; "Turn off" clears it. Saved on the phone, checked by the alert task. */
-function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function BudgetSheet({ visible, onClose, alertsOn, onTurnOnAlerts }: { visible: boolean; onClose: () => void; alertsOn: boolean; onTurnOnAlerts: () => void }) {
   const c = useColors();
   const { t, lang } = useI18n();
   const [v, setV] = useState(() => String(getBudget() ?? ""));
   useEffect(() => { if (visible) setV(String(getBudget() ?? "")); }, [visible]);
-  const save = (n: number | null) => { setBudget(n); onClose(); };
+  // A budget only warns through bill reminders: saving one with reminders off goes straight on to switch them on,
+  // instead of a budget that silently never warns.
+  const save = (n: number | null) => { setBudget(n); onClose(); if (n && !alertsOn) onTurnOnAlerts(); };
   return (
     <Sheet visible={visible} title={t("budget_title")} onClose={onClose}>
       <Txt v="label" color="muted">{t("budget_desc")}</Txt>
@@ -249,7 +251,7 @@ function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
           onSubmitEditing={() => save(Number(v) || null)}
           style={{ flex: 1 }} />
       </View>
-      <Button label={t("save")} onPress={() => save(Number(v) || null)} disabled={!Number(v)} />
+      <Button label={alertsOn ? t("save") : t("budget_save_on")} onPress={() => save(Number(v) || null)} disabled={!Number(v)} />
       {getBudget() !== null && <Button label={t("turn_off")} kind="soft" onPress={() => save(null)} />}
     </Sheet>
   );

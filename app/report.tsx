@@ -10,6 +10,7 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { mutate, useDashboard } from "@shared/api";
 import { fileSupplyComplaint, HELPLINE_TEL, is1912NotLinked, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { Connect1912Sheet } from "../src/connect1912";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { Icon, type IconName } from "../src/icons";
@@ -28,6 +29,7 @@ export default function Report() {
   const [whose, setWhose] = useState<"mine" | "other">("mine");
   const own = useOwnDraft(data, supply, whose === "mine");
   const [edit, setEdit] = useState<Edit>(null);
+  const [connect, setConnect] = useState(false);
 
   // Someone else's connection: just their account number. 1912 files it in-app only if it's added to the
   // user's 1912 number; otherwise it goes by SMS / WhatsApp / call (their number in the text).
@@ -99,6 +101,8 @@ export default function Report() {
 
       {otherByText && <Insight tone="accent" icon="info" text={t(is1912NotLinked(other.error) ? "rp_other_by_text" : (cantFileKey(other.error) ?? "rp_other_by_text"))} />}
       {mine && !!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={own.retry} />)}
+      {mine && cantFileKey(prepError) === "rp_1912_login" && <Button label={t("c19_connect")} icon="chat" onPress={() => setConnect(true)} />}
+      <Connect1912Sheet visible={connect} onClose={() => setConnect(false)} onDone={own.retry} />
       {!!error && <ErrorNote error={error} onRetry={() => void file()} />}
       {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
       {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}

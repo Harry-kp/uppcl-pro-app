@@ -104,7 +104,8 @@ export default function Usage() {
               values={s.values}
               flagged={s.flagged}
               highlightLast={range === "7"}
-              labels={s.dates.map((d) => String(d.getDate()))}
+              // 30/90 days cross months: "16 Oct", not a bare "16" next to another month's "4" (UX-030).
+              labels={s.dates.map((d) => (range === "7" ? String(d.getDate()) : d.toLocaleDateString(locale, { day: "numeric", month: "short" })))}
               details={s.dates.map((d, i) => `${d.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })} · ${kwh(s.values[i], 1)} ${t("units")}`)}
               height={140}
               summary={`${t("total")} ${kwh(s.total, 1)} ${t("units")}, ${t("avg_day")} ${kwh(s.avg, 1)} ${t("units")}`}

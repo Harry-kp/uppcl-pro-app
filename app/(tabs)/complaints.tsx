@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMyComplaints, useSeenComplaintDetail, useTenantPreferences, useTickets, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { connected1912, HELPLINE_TEL, is1912LoginOnly, lateBy, needsKyc1912, openFor } from "@shared/complaints";
+import { connected1912, HELPLINE_TEL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -42,7 +42,7 @@ export default function Complaints() {
       <Txt v="title">{t("complaints_title")}</Txt>
 
       <Txt v="heading" style={{ marginTop: 4 }}>{t("report_title")}</Txt>
-      <Action icon="bolt" title={t("no_power")} desc={t("no_power_desc")} primary disabled={!dash} onPress={() => setReport(true)} />
+      <Action icon="bolt" title={t("no_power")} desc={t(signedIn1912() ? "no_power_desc" : "no_power_desc_connect")} primary disabled={!dash} onPress={() => setReport(true)} />
       {/* The other ways sit side by side, so "Report no power" stays the obvious first choice. */}
       <View style={styles.pair}>
         <Action compact icon="chat" title={t("other_problem")} desc={t("other_problem_short")} onPress={() => router.push("/report")} />

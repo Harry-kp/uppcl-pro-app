@@ -197,7 +197,7 @@
     "c19_refresh": "Get code",
     "c19_listed_for": "Complaints on {mobile}",
     "rp_filing_paused": "UPPCL changed how 1912 takes complaints, and filing from the app is being updated. Report by SMS, WhatsApp or a call for now:",
-    "rp_1912_login": "Connect to 1912 on the Complaints tab (one OTP) and the app files for you. For now, report by SMS, WhatsApp or a call:",
+    "rp_1912_login": "1912 needs a one-time code from your phone before the app can file for you. You can also report by SMS, WhatsApp or a call:",
     "rp_1912_link": "1912 files only for connections added to your 1912 number. Add this one once on 1912.uppcl.org (Register Account, with an OTP). For now, report by SMS, WhatsApp or a call:",
     "cx_1912_login": "UPPCL's 1912 portal now asks for an OTP login, so the app can't show your complaints right now. You can check them on UPPCL's site.",
     "cx_open_1912": "Open 1912 portal",
@@ -604,6 +604,8 @@
     "sh_remove_body": "They won't see this connection any more. You can add them again later.",
     "sh_invite_again": "Add again",
     "pl_placeholder": "Your e-bills go to a UPPCL placeholder address, not to you. Your own email {own} is only on file at the billing office. Ask UPPCL to set it for e-bills, or switch back to paper.",
-    "pl_placeholder_none": "Your e-bills go to a UPPCL placeholder address, not to you. Add your own email on UPPCL's site, or switch back to paper."
+    "pl_placeholder_none": "Your e-bills go to a UPPCL placeholder address, not to you. Add your own email on UPPCL's site, or switch back to paper.",
+    "no_power_desc_connect": "Connect 1912 once with a code, then it's one tap.",
+    "budget_save_on": "Save and turn on reminders"
   }
 }
