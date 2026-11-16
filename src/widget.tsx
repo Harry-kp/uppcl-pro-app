@@ -54,11 +54,29 @@ function redraw(snap: WidgetSnapshot | null) {
 // iOS: the widget extension (targets/widget/BijliWidget.swift) reads this from the App Group, with the strings it
 // can't compute (it has no string table) and a short answer for the ~20-character Lock Screen line.
 const APP_GROUP = "group.com.harrykp.uppclpro";
+/**
+ * The App Group this install was actually granted. Re-signing with a free Apple ID (Sideloadly, AltStore) renames it
+ * per team without telling the app; the real name is in the bundle's own provisioning profile. The widget reads it
+ * the same way (BijliWidget.swift appGroup), so both meet in the same place.
+ */
+let group: string | null = null;
+function iosAppGroup(): string {
+  if (group) return group;
+  try {
+    const bytes = new File(Paths.bundle, "embedded.mobileprovision").bytesSync(); // CMS-wrapped, the plist inside is plain text
+    let text = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    const list = /<key>com\.apple\.security\.application-groups<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)?.[1] ?? "";
+    const groups = [...list.matchAll(/<string>([^<]+)<\/string>/g)].map((m) => m[1]);
+    group = groups.find((g) => g.includes("uppclpro")) ?? groups[0] ?? APP_GROUP;
+  } catch { group = APP_GROUP; } // no profile (simulator) or unreadable: the name we built with
+  return group;
+}
 function toIos(snap: WidgetSnapshot | null) {
   try {
     // Required lazily: the module is iOS-only native code, and this file also runs as Android's headless widget task.
     const { ExtensionStorage } = require("@bacons/apple-targets") as typeof import("@bacons/apple-targets");
-    const store = new ExtensionStorage(APP_GROUP);
+    const store = new ExtensionStorage(iosAppGroup());
     if (!snap) store.remove("snapshot");
     else {
       const m = (snap.lang === "hi" ? hi : en).app;

@@ -4,7 +4,25 @@
 import SwiftUI
 import WidgetKit
 
-let appGroup = "group.com.harrykp.uppclpro"
+/// The App Group this install was actually granted. Free-Apple-ID re-signing (Sideloadly, AltStore) renames it per team;
+/// the real name is in AltStore's ALTAppGroups or the provisioning profile, of the widget or of the app around it.
+/// Same lookup as src/widget.tsx iosAppGroup(). nil = no group on this install: nothing can be shared.
+let appGroup: String? = {
+  func granted(_ bundle: URL) -> [String] {
+    if let alt = Bundle(url: bundle)?.object(forInfoDictionaryKey: "ALTAppGroups") as? [String], !alt.isEmpty { return alt }
+    guard let data = try? Data(contentsOf: bundle.appendingPathComponent("embedded.mobileprovision")),
+          let text = String(data: data, encoding: .isoLatin1),
+          let start = text.range(of: "<?xml"), let end = text.range(of: "</plist>"),
+          let plist = try? PropertyListSerialization.propertyList(from: Data(text[start.lowerBound..<end.upperBound].utf8), format: nil) as? [String: Any],
+          let entitlements = plist["Entitlements"] as? [String: Any],
+          let groups = entitlements["com.apple.security.application-groups"] as? [String] else { return [] }
+    return groups
+  }
+  let widget = Bundle.main.bundleURL, app = widget.deletingLastPathComponent().deletingLastPathComponent()
+  let found = granted(widget) + granted(app) + ["group.com.harrykp.uppclpro"]
+  return found.first { $0.contains("uppclpro") && FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil }
+    ?? found.first { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil }
+}()
 
 struct WidgetStrings: Codable {
   var tapRefresh: String, openToUpdate: String, updated: String
@@ -20,8 +38,7 @@ struct Snapshot: Codable {
 enum Source { case noGroup, empty, snap(Snapshot) }
 
 func loadSource() -> Source {
-  guard FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) != nil,
-        let defaults = UserDefaults(suiteName: appGroup) else { return .noGroup }
+  guard let group = appGroup, let defaults = UserDefaults(suiteName: group) else { return .noGroup }
   guard let json = defaults.string(forKey: "snapshot"), let data = json.data(using: .utf8),
         let snap = try? JSONDecoder().decode(Snapshot.self, from: data) else { return .empty }
   return .snap(snap)
@@ -60,7 +77,8 @@ func shown(_ s: Snapshot, at now: Date) -> Shown {
 /// Fallback copy has no snapshot to take strings from: the phone's language decides.
 func fallback(_ src: Source) -> String {
   let hindi = Locale.current.language.languageCode?.identifier == "hi"
-  if case .noGroup = src { return hindi ? "इस इंस्टॉल पर विजेट बिजली साथी से नहीं जुड़ पा रहा" : "Widget can't connect to Bijli Saathi on this install" }
+  // Then the install has no App Group at all (seen with free-Apple-ID Sideloadly); AltStore / SideStore grant one.
+  if case .noGroup = src { return hindi ? "इस इंस्टॉल पर विजेट को डेटा नहीं मिलता। AltStore या SideStore से इंस्टॉल करें।" : "This install gives the widget no data. Install with AltStore or SideStore." }
   return hindi ? "साइन इन के लिए बिजली साथी खोलें" : "Open Bijli Saathi to sign in"
 }
 
