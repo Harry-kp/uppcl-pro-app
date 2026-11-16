@@ -129,7 +129,7 @@ export default function Settings() {
       {dash && (
         <Group title={t("alerts_section")}>
           <Row first icon="notifications" label={alertsLabel}
-            right={<Switch value={alerts} onValueChange={toggleAlerts} trackColor={{ true: c.primary, false: c.track }} thumbColor={c.surface} accessibilityLabel={alertsLabel} />} />
+            right={<Switch value={alerts} onValueChange={toggleAlerts} trackColor={{ true: c.primary, false: c.track }} thumbColor={alerts ? c.onPrimary : c.muted} accessibilityLabel={alertsLabel} />} />
           <Row icon="savings" label={t("budget_title")} value={budget ? `₹${rupees(budget, { decimals: 0 })}` : t("off")} onPress={() => setSheet("budget")} />
           {alerts && (
             <Row icon="chat" label={t("test_btn")}
@@ -144,7 +144,7 @@ export default function Settings() {
         <Row icon="darkMode" label={t("theme")} value={themeLabel} onPress={() => setSheet("theme")} />
         {canBio && (
           <Row icon="fingerprint" label={t("fingerprint")}
-            right={<Switch value={bio} onValueChange={toggleBio} trackColor={{ true: c.primary, false: c.track }} thumbColor={c.surface} accessibilityLabel={t("fingerprint")} />} />
+            right={<Switch value={bio} onValueChange={toggleBio} trackColor={{ true: c.primary, false: c.track }} thumbColor={bio ? c.onPrimary : c.muted} accessibilityLabel={t("fingerprint")} />} />
         )}
         {/* Home-screen widgets are Android-only for now. */}
         {Platform.OS === "android" && <Row icon="widgets" label={t("widget_row")} value={widgetPlaced ? t("widget_on") : undefined} valueTone={widgetPlaced ? "ok" : undefined}

@@ -127,7 +127,7 @@ function PaperlessRow({ site, portalMode, portalEmail }: { site: { email?: unkno
           <Txt v="caption" color="muted">{t("bills_by")}</Txt>
           <Txt v="body" weight="semibold">{on ? t("pl_by_email", { email: (placeholder ? raw : masked).replace(/^(.)[^@]*(@.*)$/, "$1••••$2") || t("bills_by_email") }) : t("bills_by_paper")}</Txt>
         </View>
-        <Switch value={on} disabled={busy} accessibilityLabel={t("pl_row")} trackColor={{ true: c.primary, false: c.track }} thumbColor={c.surface}
+        <Switch value={on} disabled={busy} accessibilityLabel={t("pl_row")} trackColor={{ true: c.primary, false: c.track }} thumbColor={on ? c.onPrimary : c.muted}
           onValueChange={(v) => (v ? setSheet(email ? "confirm" : "noEmail") : void apply(false))} />
       </View>
       {portalDiffers && <Txt v="caption" color="muted">{t("pl_portal_differs", { mode: portalMode })}</Txt>}
