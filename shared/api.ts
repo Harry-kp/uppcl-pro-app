@@ -101,7 +101,7 @@ export class ProxyError extends Error {
 
 /** Every network call goes through here, so "no connection" is a tagged error, not a raw TypeError. */
 // UPPCL SMART seals these request bodies since Nov 2026 (their web app's list, the paths the app calls; "?" ignored).
-const SEALED = [/^auth\/v2\/login$/, /^bill\/(search|billDetails|billHistory)$/, /^site\/v2\/prepaidBalance$/, /^user\/search$/,
+const SEALED = [/^auth\/v2\/login$/, /^auth\/v2\/login\/otp$/, /^auth\/v2\/login\/token\/verify$/, /^bill\/(search|billDetails|billHistory)$/, /^site\/v2\/prepaidBalance$/, /^user\/search$/,
   /^payment\/(initiate-payment|quick-payment|doubleVerification)$/, /^payment\/v2\/(create|search)$/];
 // UPPCL's published sealing key (prod, from their web bundle); not a secret.
 const UPPCL_SEAL_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4tUP/Y8AORlBkw4dNyHFa3nG67eWC86qtURhu+Ec43H/ovn+TZMC9IGO4EStSR3U/3cGImsLp4ZtHLKgwX6QwjgA2o5SQRadBsiQp3tP4cOadfNBMVxrlG1FDHqlqlu470acKQ6NNKKLFsInao2YGoXcJ9yTLHVTeT4x1RbAtEubeNhCgEjoBVHufItQmGRLiS9J0H4dlCXmR9SjjI17O6u6uODk5ph+GvQtDnCuGt8XEIMjuOu2Q65RTiG1OH7NhIM99Oe3KoBwno/9XUgxlvE/64ReRcAAFabrhuAHGyHBA5+wjT5TXcYY5d0z5s8ZRM4ce7uC57wBYOJX9XuBEQIDAQAB";
@@ -283,6 +283,66 @@ export function signInReady(): boolean {
   return !!captcha?.done && Date.now() - captcha.at < CAPTCHA_TTL;
 }
 
+/** One solved ALTCHA per call; the next one starts solving at once, so a send → verify pair rarely waits. */
+async function takeCaptcha(): Promise<string> {
+  void prepareSignIn(); // no-op if the screen already started it
+  const token = await captcha!.token;
+  captcha = null;
+  return token;
+}
+
+/** A pre-sign-in call to UPPCL SMART (OTP send / verify, sign-up): captcha header, JSON body, UPPCL's own reason on failure. */
+async function signInCall(path: string, body: Record<string, unknown>): Promise<Response> {
+  const captchaToken = await takeCaptcha();
+  void prepareSignIn(); // ready for the next step (verify / resend)
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 60_000);
+  try {
+    const r = await send("uppcl", path, {
+      method: "POST", cache: "no-store", signal: abort.signal, body: JSON.stringify(body),
+      headers: { "content-type": "application/json", apikey: UPPCL_API_KEY, tenantid: tenantHeader(DEFAULT_TENANT), captchatoken: captchaToken },
+    });
+    if (r.ok) return r;
+    const text = await r.text();
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { parsed = text; }
+    const msg = typeof parsed === "object" && parsed ? (parsed as { message?: unknown }).message : null;
+    throw new ProxyError(r.status, msg ? String(msg) : `UPPCL answered HTTP ${r.status}`, parsed, "uppcl");
+  } finally { clearTimeout(timer); }
+}
+
+// ─── Sign in with a code (UPPCL SMART, Nov 2026) ─────────────────────────────
+// auth/v2/login/otp texts (or emails) a 6-digit code; auth/v2/login/token/verify signs in exactly like the password does.
+// A number with no SMART login: 409 "No account found … Please Sign Up" (isNoAccount).
+export type CodeTo = { phone: string } | { email: string };
+const codeTo = (to: CodeTo) => ("phone" in to ? { phone: to.phone, phoneCountryCode: "+91" } : { email: to.email.trim().toLowerCase() });
+
+export async function sendSignInCode(to: CodeTo): Promise<void> {
+  await signInCall("auth/v2/login/otp", codeTo(to));
+}
+export async function verifySignInCode(to: CodeTo, otp: string): Promise<void> {
+  finishSignIn(await (await signInCall("auth/v2/login/token/verify", { ...codeTo(to), otp, roleType: "user" })).json());
+}
+/** UPPCL has no SMART login for this number / email. */
+export const isNoAccount = (e: unknown) => e instanceof ProxyError && /no account found|sign ?up/i.test(e.reason);
+
+// ─── Create a SMART login from the account number on the bill ────────────────
+// userMasterData/signup-by-connectionId texts a code to the mobile UPPCL has for that account; .../verify sets the password.
+export async function sendSignUpCode(account: string): Promise<{ mobile: string | null }> {
+  const j = await (await signInCall("userMasterData/signup-by-connectionId", { consumer_id: account, returnUserDetails: true })).json();
+  const d = (j?.data ?? {}) as Record<string, unknown>;
+  // UPPCL returns the details masked or not; only the last 4 digits are ever shown.
+  const mobile = String(d.phone ?? d.mobile ?? d.mobileNumber ?? "").replace(/\D/g, "").slice(-4);
+  return { mobile: mobile.length === 4 ? mobile : null };
+}
+export async function createSignIn(otp: string, password: string): Promise<void> {
+  await signInCall("userMasterData/signup-by-connectionId/verify", { token: otp, newPassword: password, confirmPassword: password });
+}
+/** UPPCL doesn't know the account number typed for sign-up (409 "Connection Id not found."). */
+export const isUnknownAccount = (e: unknown) => e instanceof ProxyError && /connection ?id not found|not found/i.test(e.reason);
+/** Sign-up refused because this account already has a SMART login. */
+export const isAlreadyRegistered = (e: unknown) => e instanceof ProxyError && /already (exist|registered)|already have/i.test(e.reason);
+
 export async function login(username: string, password: string): Promise<void> {
   void prepareSignIn(); // no-op if the screen already started it
   const captchaToken = await captcha!.token;
@@ -310,18 +370,7 @@ async function loginSteps(username: string, password: string, captchaToken: stri
     signal,
   });
 
-  if (r.status === 200) {
-    const json = await r.json();
-    const data = json.data;
-    saveSession({
-      ...(data.token ? { jwt: data.token } : {}), // none since Nov 2026: the sign-in is in cookies
-      // UPPCL's session lasts 24 h; without a usable expiry, assume that rather than never expiring.
-      jwtExpiresMs: Number.isFinite(data?.expires) ? data.expires : Date.now() + 24 * 3_600_000,
-      tenant: data.user?.tenantCode ?? DEFAULT_TENANT,
-
-    });
-    return;
-  }
+  if (r.status === 200) return finishSignIn(await r.json());
 
   const text = await r.text();
   let parsed: unknown;
@@ -337,6 +386,17 @@ async function loginSteps(username: string, password: string, captchaToken: stri
       : msg ? `${msg}` : `Login failed (HTTP ${r.status})`,
     parsed
   );
+}
+
+/** A successful sign-in answer (password or code): the session itself is in cookies; keep its expiry. */
+function finishSignIn(json: { data?: { token?: string; expires?: number; user?: { tenantCode?: string } } }): void {
+  const data = json.data ?? {};
+  saveSession({
+    ...(data.token ? { jwt: data.token } : {}), // none since Nov 2026: the sign-in is in cookies
+    // UPPCL's session lasts 24 h; without a usable expiry, assume that rather than never expiring.
+    jwtExpiresMs: Number.isFinite(data.expires) ? data.expires! : Date.now() + 24 * 3_600_000,
+    tenant: data.user?.tenantCode ?? DEFAULT_TENANT,
+  });
 }
 
 export async function logout(): Promise<void> {
@@ -1051,9 +1111,14 @@ export interface ComplaintDetail {
   base_level: string | null;
   initial_user: string | null;
   raw_fields: Record<string, string>;
+  /** UPPCL's own time limit for this complaint type (1912 escalation chart), hours; detail only. */
+  limit_hours?: number | null;
 }
 
 /** One complaint in full (remarks, officers, area); the list row shows meanwhile. Keyed under /complaints so sign-in refreshes it. */
+/** A complaint's full record if it was opened before (cache only, never fetches): the list's "Late" pill. */
+export const useSeenComplaintDetail = (no: string) =>
+  useSWR<ComplaintDetail | null>(connected1912() ? `/complaints/detail/${encodeURIComponent(no)}` : null, null, { revalidateOnMount: false, revalidateOnFocus: false });
 export const useComplaintDetail = (no: string | undefined) =>
   useSWR<ComplaintDetail | null>(connected1912() && no ? `/complaints/detail/${encodeURIComponent(no)}` : null, fetcher, { ...swrOpts, shouldRetryOnError: false });
 
