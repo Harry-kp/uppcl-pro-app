@@ -315,7 +315,8 @@ async function loginSteps(username: string, password: string, captchaToken: stri
     const data = json.data;
     saveSession({
       ...(data.token ? { jwt: data.token } : {}), // none since Nov 2026: the sign-in is in cookies
-      jwtExpiresMs: data.expires,
+      // UPPCL's session lasts 24 h; without a usable expiry, assume that rather than never expiring.
+      jwtExpiresMs: Number.isFinite(data?.expires) ? data.expires : Date.now() + 24 * 3_600_000,
       tenant: data.user?.tenantCode ?? DEFAULT_TENANT,
 
     });

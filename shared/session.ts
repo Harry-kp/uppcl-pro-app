@@ -45,7 +45,7 @@ export function getSession(): Session | null {
     const raw = store.getItem(STORAGE_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as Session;
-    if (s.jwtExpiresMs <= Date.now()) {
+    if (!(s.jwtExpiresMs > Date.now())) { // missing / non-numeric counts as expired (fail closed)
       // Ran out on its own: say so on the sign-in screen, same as when UPPCL rejects it (expireSession).
       // Without the flag the user just finds themselves signed out, with no reason given.
       store.removeItem(STORAGE_KEY);
