@@ -77,7 +77,7 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
         {!!known(cd.name) && <Detail first label={t("name")} value={cd.name!} />}
         {!!billPhone && <Detail first={!known(cd.name)} label={t("registered_mobile")} value={billPhone} />}
         {!!cd.email && <Detail label={t("email")} value={cd.email} />}
-        {dash?.site ? <PaperlessRow site={dash.site} portalMode={billsBy} /> : <Detail label={t("bills_by")} value={billsBy} />}
+        {dash?.site ? <PaperlessRow site={dash.site} portalMode={billsBy} portalEmail={cd.email ?? undefined} /> : <Detail label={t("bills_by")} value={billsBy} />}
         {!!address && <Detail label={t("billing_address")} value={address} lines={3} />}
         <View style={[styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
           <Icon name="info" size={20} color={c.muted} />
@@ -100,10 +100,13 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
  * portal keeps its own copy and can lag a bill cycle: shown as a note when the two differ. On needs an email on file
  * and a yes; off is harmless, so it's immediate with an Undo.
  */
-function PaperlessRow({ site, portalMode }: { site: { email?: unknown; isPaperlessBillEnabled?: boolean }; portalMode?: string }) {
+function PaperlessRow({ site, portalMode, portalEmail }: { site: { email?: unknown; isPaperlessBillEnabled?: boolean }; portalMode?: string; portalEmail?: string }) {
   const c = useColors();
   const { t } = useI18n();
-  const email = known(String(site.email ?? ""));
+  // UPPCL fills a missing email with its own placeholder (…@uppclonline.com): e-bills sent there reach nobody.
+  const raw = known(String(site.email ?? ""));
+  const placeholder = /@uppclonline\.com$/i.test(raw);
+  const email = placeholder ? "" : raw;
   const [on, setOn] = useState(!!site.isPaperlessBillEnabled);
   const [sheet, setSheet] = useState<"confirm" | "noEmail" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -122,12 +125,18 @@ function PaperlessRow({ site, portalMode }: { site: { email?: unknown; isPaperle
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Txt v="caption" color="muted">{t("bills_by")}</Txt>
-          <Txt v="body" weight="semibold">{on ? t("pl_by_email", { email: masked || t("bills_by_email") }) : t("bills_by_paper")}</Txt>
+          <Txt v="body" weight="semibold">{on ? t("pl_by_email", { email: (placeholder ? raw : masked).replace(/^(.)[^@]*(@.*)$/, "$1••••$2") || t("bills_by_email") }) : t("bills_by_paper")}</Txt>
         </View>
         <Switch value={on} disabled={busy} accessibilityLabel={t("pl_row")} trackColor={{ true: c.primary, false: c.track }} thumbColor={c.surface}
           onValueChange={(v) => (v ? setSheet(email ? "confirm" : "noEmail") : void apply(false))} />
       </View>
       {portalDiffers && <Txt v="caption" color="muted">{t("pl_portal_differs", { mode: portalMode })}</Txt>}
+      {on && placeholder && (
+        <View style={{ gap: 8 }}>
+          <Insight tone="warn" icon="warning" text={portalEmail ? t("pl_placeholder", { own: portalEmail.replace(/^(.)[^@]*(@.*)$/, "$1••••$2") }) : t("pl_placeholder_none")} />
+          <Button kind="soft" icon="openInNew" label={t("change_on_official")} onPress={() => openLink(UPPCL_CONSUMER_URL)} />
+        </View>
+      )}
       {undo && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Txt v="caption" color="muted" style={{ flex: 1 }}>{t("pl_off_done")}</Txt>

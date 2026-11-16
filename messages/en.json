@@ -602,6 +602,8 @@
     "sh_stop": "Stop sharing",
     "sh_remove_title": "Stop sharing with {name}?",
     "sh_remove_body": "They won't see this connection any more. You can add them again later.",
-    "sh_invite_again": "Add again"
+    "sh_invite_again": "Add again",
+    "pl_placeholder": "Your e-bills go to a UPPCL placeholder address, not to you. Your own email {own} is only on file at the billing office. Ask UPPCL to set it for e-bills, or switch back to paper.",
+    "pl_placeholder_none": "Your e-bills go to a UPPCL placeholder address, not to you. Add your own email on UPPCL's site, or switch back to paper."
   }
 }
