@@ -1,11 +1,13 @@
 name: iOS build (optional)
-# Manual only: Actions → "iOS build (optional)" → Run workflow → tag (e.g. v0.1.0) or a branch (e.g. main).
+# Runs on every release tag push (vX.Y.Z, alongside release.yml's APK), or by hand: Actions → Run workflow → tag or branch.
 # There is no Apple Developer account yet, so nothing here is signed:
 #   - bijli-saathi-<tag>-simulator.zip  → unzip, drag BijliSaathi.app onto a running iOS Simulator (Xcode)
 #   - bijli-saathi-<tag>-unsigned.ipa   → re-sign + install with Sideloadly/AltStore using a free Apple ID
 # Both are attached to the GitHub Release for that tag if there is one (the Android APK is untouched), and always
 # kept as a run artifact (a branch build has no release).
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -24,7 +26,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 90
     env:
-      TAG: ${{ github.event.inputs.tag }}
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
       # Speed: React Native's core already comes precompiled (Podfile default); ccache keeps the rest of the
       # native compile (Expo modules, pods, the app) between runs, so a repeat build recompiles only what changed.
       USE_CCACHE: "1"
@@ -36,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
       - uses: oven-sh/setup-bun@v2
       # expo-modules-jsi 57.1 (SWIFT_RETURNS_RETAINED on C++ ctors) fails on Xcode <= 26.3 (macos-15); macos-26 has 26.6
       - name: Use the newest Xcode on the runner
@@ -109,7 +111,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bijli-saathi-ios-${{ github.event.inputs.tag }}
+          name: bijli-saathi-ios-${{ github.event.inputs.tag || github.ref_name }}
           path: |
             bijli-saathi-*.ipa
             bijli-saathi-*.zip
