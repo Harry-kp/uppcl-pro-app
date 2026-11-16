@@ -170,6 +170,13 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
   if (key.startsWith("receipt:")) return TEST_PDF;
   const [path, query = ""] = key.split("?");
   const q = new URLSearchParams(query);
+  // One complaint in full (app/complaint/[no].tsx), with UPPCL's time limit so the late / compensation states show.
+  if (path.startsWith("/complaints/detail/")) {
+    const no = decodeURIComponent(path.slice("/complaints/detail/".length));
+    const c = d.complaints.find((x) => x.complaint_no === no);
+    return c ? { ...c, limit_hours: c.is_open ? 4 : 24, raw_fields: {} } : null;
+  }
+  if (path === "/guests" || path === "/invitations") return []; // nobody shared in the sample account
 
   switch (path) {
     case "/dashboard": return d.dashboard;

@@ -16,7 +16,8 @@ export default function ComplaintDetail() {
   const { data } = useMyComplaints(); // already cached by the list
   const row = data?.complaints.find((k) => k.complaint_no === no);
   const { data: full, isLoading: more } = useComplaintDetail(no); // remarks, officers, area: ~4 s more
-  const x = full ?? row;
+  // Only a record that is this complaint (a stale or odd cached answer must not replace the list row: BUG-030).
+  const x = full?.complaint_no === no ? full : row;
   // "30/09/2026 07:42:00 PM" (BUG-063): with the time, since how long a fix took is the point here.
   // The signed-in list has dates only ("19-May-2026"): then no made-up "12:00 am".
   const when = (d: string | null) => parseUppclDate(d)?.toLocaleString(locale, d?.includes(":")

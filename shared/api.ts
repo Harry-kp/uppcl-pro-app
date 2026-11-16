@@ -1178,7 +1178,7 @@ export interface ComplaintDetail {
 export const useSeenComplaintDetail = (no: string) =>
   useSWR<ComplaintDetail | null>(connected1912() ? `/complaints/detail/${encodeURIComponent(no)}` : null, null, { revalidateOnMount: false, revalidateOnFocus: false });
 export const useComplaintDetail = (no: string | undefined) =>
-  useSWR<ComplaintDetail | null>(connected1912() && no ? `/complaints/detail/${encodeURIComponent(no)}` : null, fetcher, { ...swrOpts, shouldRetryOnError: false });
+  useSWR<ComplaintDetail | null>(connected1912() && no ? `/complaints/detail/${encodeURIComponent(no)}` : null, fetcher, { ...swrOpts, revalidateIfStale: true, shouldRetryOnError: false }); // opened by a tap: refresh a saved answer (BUG-030)
 
 /** The number signed in to 1912 (OTP). Its last answer stays cached when the session ends: is1912LoginOnly(error) then. */
 export const useMyComplaints = () => {

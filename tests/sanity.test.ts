@@ -426,6 +426,9 @@ describe("demo mode never reaches UPPCL", () => {
     expect((await fileSupplyComplaint(draft, "No power")).complaintNo).toBe("SAMPLE-0001");
     const { primarySite } = await import("@shared/api");
     expect((await primarySite()).connectionId).toBeTruthy(); // payments / PDFs start here
+    // Every complaint in the sample list opens in full (BUG-030: the detail key once fell through to an empty list).
+    const list = mockFor("/complaints?action=my&phone=9000000001", { outcome: "success" }) as { complaints: { complaint_no: string }[] };
+    for (const c of list.complaints) expect((mockFor(`/complaints/detail/${c.complaint_no}`, { outcome: "success" }) as { complaint_no: string }).complaint_no).toBe(c.complaint_no);
     expect(calls).toEqual([]); // nothing went to the network
     setScenario(null);
     configurePlatform({ mock: undefined });
