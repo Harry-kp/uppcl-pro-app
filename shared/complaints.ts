@@ -248,7 +248,40 @@ export async function complaintDetail(no: string): Promise<ComplaintDetail | nul
     je_name: personName(pick("JE_NAME")), je_mobile: mobile10(pick("JE_MOBILE")), ae_name: personName(pick("AE_NAME")), ae_mobile: mobile10(pick("AE_MOBILE")),
     xen_name: personName(pick("XEN_NAME")), xen_mobile: mobile10(pick("XEN_MOBILE")), subdivision: pick("SUBDIVISION"), substation: pick("SUBSTATION"),
     assigned_to: pick("ASSIGNED_TO"), base_level: pick("BASE_LEVEL"), initial_user: pick("INITIALUSER"), raw_fields: m,
+    limit_hours: await timeLimit(pick("COM_TYPE_NAME"), pick("COM_SUB_TYPE_NAME")),
   };
+}
+
+/**
+ * UPPCL's own time limit for a complaint type, in hours, from 1912's escalation chart (Complaint Status → View
+ * Escalation, form 10026): e.g. "Fuse off": Class-1 2 h, Urban 4 h, Rural 6 h. The user's category isn't known for
+ * sure, so the most lenient one counts: "late" is then true whatever their area. null when 1912 has no chart for it.
+ */
+async function timeLimit(type: string | null, sub: string | null): Promise<number | null> {
+  if (!type || !sub) return null;
+  try {
+    const P: [string, string][] = [["94185.15854", sub], ["94185.17073", type]];
+    const codes = await lookup("94185.18055", [["103786", "104437", P], ["103785", "104438", P]], LIST_FORM);
+    const tc = first(codes["103786"]), sc = first(codes["103785"]);
+    if (!tc || !sc) return null;
+    const chart = (await lookup("0", [["102765", "104439", [["103678", tc], ["103787", sc]]]], "10026"))["102765"] ?? [];
+    const hours = chart.map((r) => Number(r.SLA) * (/day/i.test(r.UNITE ?? "") ? 24 : 1)).filter((h) => h > 0);
+    return hours.length ? Math.max(...hours) : null;
+  } catch { return null; } // the detail still shows; just no deadline line
+}
+
+/**
+ * Whole hours past UPPCL's own time limit, else null. Only when it can be measured honestly: both times have a clock
+ * time (the signed-in list has dates only), and the closing note doesn't say there was nothing to fix. A closed
+ * complaint gets an hour's grace for UPPCL's paperwork (tickets are often closed a while after the fix).
+ */
+export function lateBy(c: { limit_hours?: number | null; entry_date: string | null; closing_date: string | null; is_open: boolean; closing_remarks?: string | null }, now = Date.now()): number | null {
+  if (!c.limit_hours) return null;
+  const took = openFor(c, now);
+  if (took === null) return null;
+  if (!c.is_open && /already|no fault|not found|duplicate|wrong complaint|no complaint/i.test(c.closing_remarks ?? "")) return null;
+  const over = took / 3_600_000 - c.limit_hours;
+  return over > (c.is_open ? 0 : 1) ? Math.max(1, Math.round(over)) : null;
 }
 
 /** `?action=my` → { phone, complaints }: the signed-in number's complaints, open first, newest first. */

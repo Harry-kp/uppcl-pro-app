@@ -1,11 +1,12 @@
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useComplaintDetail, useMyComplaints } from "@shared/api";
-import { openFor, sourceKind } from "@shared/complaints";
+import { lateBy, openFor, sourceKind } from "@shared/complaints";
 import { parseUppclDate } from "@shared/utils";
 import { useI18n } from "../../src/i18n";
 import { useColors } from "../../src/theme";
-import { BackHeader, Card, Pill, Screen, Skeleton, SkeletonRows, SlowNote, Txt } from "../../src/ui";
+import { BackHeader, Button, Card, Insight, Pill, Screen, Skeleton, SkeletonRows, SlowNote, Txt } from "../../src/ui";
+import { openLink } from "../../src/links";
 import { Icon } from "../../src/icons";
 
 export default function ComplaintDetail() {
@@ -31,6 +32,7 @@ export default function ComplaintDetail() {
   );
 
   const took = openFor(x);
+  const late = lateBy(x); // whole hours past UPPCL's own limit, only when measurable
   const src = sourceKind(x.source);
   const closingNote = !x.is_open && x.closing_remarks && x.closing_remarks !== x.remarks ? x.closing_remarks : null;
   // Escalation chain, lowest first. Only officers UPPCL actually assigned (a number is enough to call).
@@ -50,7 +52,7 @@ export default function ComplaintDetail() {
             <Txt v="heading">{x.sub_type || x.type || x.status}</Txt>
             {!!x.type && x.type !== x.sub_type && <Txt v="caption" color="muted">{x.type}</Txt>}
           </View>
-          <Pill label={x.is_open ? t("open") : t("closed")} tone={x.is_open ? "accent" : "ok"} />
+          <Pill label={late !== null && !x.is_open ? t("late_pill") : x.is_open ? t("open") : t("closed")} tone={late !== null ? "warn" : x.is_open ? "accent" : "ok"} />
         </View>
 
         {/* Filed → closed, with how long it took: the one number people care about after a power cut. */}
@@ -60,7 +62,27 @@ export default function ComplaintDetail() {
             time={x.is_open ? null : when(x.closing_date)}
             note={took !== null ? t(x.is_open ? "cx_so_far" : "cx_took", { t: span(took) }) : null} />
         </View>
+        {/* UPPCL's own limit for this kind of fault (1912's escalation chart): two plain lines, no sums. */}
+        {!!x.limit_hours && (
+          <View style={{ gap: 2, marginTop: 4 }}>
+            <Txt v="body" weight="semibold">{t("cx_limit", { h: x.limit_hours })}{late !== null && !x.is_open ? ` · ${t("cx_late", { h: late })}` : ""}</Txt>
+            <Txt v="caption" color="muted">{t("cx_limit_src")}</Txt>
+          </View>
+        )}
       </Card>
+
+      {/* Open and already past the limit: the moment calling the JE helps (the numbers are just below). */}
+      {x.is_open && late !== null && !!x.limit_hours && <Insight tone="warn" icon="schedule" text={t("cx_open_late", { h: x.limit_hours })} />}
+
+      {/* Closed late: the fact, and where 1912 takes a compensation request. UPPCL decides; no amounts promised. */}
+      {!x.is_open && late !== null && (
+        <Card style={{ gap: 8 }}>
+          <Txt v="body" weight="semibold">{t("cx_comp_title")}</Txt>
+          <Txt v="body" color="muted">{t("cx_comp_body")}</Txt>
+          <Txt v="caption" color="muted">{t("cx_comp_steps", { no: x.complaint_no })}</Txt>
+          <Button kind="soft" icon="openInNew" label={t("cx_comp_how")} onPress={() => openLink("https://1912.uppcl.org/")} />
+        </Card>
+      )}
 
       {(!!x.remarks || !!closingNote) && (
         <Card>

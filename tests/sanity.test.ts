@@ -278,6 +278,31 @@ describe("1912 sign-in payload (RSA-OAEP, SHA-256)", () => {
   });
 });
 
+describe("late against UPPCL's own time limit", () => {
+  const base = { limit_hours: 6, entry_date: "19/05/2026 03:31:00 PM", closing_remarks: "DT FUSE REPAIRED", is_open: false };
+  test("fixed in 17 h with a 6 h limit: 11 hours late", async () => {
+    const { lateBy } = await import("@shared/complaints");
+    expect(lateBy({ ...base, closing_date: "20/05/2026 08:31:00 AM" })).toBe(11);
+  });
+  test("within the limit, or only past it by UPPCL's paperwork hour: not late", async () => {
+    const { lateBy } = await import("@shared/complaints");
+    expect(lateBy({ ...base, closing_date: "19/05/2026 06:53:00 PM" })).toBeNull(); // 3 h 22 min
+    expect(lateBy({ ...base, closing_date: "19/05/2026 10:20:00 PM" })).toBeNull(); // 6 h 49 min: inside the grace hour
+  });
+  test("can't be measured honestly: never called late", async () => {
+    const { lateBy } = await import("@shared/complaints");
+    expect(lateBy({ ...base, entry_date: "19-May-2026", closing_date: "21-May-2026" })).toBeNull(); // dates only
+    expect(lateBy({ ...base, closing_date: "20/05/2026 08:31:00 AM", closing_remarks: "Issue already resolved confirm by lineman" })).toBeNull();
+    expect(lateBy({ ...base, limit_hours: null, closing_date: "20/05/2026 08:31:00 AM" })).toBeNull(); // no chart
+  });
+  test("still open past the limit counts at once (no grace: that's when calling the JE helps)", async () => {
+    const { lateBy, } = await import("@shared/complaints");
+    const { parseUppclDate } = await import("@shared/utils");
+    const now = parseUppclDate("19/05/2026 09:45:00 PM")!.getTime(); // 6 h 14 min open
+    expect(lateBy({ ...base, is_open: true, closing_date: null }, now)).toBe(1);
+  });
+});
+
 describe("UPPCL SMART payload sealing (Nov 2026)", () => {
   test("UPPCL's private key opens the wrapped key, and that key opens the sealed body (AES-GCM, base64url)", async () => {
     const { generateKeyPairSync, privateDecrypt, createDecipheriv, constants } = await import("node:crypto");

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useDashboard, useMyComplaints, useTenantPreferences, useTickets, type ComplaintDetail } from "@shared/api";
+import { useDashboard, useMyComplaints, useSeenComplaintDetail, useTenantPreferences, useTickets, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { connected1912, HELPLINE_TEL, is1912LoginOnly, needsKyc1912, openFor } from "@shared/complaints";
+import { connected1912, HELPLINE_TEL, is1912LoginOnly, lateBy, needsKyc1912, openFor } from "@shared/complaints";
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -133,29 +133,32 @@ export default function Complaints() {
 
 /** Complaint list rows. */
 function ComplaintRows({ list }: { list: ComplaintDetail[] }) {
+  return <>{list.slice(0, 10).map((x, i) => <ComplaintRow key={x.complaint_no} x={x} first={i === 0} />)}</>;
+}
+
+function ComplaintRow({ x, first }: { x: ComplaintDetail; first: boolean }) {
   const c = useColors();
   const { t, locale, span } = useI18n();
+  // Late only once its full record has been seen (it has the times and UPPCL's limit); the list itself has dates only.
+  const { data: seen } = useSeenComplaintDetail(x.complaint_no);
+  const late = seen ? lateBy(seen) : null;
+  const what = x.sub_type || x.type || t("complaint_no", { no: x.complaint_no });
   // "#PV010126… · 19 May · fixed in 3 h 22 min": the date, and how long UPPCL took (or has taken so far).
-  const line = (x: ComplaintDetail) => {
-    const d = parseUppclDate(x.entry_date), ms = openFor(x);
-    return [`#${x.complaint_no}`, d && d.toLocaleDateString(locale, { day: "numeric", month: "short" }),
-      ms !== null && t(x.is_open ? "cx_open_for" : "cx_fixed_in", { t: span(ms) })].filter(Boolean).join(" · ");
-  };
+  const d = parseUppclDate(x.entry_date), ms = openFor(seen ?? x);
+  const line = [`#${x.complaint_no}`, d && d.toLocaleDateString(locale, { day: "numeric", month: "short" }),
+    ms !== null && t(x.is_open ? "cx_open_for" : "cx_fixed_in", { t: span(ms) })].filter(Boolean).join(" · ");
   return (
-    <>
-      {list.slice(0, 10).map((x, i) => (
-        <Pressable key={x.complaint_no} accessibilityRole="button"
-          onPress={() => router.push({ pathname: "/complaint/[no]", params: { no: x.complaint_no } })}
-          style={({ pressed }) => [styles.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Txt v="body" weight="semibold" numberOfLines={1}>{x.sub_type || x.type || t("complaint_no", { no: x.complaint_no })}</Txt>
-            <Txt v="caption" color="muted" numeric numberOfLines={1}>{line(x)}</Txt>
-          </View>
-          <Pill label={x.is_open ? t("open") : t("closed")} tone={x.is_open ? "accent" : "ok"} />
-          <Icon name="chevronRight" size={20} color={c.muted} />
-        </Pressable>
-      ))}
-    </>
+    <Pressable accessibilityRole="button" accessibilityLabel={late !== null && !x.is_open ? t("cx_late_a11y", { type: what, h: late }) : undefined}
+      onPress={() => router.push({ pathname: "/complaint/[no]", params: { no: x.complaint_no } })}
+      style={({ pressed }) => [styles.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Txt v="body" weight="semibold" numberOfLines={1}>{what}</Txt>
+        <Txt v="caption" color="muted" numeric numberOfLines={1}>{line}</Txt>
+      </View>
+      {/* "Late" replaces "Closed" (never a second chip); text + warn tone, not colour alone. */}
+      <Pill label={late !== null && !x.is_open ? t("late_pill") : x.is_open ? t("open") : t("closed")} tone={late !== null ? "warn" : x.is_open ? "accent" : "ok"} />
+      <Icon name="chevronRight" size={20} color={c.muted} />
+    </Pressable>
   );
 }
 
