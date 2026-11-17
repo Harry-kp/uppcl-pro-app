@@ -185,7 +185,6 @@ function Cell({ label, value, sub, children }: { label: string; value?: string; 
 }
 
 const styles = StyleSheet.create({
-  detail: { paddingHorizontal: 16, paddingVertical: 10, minHeight: 56, justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, paddingVertical: 4 },
   cell: { width: "50%", paddingHorizontal: 8, paddingVertical: 10, gap: 3 },
   metric: { flexDirection: "row", alignItems: "center", gap: 12 },

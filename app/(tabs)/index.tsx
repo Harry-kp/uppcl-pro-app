@@ -537,7 +537,6 @@ const styles = StyleSheet.create({
   track: { height: 8, borderRadius: 4, overflow: "hidden" },
   fill: { height: "100%", borderRadius: 4 },
   ticks: { flexDirection: "row", justifyContent: "space-between" },
-  strip: { flexDirection: "row", gap: 12 },
   mini: { flex: 1, gap: 2, borderRadius: radius.tile, padding: 12 },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   how: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48, alignSelf: "flex-start" },

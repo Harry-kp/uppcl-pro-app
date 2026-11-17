@@ -340,7 +340,6 @@ const styles = StyleSheet.create({
   insight: { flexDirection: "row", gap: 10, borderRadius: 16, padding: 12, alignItems: "flex-start" },
   backRow: { flexDirection: "row", alignItems: "center", gap: 8, marginLeft: -8 },
   backBtn: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  stale: { flexDirection: "row", gap: 8, alignItems: "center", borderRadius: 14, padding: 10 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
 });
 
