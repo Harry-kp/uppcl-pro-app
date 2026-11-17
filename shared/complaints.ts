@@ -304,6 +304,8 @@ export function claimFrom(r: Record<string, Row[]>): { possible: boolean; reason
 }
 /** 1912 takes a compensation claim for 60 days from the complaint (its pre-check's reason when older, Nov 2026). */
 export const CLAIM_DAYS = 60;
+/** 1912's "Register Account" form: links a connection to the signed-in 1912 number (sign in on 1912 first). */
+export const LINK_ACCOUNT_URL = "https://1912.uppcl.org/UI/Form?FormId=12189";
 /** 1912's own compensation form (sign in on 1912 first). */
 export const COMPENSATION_FORM_URL = "https://1912.uppcl.org/UI/Form?FormId=14047";
 
