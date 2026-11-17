@@ -303,7 +303,19 @@ export function Centered({ children }: { children: ReactNode }) {
   return <View style={[styles.centered, { backgroundColor: c.bg }]}>{children}</View>;
 }
 
+/** A read-only label above its value, inside a Card (Your details, Meter details). */
+export function InfoRow({ label, value, first, lines = 1 }: { label: string; value: string; first?: boolean; lines?: number }) {
+  const c = useColors();
+  return (
+    <View style={[styles.info, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
+      <Txt v="caption" color="muted">{label}</Txt>
+      <Txt v="body" weight="semibold" numeric numberOfLines={lines}>{value}</Txt>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  info: { paddingHorizontal: 16, paddingVertical: 10, minHeight: 56, justifyContent: "center" },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingTop: 8, gap: 12 },
   grabber: { width: 36, height: 4, borderRadius: 2, alignSelf: "center" },
   grabZone: { height: 24, marginTop: -8, marginHorizontal: -16, justifyContent: "center" },

@@ -9,7 +9,7 @@ import { billRebate, withPaymentsFeed } from "@shared/insights";
 import { billingPeriod, rupees, toNum } from "@shared/utils";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
-import { font, useColors } from "../../src/theme";
+import {useColors } from "../../src/theme";
 import { Bars } from "../../src/Bars";
 import { animateNext, Button, Card, Insight, Pill, Screen, SkeletonRows, Txt } from "../../src/ui";
 import { router } from "expo-router";

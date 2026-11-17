@@ -64,7 +64,6 @@ function humanDate(d: Date): string {
   return `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
 
 function tenantHeader(tenant: string): string {
   return JSON.stringify({ isMultiLevel: true, code: tenant });

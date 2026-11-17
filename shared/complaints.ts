@@ -165,9 +165,6 @@ function rowsOf(block: string): Row[] {
   return rows;
 }
 
-function parseRowsets(raw: string): Row[] {
-  return [...raw.matchAll(/<RESULTS[^>]*>([\s\S]*?)<\/RESULTS>/gi)].flatMap((block) => rowsOf(block[1]));
-}
 
 /** The same answer split per requested control: CHILDCONTROLID → rows (one request can ask for many). */
 export function parseByChild(raw: string): Record<string, Row[]> {

@@ -8,7 +8,7 @@ import { FALLBACK_RATE, kwh, mean, rupees, stddev, toNum } from "@shared/utils";
 import { Bars } from "../../src/Bars";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
-import { Card, Centered, Insight, Pill, Screen, Segmented, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
+import {Card, Insight, Pill, Screen, Segmented, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
 import { Icon } from "../../src/icons";
 import { useColors } from "../../src/theme";
 
@@ -39,7 +39,6 @@ export default function Usage() {
     const rows = [...(data?.data ?? [])].sort((a, b) =>
       String(a.energyImportKWH?.measureTime ?? "").localeCompare(String(b.energyImportKWH?.measureTime ?? "")));
     const all = rows.map((r) => toNum(r.energyImportKWH?.value));
-    const sum = (xs: number[]) => xs.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
     const values = all.slice(-n);
     // UPPCL sometimes returns a day or two short, so accept ≥80% of the earlier period and compare daily averages.
     const prev = all.slice(Math.max(0, all.length - 2 * n), -n).filter(Number.isFinite);
@@ -59,8 +58,6 @@ export default function Usage() {
     return { values, dates, total, avg, flagged, top, weekday, busiest, vsPrev };
   }, [data, n]);
 
-  const weekdayName = (i: number, style: "short" | "long") =>
-    new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: style }); // 1 Jan 2024 was a Monday
 
   if (error && !data) return <Screen><View style={{ marginTop: 24 }}><ErrorNote error={error} onRetry={() => mutate()} /></View></Screen>;
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AppState, Pressable, StyleSheet, Switch, View, Platform } from "react-native";
 import { router } from "expo-router";
-import Constants from "expo-constants";
+
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Clipboard from "expo-clipboard";
 import { logout, mutate, useDashboard, useGuests } from "@shared/api";
@@ -13,7 +13,7 @@ import { clearPersistentCache } from "../src/cache";
 import { APP_VERSION, FROM_STORE, REPO, reportProblem, useUpdate } from "../src/github";
 import { DevSettingsSection } from "../src/dev"; // @dev-tools
 import { useI18n } from "../src/i18n";
-import { font, getThemeChoice, setThemeChoice, useColors, type ThemeChoice } from "../src/theme";
+import {getThemeChoice, setThemeChoice, useColors, type ThemeChoice } from "../src/theme";
 import { BackHeader, Button, Card, Choices, Screen, Sheet, Txt, Field } from "../src/ui";
 import { rupees } from "@shared/utils";
 import { Icon, type IconName } from "../src/icons";
@@ -22,7 +22,7 @@ import { setScenario, useDemo } from "../src/demo";
 
 export default function Settings() {
   const c = useColors();
-  const { t, lang, setLang, locale } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const { data: dash } = useDashboard();
   const { data: guests } = useGuests();
   const postpaid = dash?.site.connectionType === "postpaid";
@@ -206,8 +206,7 @@ function Row({ icon, label, value, valueTone, right, onPress, first, tone }: {
 
 /** One number the user picks; "Turn off" clears it. Saved on the phone, checked by the alert task. */
 function BudgetSheet({ visible, onClose, alertsOn, onTurnOnAlerts }: { visible: boolean; onClose: () => void; alertsOn: boolean; onTurnOnAlerts: () => void }) {
-  const c = useColors();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [v, setV] = useState(() => String(getBudget() ?? ""));
   useEffect(() => { if (visible) setV(String(getBudget() ?? "")); }, [visible]);
   // A budget only warns through bill reminders: saving one with reminders off goes straight on to switch them on,

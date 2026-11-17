@@ -7,7 +7,7 @@ import { CGRF_STATUS_URL, CGRF_URL, cgrfNodalUrl, cgrfStatusFrom, connected1912,
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
-import { font, useColors } from "../../src/theme";
+import {useColors } from "../../src/theme";
 import { ActionTile, Insight, Button, Card, Field, Pill, Screen, Sheet, Txt, SkeletonRows, SlowNote } from "../../src/ui";
 import { keystore } from "../../src/boot";
 import { Icon, type IconName } from "../../src/icons";

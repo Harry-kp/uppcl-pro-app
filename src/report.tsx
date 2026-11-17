@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { mutate, useAreaOutage, useDashboard, useDowntime, useMe, useMyComplaints, usePlannedCuts, useSeenComplaintDetail, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
+import {mutate, useAreaOutage, useDashboard, useDowntime, useMyComplaints, usePlannedCuts, useSeenComplaintDetail, useTenantPreferences, type DashboardResponse } from "@shared/api";
 import { cityOf, myPlannedCuts, type MyCut } from "@shared/plannedCuts";
 import { fileSupplyComplaint, HELPLINE_TEL, HELPLINE_TOLL_FREE, LINK_ACCOUNT_URL, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { platform } from "@shared/platform";
@@ -107,7 +107,6 @@ function useWhatsAppUrl(data: DashboardResponse, problem: Problem, account?: str
 export function ReportSheet({ data, visible, onClose }: { data: DashboardResponse; visible: boolean; onClose: () => void }) {
   const c = useColors();
   const { t, span } = useI18n();
-  const { data: me } = useMe();
   const { data: complaints } = useMyComplaints();
   const { data: downtime } = useDowntime();
   const open = complaints?.complaints.find((x) => x.is_open);

@@ -5,7 +5,7 @@ import { setPaperlessBill, useDashboard, useMe, useWssConsumer } from "@shared/a
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
-import { BackHeader, Button, Card, Insight, Screen, Sheet, SkeletonRows, SlowNote, Txt } from "../src/ui";
+import { BackHeader, Button, Card, InfoRow, Insight, Screen, Sheet, SkeletonRows, SlowNote, Txt } from "../src/ui";
 import { Icon } from "../src/icons";
 import { openLink } from "../src/links";
 
@@ -49,11 +49,11 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
         {error ? <ErrorNote error={error} compact /> : <Insight tone="warn" icon="warning" text={t("details_unavailable")} />}
         <Txt v="caption" color="muted">{t("details_from_smart")}</Txt>
         <Card style={{ padding: 0, gap: 0 }}>
-          {!!known(site?.customerName) && <Detail first label={t("name")} value={site!.customerName} />}
-          {!!tenDigits(loginPhone) && <Detail first={!known(site?.customerName)} label={t("login_mobile")} value={tenDigits(loginPhone)} />}
-          {!!addr && <Detail label={t("address")} value={addr} lines={3} />}
+          {!!known(site?.customerName) && <InfoRow first label={t("name")} value={site!.customerName} />}
+          {!!tenDigits(loginPhone) && <InfoRow first={!known(site?.customerName)} label={t("login_mobile")} value={tenDigits(loginPhone)} />}
+          {!!addr && <InfoRow label={t("address")} value={addr} lines={3} />}
           {/* Also in the UPPCL SMART record: no need to wait for the bill portal for these two. */}
-          {!!known(String(site?.email ?? "")) && <Detail label={t("email")} value={String(site!.email)} />}
+          {!!known(String(site?.email ?? "")) && <InfoRow label={t("email")} value={String(site!.email)} />}
           {site && <PaperlessRow site={site} />}
           <Pressable accessibilityRole="button" onPress={() => void mutate()}
             style={({ pressed }) => [styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
@@ -73,11 +73,11 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
     <>
       {mismatch && <Insight tone="warn" icon="warning" text={t("phone_mismatch", { app: `••${appPhone.slice(-4)}`, bill: `••${billPhone.slice(-4)}` })} />}
       <Card style={{ padding: 0, gap: 0 }}>
-        {!!known(cd.name) && <Detail first label={t("name")} value={cd.name!} />}
-        {!!billPhone && <Detail first={!known(cd.name)} label={t("registered_mobile")} value={billPhone} />}
-        {!!cd.email && <Detail label={t("email")} value={cd.email} />}
-        {dash?.site ? <PaperlessRow site={dash.site} portalMode={billsBy} portalEmail={cd.email ?? undefined} /> : <Detail label={t("bills_by")} value={billsBy} />}
-        {!!address && <Detail label={t("billing_address")} value={address} lines={3} />}
+        {!!known(cd.name) && <InfoRow first label={t("name")} value={cd.name!} />}
+        {!!billPhone && <InfoRow first={!known(cd.name)} label={t("registered_mobile")} value={billPhone} />}
+        {!!cd.email && <InfoRow label={t("email")} value={cd.email} />}
+        {dash?.site ? <PaperlessRow site={dash.site} portalMode={billsBy} portalEmail={cd.email ?? undefined} /> : <InfoRow label={t("bills_by")} value={billsBy} />}
+        {!!address && <InfoRow label={t("billing_address")} value={address} lines={3} />}
         <Pressable accessibilityRole="link" onPress={() => openLink(UPPCL_CONSUMER_URL)}
           style={({ pressed }) => [styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
           <Icon name="person" size={20} color={c.primary} />
@@ -154,18 +154,6 @@ function PaperlessRow({ site, portalMode, portalEmail }: { site: { email?: unkno
 }
 
 /** A label/value row. */
-function Detail({ label, value, first, lines = 1 }: { label: string; value: string; first?: boolean; lines?: number }) {
-  const c = useColors();
-  return (
-    <View style={[styles.detail, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Txt v="caption" color="muted">{label}</Txt>
-        <Txt v="body" weight="semibold" numeric numberOfLines={lines}>{value}</Txt>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   detail: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10, minHeight: 56 },
 });
