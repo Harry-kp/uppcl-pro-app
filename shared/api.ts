@@ -19,6 +19,8 @@ import {
   clearSession,
   expireSession,
   isAuthenticated,
+  peekSession,
+  canRenew,
   getJwt,
   getSite,
   setSite,
@@ -187,12 +189,39 @@ function authHeaders(): Record<string, string> {
 }
 
 let refreshing: Promise<boolean> | null = null;
-/** Renews UPPCL's access cookie (POST auth/refresh with the refresh cookie); one at a time, true if it worked. */
+/**
+ * Renews the sign-in (POST auth/refresh; the access + refresh cookies ride along) and moves our expiry to UPPCL's new
+ * one. One at a time; true if it worked. Without the tenantid header UPPCL answers 401 "TenantId is missing" — this
+ * never worked before Nov 2026 (UX-R39). UPPCL renews for 60 days after sign-in, each renewal good for 24 h.
+ */
 function refreshSession(): Promise<boolean> {
   refreshing ??= send("uppcl", "auth/refresh", {
-    method: "POST", cache: "no-store", body: "{}", headers: { "content-type": "application/json", apikey: UPPCL_API_KEY },
-  }).then((r) => r.ok, () => false).finally(() => { refreshing = null; });
+    method: "POST", cache: "no-store", body: "{}",
+    headers: { "content-type": "application/json", apikey: UPPCL_API_KEY, tenantid: tenantHeader(peekSession()?.tenant ?? DEFAULT_TENANT) },
+  }).then(async (r) => {
+    if (!r.ok) return false;
+    const body = await r.json().catch(() => null) as { data?: { expires?: number } } | null;
+    const cur = peekSession();
+    if (cur) saveSession({ ...cur, jwtExpiresMs: Number.isFinite(body?.data?.expires) ? body!.data!.expires! : Date.now() + 24 * 3_600_000 });
+    return true;
+  }, () => false).finally(() => { refreshing = null; });
   return refreshing;
+}
+
+const RENEW_EARLY_MS = 2 * 3_600_000;
+/**
+ * Make sure the stored sign-in is usable, renewing it when it's within 2 h of (or past) its 24 h expiry and still inside
+ * UPPCL's 60-day window. True = signed in. Called before data loads (/health, proxy) and by the background reminder
+ * check, so nobody is signed out after a day and reminders need no stored password (UX-R39).
+ */
+export async function ensureFreshSession(): Promise<boolean> {
+  const s = peekSession();
+  if (!s) return false;
+  const usable = () => (peekSession()?.jwtExpiresMs ?? 0) > Date.now();
+  if (s.jwtExpiresMs - Date.now() > RENEW_EARLY_MS) return true;
+  if (canRenew(s) && await refreshSession()) return true;
+  if (!usable()) { expireSession(); return false; } // past the window, or UPPCL refused: sign in again, with the reason shown
+  return true; // still inside the 24 h; try renewing again next time
 }
 
 async function proxy(
@@ -202,7 +231,8 @@ async function proxy(
   extraHeaders?: Record<string, string>,
   method?: "PUT" | "DELETE",
 ): Promise<unknown> {
-  const session = getSession();
+  let session = getSession();
+  if (!session && await ensureFreshSession().catch(() => false)) session = getSession();
   if (!session) throw new ProxyError(401, "No active session — sign in first");
 
   const call = () => send(base, path, {
@@ -396,6 +426,7 @@ function finishSignIn(json: { data?: { token?: string; expires?: number; user?: 
     ...(data.token ? { jwt: data.token } : {}), // none since Nov 2026: the sign-in is in cookies
     // UPPCL's session lasts 24 h; without a usable expiry, assume that rather than never expiring.
     jwtExpiresMs: Number.isFinite(data.expires) ? data.expires! : Date.now() + 24 * 3_600_000,
+    renewUntilMs: Date.now() + 60 * 86_400_000 - 3_600_000, // UPPCL renews for 60 days after sign-in (an hour's margin)
     tenant: data.user?.tenantCode ?? DEFAULT_TENANT,
   });
 }
@@ -527,8 +558,9 @@ async function fetcher<T>(key: string): Promise<T> {
   if (key.startsWith("/complaints/detail/")) return complaintDetail(decodeURIComponent(key.slice("/complaints/detail/".length))) as Promise<T>;
   if (key.startsWith("/complaints")) return complaints(key.slice("/complaints".length)) as Promise<T>;
 
-  // Health is client-side only
+  // Health is client-side only (but it's where an expiring sign-in gets renewed, before the app decides who's signed in)
   if (key === "/health") {
+    await ensureFreshSession().catch(() => false);
     return {
       // React Native's navigator has no onLine (undefined) — treat that as online.
       ok: typeof navigator === "undefined" || navigator.onLine !== false,
@@ -541,7 +573,7 @@ async function fetcher<T>(key: string): Promise<T> {
   }
 
   // Everything else requires auth
-  if (!isAuthenticated()) {
+  if (!isAuthenticated() && !(await ensureFreshSession().catch(() => false))) {
     throw new ProxyError(401, "Not authenticated");
   }
 

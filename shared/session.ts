@@ -13,7 +13,9 @@ const EXPIRED_KEY = "uppcl_session_expired";
 
 export interface Session {
   jwt?: string; // only from sign-ins before UPPCL moved to cookies (Nov 2026)
-  jwtExpiresMs: number;
+  jwtExpiresMs: number; // UPPCL's access part: 24 h, pushed forward by each renewal
+  /** Until when UPPCL will renew it without a new sign-in: 60 days from sign-in (the refresh cookie's hard cap). */
+  renewUntilMs?: number;
   tenant: string;
   site?: SiteRecord;
 }
@@ -38,6 +40,24 @@ export interface SiteRecord {
   [k: string]: unknown;
 }
 
+const DAY = 86_400_000;
+/** UPPCL renews a session for 60 days after sign-in (refresh cookie: Max-Age 60 d, absoluteExpires = sign-in + 60 d,
+ *  checked Nov 2026). Sessions saved before renewUntilMs existed: their sign-in was 24 h before the first expiry. */
+export function canRenew(s: Session, now = Date.now()): boolean {
+  const until = s.renewUntilMs ?? s.jwtExpiresMs - DAY + 60 * DAY - 3_600_000;
+  return Number.isFinite(until) && until > now;
+}
+
+/** The stored session even when its 24 h part has run out (so it can be renewed); null if none. */
+export function peekSession(): Session | null {
+  try {
+    const raw = platform.storage?.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Session) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getSession(): Session | null {
   const store = platform.storage;
   if (!store) return null;
@@ -46,6 +66,8 @@ export function getSession(): Session | null {
     if (!raw) return null;
     const s = JSON.parse(raw) as Session;
     if (!(s.jwtExpiresMs > Date.now())) { // missing / non-numeric counts as expired (fail closed)
+      if (canRenew(s)) return null; // not usable right now, but kept: ensureFreshSession() renews it
+
       // Ran out on its own: say so on the sign-in screen, same as when UPPCL rejects it (expireSession).
       // Without the flag the user just finds themselves signed out, with no reason given.
       store.removeItem(STORAGE_KEY);

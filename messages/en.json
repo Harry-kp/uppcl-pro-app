@@ -91,8 +91,6 @@
     "pay_now": "Pay ₹{amount}",
     "alerts": "Low-balance alerts",
     "alerts_desc": "A notification when your balance has about 3 days left. Checks about twice a day.",
-    "alerts_password": "To check while the app is closed, Bijli Saathi keeps your UPPCL password on this phone, encrypted by Android. Turn alerts off to delete it.",
-    "alerts_turn_on": "Turn on reminders",
     "cancel": "Cancel",
     "alerts_denied": "Notifications are blocked. Allow them for Bijli Saathi in Android settings.",
     "notif_title": "About {n} days of balance left",
@@ -615,10 +613,6 @@
     "call_x": "Call {name}",
     "copy_x": "Copy {label}",
     "si_forgot_user_note": "No username needed. Sign in with your mobile number and a code.",
-    "alerts_pw_label": "Your UPPCL SMART password",
-    "alerts_pw_code": "Sign in with codes only? Use the password you set on UPPCL SMART. Never set one? Choose \"Forgot password\" on the UPPCL SMART site or app first.",
-    "alerts_pw_wrong": "That password didn't work with UPPCL SMART. Check it and try again.",
-    "alerts_pw_failed": "Couldn't check the password with UPPCL just now. Check your internet and try again.",
     "sh_count_one": "1 person",
     "language_both": "Language · भाषा",
     "insight_lifespan_one": "Your last ₹{amount} recharge lasted 1 day.",
@@ -635,6 +629,8 @@
     "tariff_lmv2": "Non-domestic",
     "tariff_lmv5": "Private tube well",
     "meter_active": "Active",
-    "cx_no_limit": "1912 doesn't publish a time limit for this kind of complaint."
+    "cx_no_limit": "1912 doesn't publish a time limit for this kind of complaint.",
+    "signin_again_title": "Sign in to keep bill reminders",
+    "signin_again_body": "UPPCL signs you out after 60 days. Open Bijli Saathi and sign in again to keep getting reminders."
   }
 }

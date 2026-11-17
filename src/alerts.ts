@@ -1,8 +1,8 @@
 /**
- * Opt-in alerts. Off by default. When the user turns them on we keep their UPPCL username +
- * password in the OS keystore (so the check can sign in again after the JWT expires), let Android
- * wake us about twice a day, work everything out on the phone, and post local notifications.
- * No server involved.
+ * Opt-in alerts. Off by default. Android wakes us about twice a day; the check renews the sign-in itself
+ * (ensureFreshSession: UPPCL renews for 60 days after sign-in), works everything out on the phone and posts
+ * local notifications. No password is stored (UX-R39); one saved by an older version is only a fallback.
+ * When the 60 days run out, one notification asks the user to sign in again. No server involved.
  *
  *  prepaid : balance lasts ≤ ALERT_DAYS
  *  postpaid: a new bill is ready · an unpaid bill is due within DUE_DAYS
@@ -13,9 +13,8 @@ import "./boot";
 import * as BackgroundTask from "expo-background-task";
 import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
-import { getDashboard, getDowntime, getLatestInvoice, login, type MonthlyInvoice } from "@shared/api";
+import { ensureFreshSession, getDashboard, getDowntime, getLatestInvoice, login, type MonthlyInvoice } from "@shared/api";
 import { derivePostpaid, derivePrepaid } from "@shared/insights";
-import { isAuthenticated } from "@shared/session";
 import { billingPeriod, daysBetween, rupees } from "@shared/utils";
 import en from "../messages/en.json";
 import hi from "../messages/hi.json";
@@ -23,8 +22,9 @@ import { FINGERPRINT_KEY, keystore } from "./boot";
 import { saveSnapshot } from "./widget";
 
 const TASK = "uppcl-pro-alerts";
-const CREDS_KEY = "app_alert_creds";
-const SEEN = { low: "app_alert_low_day", bill: "app_alert_bill_id", due: "app_alert_due_day", cut: "app_alert_cut", budget: "app_alert_budget_month" } as const;
+const CREDS_KEY = "app_alert_creds"; // only from versions before UX-R39: a fallback, never written now
+const ON_KEY = "app_alerts_on";
+const SEEN = { low: "app_alert_low_day", bill: "app_alert_bill_id", due: "app_alert_due_day", cut: "app_alert_cut", budget: "app_alert_budget_month", signin: "app_alert_signin" } as const;
 const BUDGET_KEY = "app_budget";
 
 /** The user's monthly bill budget in ₹, or null when off. Kept on the phone only. */
@@ -44,7 +44,7 @@ export const ALERT_DAYS = 3;
 export const DUE_DAYS = 3;
 
 export function alertsEnabled(): boolean {
-  return keystore.getItem(CREDS_KEY) !== null;
+  return keystore.getItem(ON_KEY) === "1" || keystore.getItem(CREDS_KEY) !== null;
 }
 
 async function ensureChannel() {
@@ -53,22 +53,19 @@ async function ensureChannel() {
   });
 }
 
-/**
- * Check the password (throws UPPCL's error if wrong), ask for notification permission,
- * then store credentials and register the background task. Returns false if notifications are blocked.
- */
-export async function enableAlerts(username: string, password: string): Promise<boolean> {
-  await login(username, password);
+/** Ask for notification permission and register the background task; false if notifications are blocked. */
+export async function enableAlerts(): Promise<boolean> {
   const { granted } = await Notifications.requestPermissionsAsync();
   if (!granted) return false;
   await ensureChannel();
-  keystore.setItem(CREDS_KEY, JSON.stringify({ username, password }));
+  keystore.setItem(ON_KEY, "1");
   await BackgroundTask.registerTaskAsync(TASK, { minimumInterval: 12 * 60 }); // minutes
   void checkAlerts(); // first check now, so the first alert doesn't wait half a day
   return true;
 }
 
 export async function disableAlerts(): Promise<void> {
+  keystore.removeItem(ON_KEY);
   keystore.removeItem(CREDS_KEY);
   Object.values(SEEN).forEach((k) => keystore.removeItem(k));
   if (await TaskManager.isTaskRegisteredAsync(TASK)) await BackgroundTask.unregisterTaskAsync(TASK);
@@ -98,13 +95,20 @@ function notify(title: string, body: string, href?: string) {
 }
 
 export async function checkAlerts(now: number = Date.now()): Promise<void> {
-  const raw = keystore.getItem(CREDS_KEY);
-  if (!raw) return;
-  if (!isAuthenticated()) {
-    const { username, password } = JSON.parse(raw) as { username: string; password: string };
-    await login(username, password);
-  }
+  if (!alertsEnabled()) return;
   const s = strings();
+  if (!(await ensureFreshSession())) {
+    const raw = keystore.getItem(CREDS_KEY); // an older version's saved password: still honoured
+    if (raw) {
+      const { username, password } = JSON.parse(raw) as { username: string; password: string };
+      await login(username, password);
+    } else {
+      // UPPCL's 60 days are up: say so once, instead of reminders silently stopping.
+      if (keystore.getItem(SEEN.signin) !== "1") { await notify(s.signin_again_title, s.signin_again_body, "/"); keystore.setItem(SEEN.signin, "1"); }
+      return;
+    }
+  }
+  keystore.removeItem(SEEN.signin);
   const today = new Date(now).toDateString();
   const day = (d: Date | string) => new Date(d).toLocaleDateString(s.locale, { weekday: "short", day: "numeric", month: "short" });
   const data = await getDashboard();

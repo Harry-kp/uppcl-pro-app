@@ -334,9 +334,26 @@ describe("session", () => {
     saveSession({ jwt: "x", jwtExpiresMs: Date.now() + 60_000, tenant: "t" });
     expect(getSession()).not.toBeNull();
     expect(sessionWasExpired()).toBe(false);
-    saveSession({ jwt: "x", jwtExpiresMs: Date.now() - 1, tenant: "t" });
+    // Past UPPCL's 60-day renewal window: gone, and the sign-in screen says why.
+    saveSession({ jwt: "x", jwtExpiresMs: Date.now() - 1, renewUntilMs: Date.now() - 1, tenant: "t" });
     expect(getSession()).toBeNull();
     expect(sessionWasExpired()).toBe(true);
+  });
+
+  test("an expired 24 h session inside the 60-day window is kept for renewal, not dropped (UX-R39)", async () => {
+    const { configurePlatform } = await import("@shared/platform");
+    const { canRenew, getSession, peekSession, saveSession, sessionWasExpired } = await import("@shared/session");
+    const mem = new Map<string, string>();
+    configurePlatform({ storage: { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => void mem.set(k, v), removeItem: (k) => void mem.delete(k) } });
+    const day = 86_400_000;
+    saveSession({ jwtExpiresMs: Date.now() - 1, renewUntilMs: Date.now() + 30 * day, tenant: "t" });
+    expect(getSession()).toBeNull(); // not usable until renewed…
+    expect(peekSession()).not.toBeNull(); // …but still there to renew
+    expect(sessionWasExpired()).toBe(false);
+    // Saved before renewUntilMs existed: the window is counted from its first expiry - 24 h.
+    expect(canRenew({ jwtExpiresMs: Date.now() - 10 * day, tenant: "t" })).toBe(true);
+    expect(canRenew({ jwtExpiresMs: Date.now() - 61 * day, tenant: "t" })).toBe(false);
+    expect(canRenew({ jwtExpiresMs: Number.NaN, tenant: "t" })).toBe(false); // fail closed
   });
 });
 

@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Clipboard from "expo-clipboard";
-import { logout, mutate, useDashboard, useGuests, useMe } from "@shared/api";
+import { logout, mutate, useDashboard, useGuests } from "@shared/api";
 import { FINGERPRINT_KEY, JUST_PAID_KEY, keystore, NAME_KEY } from "../src/boot";
 import { alertsEnabled, disableAlerts, enableAlerts, getBudget, sendTestNotification, setBudget } from "../src/alerts";
 import { clearSnapshot, WIDGET_NAME, setWidgetLocked } from "../src/widget";
@@ -23,16 +23,12 @@ import { setScenario, useDemo } from "../src/demo";
 export default function Settings() {
   const c = useColors();
   const { t, lang, setLang, locale } = useI18n();
-  const { data: me } = useMe();
   const { data: dash } = useDashboard();
   const { data: guests } = useGuests();
   const postpaid = dash?.site.connectionType === "postpaid";
   const [canBio, setCanBio] = useState(false);
   const [bio, setBio] = useState(() => keystore.getItem(FINGERPRINT_KEY) === "1");
   const [alerts, setAlerts] = useState(alertsEnabled);
-  const [askPw, setAskPw] = useState(false);
-  const [pw, setPw] = useState("");
-  const [alertBusy, setAlertBusy] = useState(false);
   const [alertError, setAlertError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeChoice>(getThemeChoice);
   const [sheet, setSheet] = useState<"lang" | "theme" | "budget" | "signout" | null>(null);
@@ -68,30 +64,13 @@ export default function Settings() {
     setBio(on);
   }
 
+  // One tap: no password any more — the background check renews the sign-in itself (UX-R39).
   async function toggleAlerts(on: boolean) {
     setAlertError(null);
-    if (on) return setAskPw(true);
-    await disableAlerts();
-    setAlerts(false);
-  }
-
-  async function confirmAlerts() {
-    const username = me?.data?.[0]?.username;
-    if (!username) return;
-    setAlertBusy(true);
-    try {
-      const ok = await enableAlerts(username, pw);
-      setPw("");
-      setAskPw(false);
-      setAlerts(ok);
-      if (!ok) setAlertError(t("alerts_denied"));
-    } catch (e) {
-      // Plain words, not UPPCL's raw message; the field stays open to retry (UX-R30).
-      const st = (e as { status?: number }).status;
-      setAlertError(st === 400 || st === 401 || st === 403 ? t("alerts_pw_wrong") : t("alerts_pw_failed"));
-    } finally {
-      setAlertBusy(false);
-    }
+    if (!on) { await disableAlerts(); setAlerts(false); return; }
+    const ok = await enableAlerts();
+    setAlerts(ok);
+    if (!ok) setAlertError(t("alerts_denied"));
   }
 
   async function signOut() {
@@ -139,6 +118,8 @@ export default function Settings() {
           )}
         </Group>
       )}
+      {/* What the switch does, where it is (the password sheet that used to explain it is gone: UX-R39). */}
+      {dash && !alerts && <Txt v="caption" color="muted" style={{ marginTop: -4 }}>{postpaid ? t("alerts_post_desc") : t("alerts_desc")}</Txt>}
       {alertError && <Txt v="caption" color="critical">{alertError}</Txt>}
 
       <Group title={t("app_section")}>
@@ -186,20 +167,6 @@ export default function Settings() {
         <Button kind="soft" label={t("cancel")} disabled={leaving} onPress={() => setSheet(null)} />
       </Sheet>
       <BudgetSheet visible={sheet === "budget"} onClose={() => setSheet(null)} alertsOn={alerts} onTurnOnAlerts={() => void toggleAlerts(true)} />
-      {/* Turning reminders on needs the password (kept encrypted so the check can sign in while the app is closed). */}
-      <Sheet visible={askPw} title={alertsLabel} onClose={() => { setAskPw(false); setPw(""); }}>
-        <Txt v="label" color="muted">{postpaid ? t("alerts_post_desc") : t("alerts_desc")}</Txt>
-        <Txt v="caption" color="muted">{t("alerts_password")}</Txt>
-        {/* A visible label, and the screen reader says the same thing (UX-R30). */}
-        <Txt v="label" color="muted">{t("alerts_pw_label")}</Txt>
-        <Field
-          value={pw} onChangeText={(v) => { setPw(v); setAlertError(null); }} secureTextEntry autoComplete="current-password" autoFocus
-          accessibilityLabel={t("alerts_pw_label")} placeholder="••••••••"
-        />
-        <Txt v="caption" color="muted">{t("alerts_pw_code")}</Txt>
-        {alertError && <Txt v="caption" color="critical">{alertError}</Txt>}
-        <Button label={t("alerts_turn_on")} onPress={confirmAlerts} busy={alertBusy} disabled={!pw} />
-      </Sheet>
     </Screen>
   );
 }
