@@ -680,6 +680,20 @@
     "lk_open": "Open 1912's Register Account page",
     "lk_check": "I've linked it, check again",
     "more_help": "More help",
-    "toll_free_label": "Toll-free, when 1912 is busy"
+    "toll_free_label": "Toll-free, when 1912 is busy",
+    "pc_now": "Planned cut now · until {to}",
+    "pc_today": "Planned cut today · {from} – {to}",
+    "pc_tomorrow": "Planned cut tomorrow · {from} – {to}",
+    "pc_title": "Planned cut on your substation",
+    "pc_substation": "Substation",
+    "pc_feeder": "Feeder",
+    "pc_why": "Why",
+    "pc_areas": "Areas",
+    "pc_source": "From PVVNL's latest planned-cut list. Times can change.",
+    "pc_open_pdf": "Open the full list (PDF)",
+    "pc_running": "Planned cut on your substation until {to}. A complaint won't bring power back sooner.",
+    "pc_ok": "OK",
+    "pc_report_anyway": "Report anyway",
+    "pc_on_yours": "{when} on your substation"
   }
 }

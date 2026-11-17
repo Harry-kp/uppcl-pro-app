@@ -11,7 +11,8 @@
 import useSWR, { mutate as defaultMutate, unload as defaultUnload, type ScopedMutator, type Unloader } from "swr";
 import { newSealKey, sealBody, solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
-import { areaOutages, compensationCheck, complaintDetail, complaints, connected1912, forget1912, type AreaOutage } from "./complaints";
+import { areaOutages, compensationCheck, complaintDetail, complaints, connected1912, forget1912, plannedCutList, type AreaOutage } from "./complaints";
+import type { PlannedList } from "./plannedCuts";
 import { billingPeriod, indiaTime } from "./utils";
 import {
   getSession,
@@ -525,6 +526,7 @@ async function fetcher<T>(key: string): Promise<T> {
   const mocked = platform.mock?.(key); if (mocked !== undefined) return mocked as T; // data seam: sample data (src/demo.ts)
   // Complaints: UPPCL's 1912 portal, anonymous (no user creds), straight from the phone.
   if (key === "/complaints/outage") return areaOutages() as Promise<T>;
+  if (key === "/planned-cuts") return plannedCutList() as Promise<T>; // public PVVNL page + PDF, no account data
   if (key.startsWith("/complaints/claim/")) return compensationCheck(decodeURIComponent(key.slice("/complaints/claim/".length))) as Promise<T>;
   if (key.startsWith("/complaints/detail/")) return complaintDetail(decodeURIComponent(key.slice("/complaints/detail/".length))) as Promise<T>;
   if (key.startsWith("/complaints")) return complaints(key.slice("/complaints".length)) as Promise<T>;
@@ -1187,6 +1189,9 @@ export const useSeenComplaintDetail = (no: string) =>
 /** 1912's compensation pre-check for one complaint (only asked for complaints past UPPCL's limit). */
 export const useCompensationCheck = (no: string | null) =>
   useSWR<{ possible: boolean; reasons: string[] }>(connected1912() && no ? `/complaints/claim/${encodeURIComponent(no)}` : null, fetcher, { ...swrOpts, shouldRetryOnError: false });
+/** PVVNL's planned-cut list (PVVNL customers only); checked every few hours, the PDF re-read only when a new one is posted. */
+export const usePlannedCuts = (pvvnl: boolean) =>
+  useSWR<PlannedList | null>(pvvnl ? "/planned-cuts" : null, fetcher, { ...swrOpts, dedupingInterval: 3 * 3600_000, revalidateOnFocus: false, shouldRetryOnError: false });
 /** Outages 1912 lists for the user's line (connected to 1912 only); refreshed when shown — outages come and go. */
 export const useAreaOutage = () =>
   useSWR<AreaOutage[]>(connected1912() ? "/complaints/outage" : null, fetcher, { ...swrOpts, revalidateIfStale: true, shouldRetryOnError: false });

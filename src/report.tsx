@@ -9,10 +9,11 @@
  * number on 1912 once; cantFileKey says which is missing). Only ever on the user's tap.
  * Danger is always a call. When filing can't go through, SMS / WhatsApp / call are offered instead.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { mutate, useAreaOutage, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
+import { mutate, useAreaOutage, useDashboard, useDowntime, useMe, useMyComplaints, usePlannedCuts, useSeenComplaintDetail, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
+import { cityOf, myPlannedCuts, type MyCut } from "@shared/plannedCuts";
 import { fileSupplyComplaint, HELPLINE_TEL, HELPLINE_TOLL_FREE, LINK_ACCOUNT_URL, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { platform } from "@shared/platform";
 import { Connect1912Sheet } from "./connect1912";
@@ -125,7 +126,10 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
     } catch (e) { setFileError(e); } finally { setBusy(false); }
   }
   const failed = !!prepError || !!fileError || !!draft?.blocked || (!!filed && !filed.ok);
+  const running = useMyPlannedCuts().find((x) => x.start <= new Date()); // planned cut on this substation right now
+  const holdForPlanned = !!running && !again; // like an open complaint: say so first, reporting is one more tap
   const holdForOpen = !!open && !again;
+  const { locale } = useI18n();
 
   return (
     <Sheet visible={visible} onClose={close} title={filed?.ok ? t("rp_title") : t("rp_title_quick")}>
@@ -140,10 +144,13 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
             <Insight tone="warn" icon="supportAgent"
               text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
           )}
+          {!!running && <Insight tone="warn" icon="event" text={t("pc_running", { to: running.end.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" }) })} />}
+          {holdForPlanned && !holdForOpen && <Button label={t("pc_ok")} onPress={close} />}
+          {holdForPlanned && !holdForOpen && <TextLink label={t("pc_report_anyway")} onPress={() => setAgain(true)} />}
           {/* The open complaint IS the action: its page has the engineers to call, in order. */}
           {holdForOpen && <Button label={t("rp_see_open")} icon="supportAgent" onPress={seeOpen} />}
           {holdForOpen && <TextLink label={t("rp_report_again")} onPress={() => setAgain(true)} />}
-          {!holdForOpen && !failed && (
+          {!holdForOpen && !holdForPlanned && !failed && (
             <>
               {/* Where it goes, once, above the action (not a wall of text under it). */}
               <View style={styles.where}>
@@ -160,7 +167,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
                 onPress={() => (draft && !draft.substation ? full() : void file())} />
             </>
           )}
-          {!holdForOpen && (
+          {!holdForOpen && !holdForPlanned && (
             <>
               {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
               {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
@@ -290,7 +297,94 @@ export function DangerRow() {
   );
 }
 
+/** Planned cuts on the user's substation (PVVNL's daily PDF, read on the phone), one entry per time window with its
+ *  feeders. Substation (and city) come from the user's 1912 complaints; unknown → nothing (the PDF link stays). */
+export function useMyPlannedCuts(): (MyCut & { feeders: string[] })[] {
+  const { data: dash } = useDashboard();
+  const pvvnl = String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL";
+  const { data: cx } = useMyComplaints();
+  const withSub = cx?.complaints.find((x) => x.substation);
+  const { data: seen } = useSeenComplaintDetail(withSub?.complaint_no ?? "");
+  const { data: list } = usePlannedCuts(pvvnl && !!withSub);
+  const sub = withSub?.substation, city = cityOf(seen?.subdivision);
+  return useMemo(() => {
+    if (!sub) return [];
+    const out: (MyCut & { feeders: string[] })[] = [];
+    for (const c of myPlannedCuts(list, { substation: sub, city })) {
+      const same = out.find((o) => +o.start === +c.start && +o.end === +c.end && o.substation === c.substation);
+      if (same) { if (c.feeder) same.feeders.push(c.feeder); } else out.push({ ...c, feeders: c.feeder ? [c.feeder] : [] });
+    }
+    return out;
+  }, [list, sub, city]);
+}
+
+/** "now · until 2 pm" / "today · 10 am – 2 pm" / "tomorrow · 10 am – 2 pm" as one line. */
+export function useCutWhen() {
+  const { t, locale } = useI18n();
+  const hm = (d: Date) => d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
+  return (c: MyCut, now = new Date()) => {
+    if (c.start <= now) return t("pc_now", { to: hm(c.end) });
+    const today = c.start.toDateString() === now.toDateString();
+    return t(today ? "pc_today" : "pc_tomorrow", { from: hm(c.start), to: hm(c.end) });
+  };
+}
+
+/** Home: the next planned cut on the user's substation, one line; tap for the details. Nothing when none matched. */
+export function PlannedCutBanner() {
+  const c = useColors();
+  const cuts = useMyPlannedCuts();
+  const when = useCutWhen();
+  const [open, setOpen] = useState(false);
+  const x = cuts[0];
+  if (!x) return null;
+  const sub = [x.substation, x.reason].filter(Boolean).join(" · ");
+  return (
+    <>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${when(x)}. ${sub}`} onPress={() => setOpen(true)}
+        style={({ pressed }) => [styles.banner, { backgroundColor: c.surface, borderColor: c.line, opacity: pressed ? 0.85 : 1 }]}>
+        <View style={[styles.bannerIcon, { backgroundColor: c.pill }]}><Icon name="event" size={20} color={c.pillText} /></View>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Txt v="body" weight="semibold" numberOfLines={2}>{when(x)}</Txt>
+          <Txt v="caption" color="muted" numberOfLines={1}>{sub}</Txt>
+        </View>
+        <Icon name="chevronRight" size={20} color={c.muted} />
+      </Pressable>
+      <PlannedCutSheet cuts={cuts} visible={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+/** Every matched window: when, substation, feeders, why, areas; the full PDF one tap away. */
+export function PlannedCutSheet({ cuts, visible, onClose }: { cuts: (MyCut & { feeders: string[] })[]; visible: boolean; onClose: () => void }) {
+  const c = useColors();
+  const { t } = useI18n();
+  const when = useCutWhen();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Sheet visible={visible} title={t("pc_title")} onClose={onClose}>
+      {cuts.map((x, i) => (
+        <View key={i} style={[styles.cut, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 12 }]}>
+          <Txt v="body" weight="semibold">{when(x)}</Txt>
+          {([["pc_substation", x.substation], ["pc_feeder", x.feeders.join(", ")], ["pc_why", x.reason], ["pc_areas", x.area]] as const).map(([k, v]) => !!v && (
+            <View key={k} style={styles.cutRow}>
+              <Txt v="caption" color="muted" style={{ width: 88 }}>{t(k)}</Txt>
+              <Txt v="caption" style={{ flex: 1 }} numberOfLines={3}>{v}</Txt>
+            </View>
+          ))}
+        </View>
+      ))}
+      <Txt v="caption" color="muted">{t("pc_source")}</Txt>
+      <Button kind="soft" icon="openInNew" label={busy ? t("planned_opening") : t("pc_open_pdf")}
+        onPress={() => { if (busy) return; setBusy(true); void openPlannedCuts().finally(() => setBusy(false)); }} />
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
+  banner: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 12, minHeight: 64 },
+  bannerIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  cut: { gap: 6 },
+  cutRow: { flexDirection: "row", gap: 8 },
   link: { minHeight: 48, paddingHorizontal: 12, justifyContent: "center", alignSelf: "center" },
   danger: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 64, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth },
   step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },

@@ -12,7 +12,7 @@ import { ActionTile, Insight, Button, Card, Field, Pill, Screen, Sheet, Txt, Ske
 import { keystore } from "../../src/boot";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
-import { DangerRow, openPlannedCuts, ReportSheet } from "../../src/report";
+import { DangerRow, openPlannedCuts, PlannedCutSheet, ReportSheet, useCutWhen, useMyPlannedCuts } from "../../src/report";
 
 const HELPLINE_TOLL_FREE_SHOWN = "1800-410-1912";
 
@@ -41,6 +41,9 @@ export default function Complaints() {
   const [report, setReport] = useState(fromShortcut === "1");
   const [planBusy, setPlanBusy] = useState(false);
   const [tracking, setTracking] = useState(false);
+  const myCuts = useMyPlannedCuts();
+  const cutWhen = useCutWhen();
+  const [cutsOpen, setCutsOpen] = useState(false);
 
   return (
     <Screen onRefresh={() => (linked && !expired ? complaints.mutate() : setConnect(true))} refreshing={complaints.isValidating}>
@@ -144,9 +147,11 @@ export default function Complaints() {
       <Card style={{ padding: 0, gap: 0 }}>
         {/* PVVNL posts the day's planned cuts as a PDF (the only discom that does). */}
         {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
-          <Contact first icon="event" label={t("planned_title")} value={planBusy ? t("planned_opening") : t("planned_value")}
-            onPress={() => { if (planBusy) return; setPlanBusy(true); void openPlannedCuts().finally(() => setPlanBusy(false)); }} />
+          <Contact first icon="event" label={t("planned_title")}
+            value={planBusy ? t("planned_opening") : myCuts[0] ? t("pc_on_yours", { when: cutWhen(myCuts[0]) }) : t("planned_value")}
+            onPress={() => { if (myCuts[0]) return setCutsOpen(true); if (planBusy) return; setPlanBusy(true); void openPlannedCuts().finally(() => setPlanBusy(false)); }} />
         )}
+        <PlannedCutSheet cuts={myCuts} visible={cutsOpen} onClose={() => setCutsOpen(false)} />
         <Contact first={String(dash?.site.tenantId ?? "").toUpperCase() !== "PVVNL"} icon="call" label={t("toll_free_label")} value={HELPLINE_TOLL_FREE_SHOWN}
           onPress={() => openLink(`tel:${HELPLINE_TOLL_FREE}`)} />
         {!!care && <Contact icon="call" label={t("customer_care")} value={care} onPress={() => openLink(`tel:${care}`)} />}
