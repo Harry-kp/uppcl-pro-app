@@ -14,6 +14,7 @@ import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useAreaOutage, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
 import { fileSupplyComplaint, HELPLINE_TEL, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { platform } from "@shared/platform";
 import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
@@ -199,13 +200,24 @@ export function AreaOutageNote() {
  *  phone), opened in the phone's PDF viewer. Falls back to PVVNL's site if the page changed or didn't load. */
 export async function openPlannedCuts(): Promise<void> {
   let url = PVVNL_HOME;
-  try {
+  const get = async (u: string) => {
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 12_000);
-    const html = await (await fetch(PVVNL_HOME, { signal: ctl.signal })).text();
-    clearTimeout(timer);
-    url = latestPlannedCutPdf(html) ?? PVVNL_HOME;
-  } catch { /* the site itself still opens */ }
+    const timer = setTimeout(() => ctl.abort(), 20_000);
+    try { return await fetch(u, { signal: ctl.signal }); } finally { clearTimeout(timer); }
+  };
+  try {
+    url = latestPlannedCutPdf(await (await get(PVVNL_HOME)).text()) ?? PVVNL_HOME;
+    if (url !== PVVNL_HOME) {
+      // In the app's own PDF viewer (Share / Save), like a bill — not a browser download.
+      const bytes = new Uint8Array(await (await get(url)).arrayBuffer());
+      if (bytes[0] === 0x25 && bytes[1] === 0x50) { // "%PDF"
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        await platform.savePdf(btoa(bin), `pvvnl-planned-cuts-${url.split("/").pop()}`);
+        return;
+      }
+    }
+  } catch { /* fall back to the browser below */ }
   await Linking.openURL(url);
 }
 
