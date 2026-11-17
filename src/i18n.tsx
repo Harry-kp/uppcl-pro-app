@@ -24,6 +24,8 @@ interface I18n {
   ago(d: string | Date): string;
   /** A duration: "45 min", "3 h 22 min", "2 days". */
   span(ms: number): string;
+  /** A UPPCL/1912 label ("No supply") in the app's language when we know it (keys up_*), else as UPPCL sent it. */
+  upstream(s: string): string;
 }
 
 const Ctx = createContext<I18n | null>(null);
@@ -43,6 +45,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     t: (key, vars) => (lang === "hi" ? fill(pickPlural(STRINGS.hi, key, vars), vars).replace(/ · /g, "\u00A0·\u00A0") : fill(pickPlural(STRINGS.en, key, vars), vars)),
     ago: (d) => relative(STRINGS[lang], d),
     span: (ms) => duration(STRINGS[lang], ms),
+    upstream: (s) => upstreamLabel(STRINGS[lang], s),
   }), [lang, setLang]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -76,7 +79,13 @@ const FALLBACK: I18n = {
   t: (key, vars) => fill(pickPlural(STRINGS.en, key, vars), vars),
   ago: (d) => relative(STRINGS.en, d),
   span: (ms) => duration(STRINGS.en, ms),
+  upstream: (s) => s,
 };
+
+function upstreamLabel(strings: Record<string, string>, s: string): string {
+  const key = `up_${s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+  return strings[key] ?? s;
+}
 
 export function useI18n(): I18n {
   return useContext(Ctx) ?? FALLBACK;

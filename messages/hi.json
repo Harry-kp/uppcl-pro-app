@@ -298,7 +298,7 @@
     "payments": "भुगतान",
     "received": "मिल गया",
     "credit": "₹{amount} क्रेडिट",
-    "bill_saved": "₹{amount} बचे",
+    "bill_saved": "₹{amount} की बचत",
     "rebate_total": "नियत तिथि से पहले भुगतान करके आपने ₹{amount} बचाए। समय पर भरे गए हर बिल पर UPPCL लगभग 1% की छूट देता है।",
     "credit_note": "अगले बिल में समायोजित होगा",
     "no_arrears": "कोई पुराना बकाया नहीं",
@@ -677,6 +677,17 @@
     "pc_ok": "ठीक है",
     "pc_report_anyway": "फिर भी शिकायत करें",
     "pc_on_yours": "{when}, आपके सबस्टेशन पर",
-    "budget_needs_alerts": "इसके लिए बिल रिमाइंडर चालू होने चाहिए।"
+    "budget_needs_alerts": "इसके लिए बिल रिमाइंडर चालू होने चाहिए।",
+    "up_no_supply": "बिजली नहीं",
+    "up_major_power_failure": "बड़ी बिजली गड़बड़ी",
+    "up_underground_cable_breakdowns": "भूमिगत केबल खराब",
+    "up_supply_related": "बिजली आपूर्ति",
+    "up_low_voltage": "कम वोल्टेज",
+    "up_high_voltage": "ज़्यादा वोल्टेज",
+    "up_voltage_fluctuation": "वोल्टेज ऊपर-नीचे",
+    "up_single_phase": "एक फ़ेज़",
+    "up_transformer_damaged": "ट्रांसफ़ॉर्मर खराब",
+    "up_billing_related": "बिल से जुड़ी",
+    "up_meter_related": "मीटर से जुड़ी"
   }
 }

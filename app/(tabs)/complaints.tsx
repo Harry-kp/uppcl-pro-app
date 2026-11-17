@@ -170,11 +170,11 @@ function ComplaintRows({ list }: { list: ComplaintDetail[] }) {
 
 function ComplaintRow({ x, first }: { x: ComplaintDetail; first: boolean }) {
   const c = useColors();
-  const { t, locale, span } = useI18n();
+  const { t, locale, span, upstream } = useI18n();
   // Late only once its full record has been seen (it has the times and UPPCL's limit); the list itself has dates only.
   const { data: seen } = useSeenComplaintDetail(x.complaint_no);
   const late = seen ? lateBy(seen) : null;
-  const what = x.sub_type || x.type || t("complaint_no", { no: x.complaint_no });
+  const what = x.sub_type || x.type ? upstream(x.sub_type || x.type!) : t("complaint_no", { no: x.complaint_no });
   // "#PV010126… · 19 May · fixed in 3 h 22 min": the date, and how long UPPCL took (or has taken so far).
   const d = parseUppclDate(x.entry_date), ms = openFor(seen ?? x);
   const line = [`#${x.complaint_no}`, d && d.toLocaleDateString(locale, { day: "numeric", month: "short" }),

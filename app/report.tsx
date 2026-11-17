@@ -22,7 +22,7 @@ type Supply = "no_power" | "voltage" | "phase";
 type Edit = "problem" | "where" | "affected" | "note" | null;
 
 export default function Report() {
-  const { t, span } = useI18n();
+  const { t, span, upstream } = useI18n();
   const params = useLocalSearchParams<{ problem?: Supply }>();
   const { data: complaints } = useMyComplaints();
   const open = complaints?.complaints.find((x) => x.is_open);
@@ -104,7 +104,7 @@ export default function Report() {
       {mine && !!open && (
         <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/complaint/[no]", params: { no: open.complaint_no } })}>
           <Insight tone="warn" icon="supportAgent"
-            text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
+            text={t("rp_already_open", { type: upstream(open.sub_type || open.type || ""), t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
         </Pressable>
       )}
 

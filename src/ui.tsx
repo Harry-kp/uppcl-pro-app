@@ -207,10 +207,12 @@ export function ActionTile({ icon, title, desc, onPress, primary, disabled }: {
 export function Pill({ label, tone = "ok", icon, flipIcon }: { label: string; tone?: Tone; icon?: IconName; flipIcon?: boolean }) {
   const c = useColors();
   const { bg, fg } = toneColors(c, tone);
+  const { lang } = useI18n();
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
       <View style={flipIcon && { transform: [{ scaleY: -1 }] }}><Icon name={icon ?? TONE_ICON[tone]} size={12} color={fg} /></View>
-      <Txt v="caption" weight="bold" style={{ color: fg, flexShrink: 1 }}>{label}</Txt>
+      {/* Devanagari's headline sits high in the taller Hindi line box: nudge it to the icon's centre (seen in chips). */}
+      <Txt v="caption" weight="bold" style={{ color: fg, flexShrink: 1, marginTop: lang === "hi" ? 3 : 0 }}>{label}</Txt>
     </View>
   );
 }

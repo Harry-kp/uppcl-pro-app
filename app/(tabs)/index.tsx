@@ -77,7 +77,7 @@ export default function Home() {
  */
 function ComplaintStatus() {
   const c = useColors();
-  const { t, span, ago } = useI18n();
+  const { t, span, ago, upstream } = useI18n();
   const { data } = useMyComplaints();
   const list = data?.complaints ?? [];
   const open = list.find((x) => x.is_open);
@@ -85,7 +85,7 @@ function ComplaintStatus() {
   const x = open ?? fixed;
   if (!x) return null;
   const ms = openFor(x);
-  const type = x.sub_type || x.type || t("complaint_no", { no: x.complaint_no });
+  const type = x.sub_type || x.type ? upstream(x.sub_type || x.type!) : t("complaint_no", { no: x.complaint_no });
   const line = open
     ? [ms !== null && t("cx_open_for", { t: span(ms) }), (x.je_mobile || x.je_name) && t("hc_engineer")].filter(Boolean).join(" · ")
     : [ms !== null && t("cx_took", { t: span(ms) }), x.closing_date && ago(parseUppclDate(x.closing_date)!)].filter(Boolean).join(" · ");

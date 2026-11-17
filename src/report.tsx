@@ -141,7 +141,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const running = useMyPlannedCuts().find((x) => x.start <= new Date()); // planned cut on this substation right now
   const holdForPlanned = !!running && !again; // like an open complaint: say so first, reporting is one more tap
   const holdForOpen = !!open && !again;
-  const { locale } = useI18n();
+  const { locale, upstream } = useI18n();
 
   return (
     <Sheet visible={visible} onClose={close} title={filed?.ok ? t("rp_title") : t("rp_title_quick")}>
@@ -154,7 +154,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           <AreaOutageNote />
           {!!open && (
             <Insight tone="warn" icon="supportAgent"
-              text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
+              text={t("rp_already_open", { type: upstream(open.sub_type || open.type || ""), t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
           )}
           {!!running && <Insight tone="warn" icon="event" text={t("pc_running", { to: running.end.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" }) })} />}
           {holdForPlanned && !holdForOpen && <Button label={t("pc_ok")} onPress={close} />}

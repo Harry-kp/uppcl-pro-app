@@ -677,6 +677,17 @@
     "pc_ok": "OK",
     "pc_report_anyway": "Report anyway",
     "pc_on_yours": "{when} on your substation",
-    "budget_needs_alerts": "Bill reminders need to be on."
+    "budget_needs_alerts": "Bill reminders need to be on.",
+    "up_no_supply": "No supply",
+    "up_major_power_failure": "Major power failure",
+    "up_underground_cable_breakdowns": "Underground cable breakdowns",
+    "up_supply_related": "Supply related",
+    "up_low_voltage": "Low voltage",
+    "up_high_voltage": "High voltage",
+    "up_voltage_fluctuation": "Voltage fluctuation",
+    "up_single_phase": "Single phase",
+    "up_transformer_damaged": "Transformer damaged",
+    "up_billing_related": "Billing related",
+    "up_meter_related": "Meter related"
   }
 }

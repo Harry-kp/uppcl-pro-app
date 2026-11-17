@@ -12,7 +12,7 @@ import { TextLink } from "../../src/report";
 
 export default function ComplaintDetail() {
   const c = useColors();
-  const { t, locale, span } = useI18n();
+  const { t, locale, span, upstream } = useI18n();
   const { no } = useLocalSearchParams<{ no: string }>();
   const { data } = useMyComplaints(); // already cached by the list
   const row = data?.complaints.find((k) => k.complaint_no === no);
@@ -59,8 +59,8 @@ export default function ComplaintDetail() {
       <Card>
         <View style={styles.head}>
           <View style={{ flex: 1, gap: 2 }}>
-            <Txt v="heading">{x.sub_type || x.type || x.status}</Txt>
-            {!!x.type && x.type !== x.sub_type && <Txt v="caption" color="muted">{x.type}</Txt>}
+            <Txt v="heading">{upstream(x.sub_type || x.type || x.status || "")}</Txt>
+            {!!x.type && x.type !== x.sub_type && <Txt v="caption" color="muted">{upstream(x.type)}</Txt>}
           </View>
           <Pill label={late !== null && !x.is_open ? t("late_pill") : x.is_open ? t("open") : t("closed")} tone={late !== null ? "warn" : x.is_open ? "accent" : "ok"} />
         </View>
