@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMyComplaints, useSeenComplaintDetail, useTenantPreferences, useTickets, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { CGRF_STATUS_URL, CGRF_URL, cgrfNodalUrl, cgrfStatusFrom, connected1912, type CgrfStatus, HELPLINE_TEL, JANSUNWAI_URL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
+import { CGRF_STATUS_URL, CGRF_URL, cgrfNodalUrl, cgrfStatusFrom, connected1912, type CgrfStatus, HELPLINE_TEL, HELPLINE_TOLL_FREE, JANSUNWAI_URL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -12,7 +12,9 @@ import { ActionTile, Insight, Button, Card, Field, Pill, Screen, Sheet, Txt, Ske
 import { keystore } from "../../src/boot";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
-import { DangerRow, openPlannedCuts, ReportSheet, TollFreeLink } from "../../src/report";
+import { DangerRow, openPlannedCuts, ReportSheet } from "../../src/report";
+
+const HELPLINE_TOLL_FREE_SHOWN = "1800-410-1912";
 
 export default function Complaints() {
   const c = useColors();
@@ -51,21 +53,10 @@ export default function Complaints() {
         <ActionTile icon="widgets" title={t("other_problem")} desc={t("other_problem_short")} onPress={() => router.push("/report")} />
         <ActionTile icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />
       </View>
-      <TollFreeLink />
       <DangerRow />
-      {/* Is it a planned cut? PVVNL posts the day's list as a PDF (the only discom that does). */}
-      {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
-        <Card style={{ padding: 0, gap: 0 }}>
-          <Contact first icon="event" label={t("planned_title")} value={planBusy ? t("planned_opening") : t("planned_value")}
-            onPress={() => { if (planBusy) return; setPlanBusy(true); void openPlannedCuts().finally(() => setPlanBusy(false)); }} />
-        </Card>
-      )}
       {dash && <ReportSheet data={dash} visible={report} onClose={() => setReport(false)} />}
 
-      <View style={{ marginTop: 12 }}>
-        <Txt v="heading">{t("status_title")}</Txt>
-        <Txt v="caption" color="muted">{t("status_desc")}</Txt>
-      </View>
+      <Txt v="heading" style={{ marginTop: 12 }}>{t("status_title")}</Txt>
       {!linked ? (
         // Never an empty, locked list: what connecting gets you, and one button.
         <Card>
@@ -148,17 +139,21 @@ export default function Complaints() {
         );
       })()}
 
-      {(care || discom.email || discom.address) && (
-        <>
-          <Txt v="heading" style={{ marginTop: 12 }}>{t("contact_title")}</Txt>
-          <Card style={{ padding: 0, gap: 0 }}>
-            {!!care && <Contact first icon="call" label={t("customer_care")} value={care} onPress={() => openLink(`tel:${care}`)} />}
-            {!!discom.email && <Contact first={!care} icon="mail" label={t("email")} value={discom.email} onPress={() => openLink(`mailto:${discom.email}`)} />}
-            {!!discom.address && <Contact first={!care && !discom.email} icon="home" label={t("billing_office")} value={discom.address} lines={3}
-              onPress={() => openLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(discom.address!)}`)} />}
-          </Card>
-        </>
-      )}
+      {/* The long tail, once, at the bottom (UX-D01): planned cuts, the toll-free line, the discom's own contacts. */}
+      <Txt v="heading" style={{ marginTop: 12 }}>{t("more_help")}</Txt>
+      <Card style={{ padding: 0, gap: 0 }}>
+        {/* PVVNL posts the day's planned cuts as a PDF (the only discom that does). */}
+        {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
+          <Contact first icon="event" label={t("planned_title")} value={planBusy ? t("planned_opening") : t("planned_value")}
+            onPress={() => { if (planBusy) return; setPlanBusy(true); void openPlannedCuts().finally(() => setPlanBusy(false)); }} />
+        )}
+        <Contact first={String(dash?.site.tenantId ?? "").toUpperCase() !== "PVVNL"} icon="call" label={t("toll_free_label")} value={HELPLINE_TOLL_FREE_SHOWN}
+          onPress={() => openLink(`tel:${HELPLINE_TOLL_FREE}`)} />
+        {!!care && <Contact icon="call" label={t("customer_care")} value={care} onPress={() => openLink(`tel:${care}`)} />}
+        {!!discom.email && <Contact icon="mail" label={t("email")} value={discom.email} onPress={() => openLink(`mailto:${discom.email}`)} />}
+        {!!discom.address && <Contact icon="home" label={t("billing_office")} value={discom.address} lines={3}
+          onPress={() => openLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(discom.address!)}`)} />}
+      </Card>
     </Screen>
   );
 }

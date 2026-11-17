@@ -157,7 +157,7 @@
     "theme_light": "Light",
     "theme_dark": "Dark",
     "not_supported_yet": "Other details can't be changed in this app yet.",
-    "change_on_official": "Change them on UPPCL's official site",
+    "change_on_official": "Change other details on UPPCL's site",
     "pay_title_month": "Pay {month} bill",
     "pay_rebate_line": "Includes ₹{saving} on-time rebate",
     "pay_opening": "Opening BillDesk…",
@@ -603,8 +603,8 @@
     "sh_remove_title": "Stop sharing with {name}?",
     "sh_remove_body": "They won't see this connection any more. You can add them again later.",
     "sh_invite_again": "Add again",
-    "pl_placeholder": "Your e-bills go to a UPPCL placeholder address, not to you. Your own email {own} is only on file at the billing office. Ask UPPCL to set it for e-bills, or switch back to paper.",
-    "pl_placeholder_none": "Your e-bills go to a UPPCL placeholder address, not to you. Add your own email on UPPCL's site, or switch back to paper.",
+    "pl_placeholder": "E-bills go to a UPPCL placeholder, not to {own}. Ask UPPCL to fix it, or switch to paper.",
+    "pl_placeholder_none": "E-bills go to a UPPCL placeholder, not to you. Add your email on UPPCL's site, or switch to paper.",
     "no_power_desc_connect": "Connect 1912 once with a code, then it's one tap.",
     "budget_save_on": "Save and turn on reminders",
     "rp_see_open": "See complaint · call the engineer",
@@ -678,6 +678,8 @@
     "lk_4": "If Discom, Zone, Division or Substation show 0 or are empty, pick them (they're on your bill), then tap \"Register\".",
     "lk_5": "\"Some problem occurred\" right after \"Record saved\" can still mean it worked. Come back and tap \"Check again\".",
     "lk_open": "Open 1912's Register Account page",
-    "lk_check": "I've linked it, check again"
+    "lk_check": "I've linked it, check again",
+    "more_help": "More help",
+    "toll_free_label": "Toll-free, when 1912 is busy"
   }
 }

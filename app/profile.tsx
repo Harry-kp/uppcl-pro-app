@@ -71,7 +71,6 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
   const address = (cd.billingAddress || "").replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
   return (
     <>
-      <Txt v="caption" color="muted">{t("registered_desc")}</Txt>
       {mismatch && <Insight tone="warn" icon="warning" text={t("phone_mismatch", { app: `••${appPhone.slice(-4)}`, bill: `••${billPhone.slice(-4)}` })} />}
       <Card style={{ padding: 0, gap: 0 }}>
         {!!known(cd.name) && <Detail first label={t("name")} value={cd.name!} />}
@@ -79,10 +78,6 @@ function Profile({ loginPhone }: { loginPhone?: string }) {
         {!!cd.email && <Detail label={t("email")} value={cd.email} />}
         {dash?.site ? <PaperlessRow site={dash.site} portalMode={billsBy} portalEmail={cd.email ?? undefined} /> : <Detail label={t("bills_by")} value={billsBy} />}
         {!!address && <Detail label={t("billing_address")} value={address} lines={3} />}
-        <View style={[styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
-          <Icon name="info" size={20} color={c.muted} />
-          <Txt v="caption" color="muted" style={{ flex: 1 }}>{t("not_supported_yet")}</Txt>
-        </View>
         <Pressable accessibilityRole="link" onPress={() => openLink(UPPCL_CONSUMER_URL)}
           style={({ pressed }) => [styles.detail, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
           <Icon name="person" size={20} color={c.primary} />
