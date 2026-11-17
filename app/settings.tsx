@@ -109,8 +109,8 @@ export default function Settings() {
 
       {dash && (
         <Group title={t("alerts_section")}>
-          <Row first icon="notifications" label={alertsLabel} onPress={() => void toggleAlerts(!alerts)}
-            right={<Switch value={alerts} onValueChange={toggleAlerts} trackColor={{ true: c.primary, false: c.track }} thumbColor={alerts ? c.onPrimary : c.muted} accessibilityLabel={alertsLabel} />} />
+          <Row first icon="notifications" label={alertsLabel} onPress={() => void toggleAlerts(!alerts)} checked={alerts}
+            right={<View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><Switch value={alerts} onValueChange={toggleAlerts} trackColor={{ true: c.primary, false: c.track }} thumbColor={alerts ? c.onPrimary : c.muted} /></View>} />
           <Row icon="savings" label={t("budget_title")} value={budget ? `₹${rupees(budget, { decimals: 0 })}` : t("off")} onPress={() => setSheet("budget")} />
           {alerts && (
             <Row icon="chat" label={t("test_btn")}
@@ -181,8 +181,10 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** One settings row: icon, name, current value on the right, then a chevron (tappable) or a control. */
-function Row({ icon, label, value, valueTone, right, onPress, first, tone }: {
+function Row({ icon, label, value, valueTone, right, onPress, first, tone, checked }: {
   icon: IconName; label: string; value?: string; valueTone?: "ok"; right?: ReactNode; onPress?: () => void; first?: boolean; tone?: "critical";
+  /** A whole-row switch: TalkBack hears one "switch, on/off" stop, not the row and then the switch again. */
+  checked?: boolean;
 }) {
   const c = useColors();
   const body = (
@@ -200,7 +202,8 @@ function Row({ icon, label, value, valueTone, right, onPress, first, tone }: {
   );
   const style = [styles.detail, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }];
   return onPress
-    ? <Pressable accessibilityRole="button" accessibilityLabel={value ? `${label}, ${value}` : label} onPress={onPress} style={({ pressed }) => [...style, pressed && { backgroundColor: c.bg }]}>{body}</Pressable>
+    ? <Pressable accessibilityRole={checked === undefined ? "button" : "switch"} accessibilityState={checked === undefined ? undefined : { checked }}
+        accessibilityLabel={value ? `${label}, ${value}` : label} onPress={onPress} style={({ pressed }) => [...style, pressed && { backgroundColor: c.bg }]}>{body}</Pressable>
     : <View style={style}>{body}</View>;
 }
 
