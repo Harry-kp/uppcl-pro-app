@@ -523,6 +523,30 @@ export const CGRF_URL = "https://cgrf.uppcl.org/";
 export const JANSUNWAI_URL = "https://jansunwai.up.nic.in/onlineComplaint";
 /** UPPCL's tariff page (rates for every category, all discoms). */
 export const TARIFF_URL = "https://www.uppcl.org/uppcl/en/article/tariff-details";
+/** The forum's public grievance-status page (grievance number + registered mobile; POST, checks Origin/Referer). */
+export const CGRF_STATUS_URL = `${CGRF_URL}case_statuspublic.php`;
+export type CgrfStatus = { found: false; message: string } | { found: true; fields: { label: string; value: string }[] };
+const htmlText = (h: string) => unxml(h.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ")).replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+/**
+ * Reads the forum's status page. "Not found" is its alert (verified Nov 2026). A found grievance hasn't been seen yet,
+ * so rows are read generically (2-cell table rows or dt/dd pairs); anything else → null, and the app offers the page.
+ */
+export function cgrfStatusFrom(html: string): CgrfStatus | null {
+  const alert = /class="[^"]*\balert\b[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(html)?.[1];
+  if (alert && /no complaint found|not found|invalid/i.test(htmlText(alert))) return { found: false, message: htmlText(alert) };
+  const fields: { label: string; value: string }[] = [];
+  for (const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [...row[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((c) => htmlText(c[1]));
+    if (cells.length === 2 && cells[0] && cells[1]) fields.push({ label: cells[0].replace(/\s*:$/, ""), value: cells[1] });
+  }
+  for (const m of html.matchAll(/<dt\b[^>]*>([\s\S]*?)<\/dt>\s*<dd\b[^>]*>([\s\S]*?)<\/dd>/gi)) {
+    const label = htmlText(m[1]), value = htmlText(m[2]);
+    if (label && value) fields.push({ label: label.replace(/\s*:$/, ""), value });
+  }
+  if (fields.length) return { found: true, fields };
+  return alert ? { found: false, message: htmlText(alert) } : null;
+}
+
 /** The forum's own page of nodal officers, at this discom's section (names and numbers change; theirs stays current). */
 export const cgrfNodalUrl = (discom: string) => `${CGRF_URL}nodal_officers.php#${discom.toLowerCase()}`;
 

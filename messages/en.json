@@ -654,6 +654,16 @@
     "cx_comp_until": "You can ask UPPCL for compensation for the delay until {date}. UPPCL decides if it applies after you register.",
     "cx_comp_closed": "The 60-day window to claim compensation for this complaint ended on {date}.",
     "cx_comp_refused": "1912 won't take a claim for this complaint: {why}",
-    "cx_comp_arrears": "A bill left unpaid for more than 30 days can stop the claim."
+    "cx_comp_arrears": "A bill left unpaid for more than 30 days can stop the claim.",
+    "cg_track": "Track a forum grievance",
+    "cg_track_value": "Status of a grievance you filed with the CGRF",
+    "cg_id": "Grievance number",
+    "cg_id_ph": "As on the forum's SMS or receipt",
+    "cg_mobile": "Mobile number used for the grievance",
+    "cg_check": "View status",
+    "cg_checking": "Asking the forum…",
+    "cg_error": "The forum's site didn't answer. Try again, or check on the site itself.",
+    "cg_unknown": "The forum answered in a way the app can't read yet. Check it on the site itself.",
+    "cg_open_site": "Open the forum's status page"
   }
 }

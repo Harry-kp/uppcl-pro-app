@@ -23,7 +23,7 @@ import enStrings from "../messages/en.json";
 import hiStrings from "../messages/hi.json";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
-const { cgrfNodalUrl, claimFrom, cleanRemarks, complaintNoIn, latestPlannedCutPdf, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
+const { cgrfNodalUrl, cgrfStatusFrom, claimFrom, cleanRemarks, complaintNoIn, latestPlannedCutPdf, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -618,6 +618,20 @@ describe("1912 compensation pre-check (form 14047)", () => {
   });
   test("recent: 1912 would take the claim (not a promise of payment)", () => {
     expect(claimFrom(parseByChild(recent))).toEqual({ possible: true, reasons: [] });
+  });
+});
+
+describe("consumer forum grievance status (cgrf.uppcl.org)", () => {
+  test("not found: the forum's own message (real page, Nov 2026)", () => {
+    const html = `<div class="card"><h5>View Grievance Status</h5></div><div class="alert alert-danger mt-3">No complaint found for this Complaint No and Mobile No. Please check both and try again.</div>`;
+    expect(cgrfStatusFrom(html)).toEqual({ found: false, message: "No complaint found for this Complaint No and Mobile No. Please check both and try again." });
+  });
+  test("found: two-cell rows become label/value pairs", () => {
+    const html = `<table><tr><th>Complaint No :</th><td>PU2099010100000</td></tr><tr><th>Status</th><td>Hearing on&nbsp;25-11-2026</td></tr><tr><td colspan="2">ignored</td></tr></table>`;
+    expect(cgrfStatusFrom(html)).toEqual({ found: true, fields: [{ label: "Complaint No", value: "PU2099010100000" }, { label: "Status", value: "Hearing on 25-11-2026" }] });
+  });
+  test("a page it can't read is null (the app offers the site instead)", () => {
+    expect(cgrfStatusFrom("<html><body>Maintenance</body></html>")).toBeNull();
   });
 });
 
