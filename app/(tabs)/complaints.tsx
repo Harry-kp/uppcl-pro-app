@@ -3,12 +3,13 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMyComplaints, useSeenComplaintDetail, useTenantPreferences, useTickets, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { CGRF_URL, cgrfNodalUrl, connected1912, HELPLINE_TEL, JANSUNWAI_URL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
+import { CGRF_STATUS_URL, CGRF_URL, cgrfNodalUrl, cgrfStatusFrom, connected1912, type CgrfStatus, HELPLINE_TEL, JANSUNWAI_URL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
-import { ActionTile, Insight, Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote } from "../../src/ui";
+import { ActionTile, Insight, Button, Card, Field, Pill, Screen, Sheet, Txt, SkeletonRows, SlowNote } from "../../src/ui";
+import { keystore } from "../../src/boot";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
 import { DangerRow, openPlannedCuts, ReportSheet, TollFreeLink } from "../../src/report";
@@ -37,6 +38,7 @@ export default function Complaints() {
   const { report: fromShortcut } = useLocalSearchParams<{ report?: string }>(); // app-icon shortcut "No power"
   const [report, setReport] = useState(fromShortcut === "1");
   const [planBusy, setPlanBusy] = useState(false);
+  const [tracking, setTracking] = useState(false);
 
   return (
     <Screen onRefresh={() => (linked && !expired ? complaints.mutate() : setConnect(true))} refreshing={complaints.isValidating}>
@@ -139,7 +141,9 @@ export default function Complaints() {
               <Contact first icon="supportAgent" label={t("esc_cgrf")} value={t("esc_cgrf_value")} onPress={() => openLink(CGRF_URL)} />
               <Contact icon="person" label={t("esc_nodal", { discom: code })} value={t("esc_nodal_value")} onPress={() => openLink(cgrfNodalUrl(code))} />
               <Contact icon="openInNew" label={t("esc_jansunwai")} value={t("esc_jansunwai_value")} onPress={() => openLink(JANSUNWAI_URL)} />
+              <Contact icon="schedule" label={t("cg_track")} value={t("cg_track_value")} onPress={() => setTracking(true)} />
             </Card>
+            <GrievanceSheet visible={tracking} onClose={() => setTracking(false)} mobile={complaints.data?.phone ?? ""} />
           </>
         );
       })()}
@@ -187,6 +191,57 @@ function ComplaintRow({ x, first }: { x: ComplaintDetail; first: boolean }) {
       <Pill label={late !== null && !x.is_open ? t("late_pill") : x.is_open ? t("open") : t("closed")} tone={late !== null ? "warn" : x.is_open ? "accent" : "ok"} />
       <Icon name="chevronRight" size={20} color={c.muted} />
     </Pressable>
+  );
+}
+
+const GRIEVANCE_KEY = "app_cgrf_grievance"; // the last number checked, so the next check is one tap
+
+/** The forum's public status page, read in the app: grievance number + the mobile it was filed with (UX gem, Nov 2026). */
+function GrievanceSheet({ visible, onClose, mobile }: { visible: boolean; onClose: () => void; mobile: string }) {
+  const { t } = useI18n();
+  const [id, setId] = useState(() => keystore.getItem(GRIEVANCE_KEY) ?? "");
+  const [phone, setPhone] = useState(mobile);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<CgrfStatus | null | "error" | undefined>(undefined);
+  const ok = id.trim().length >= 6 && /^[6-9]\d{9}$/.test(phone);
+  async function check() {
+    setBusy(true); setResult(undefined);
+    try {
+      // The page refuses a POST without its own Origin/Referer (403 "Request refused"); nothing else is needed.
+      const r = await fetch(CGRF_STATUS_URL, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", origin: "https://cgrf.uppcl.org", referer: CGRF_STATUS_URL },
+        body: `grievance_id=${encodeURIComponent(id.trim())}&mobile_no=${phone}&submit=`,
+      });
+      setResult(r.ok ? cgrfStatusFrom(await r.text()) : "error");
+      keystore.setItem(GRIEVANCE_KEY, id.trim());
+    } catch { setResult("error"); } finally { setBusy(false); }
+  }
+  return (
+    <Sheet visible={visible} title={t("cg_track")} onClose={onClose}>
+      <Txt v="label" color="muted">{t("cg_id")}</Txt>
+      <Field value={id} onChangeText={(v) => { setId(v.toUpperCase().replace(/\s/g, "")); setResult(undefined); }} autoCapitalize="characters" placeholder={t("cg_id_ph")} accessibilityLabel={t("cg_id")} />
+      <Txt v="label" color="muted">{t("cg_mobile")}</Txt>
+      <Field value={phone} onChangeText={(v) => { setPhone(v.replace(/\D/g, "").slice(0, 10)); setResult(undefined); }} keyboardType="number-pad" maxLength={10} accessibilityLabel={t("cg_mobile")} />
+      {result === "error" || result === null ? (
+        <>
+          <Insight tone="warn" icon="info" text={t(result === null ? "cg_unknown" : "cg_error")} />
+          <Button kind="soft" icon="openInNew" label={t("cg_open_site")} onPress={() => openLink(CGRF_STATUS_URL)} />
+        </>
+      ) : result && !result.found ? (
+        <Insight tone="warn" icon="info" text={result.message} />
+      ) : result?.found ? (
+        <Card style={{ gap: 10 }}>
+          {result.fields.map((f, i) => (
+            <View key={i} style={{ gap: 2 }}>
+              <Txt v="caption" color="muted">{f.label}</Txt>
+              <Txt v="body" weight="semibold">{f.value}</Txt>
+            </View>
+          ))}
+        </Card>
+      ) : null}
+      <Button label={busy ? t("cg_checking") : t("cg_check")} busy={busy} disabled={!ok} onPress={() => void check()} />
+    </Sheet>
   );
 }
 
