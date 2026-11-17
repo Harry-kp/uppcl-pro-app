@@ -257,17 +257,19 @@ export async function complaintDetail(no: string): Promise<ComplaintDetail | nul
  * Escalation, form 10026): e.g. "Fuse off": Class-1 2 h, Urban 4 h, Rural 6 h. The user's category isn't known for
  * sure, so the most lenient one counts: "late" is then true whatever their area. null when 1912 has no chart for it.
  */
-async function timeLimit(type: string | null, sub: string | null): Promise<number | null> {
-  if (!type || !sub) return null;
+/** UPPCL's own limit in hours; null = 1912's chart has no entry for this kind of complaint (e.g. "Major power
+ *  failure", checked Nov 2026); undefined = couldn't look it up (UX-R38: say the first, never guess the second). */
+async function timeLimit(type: string | null, sub: string | null): Promise<number | null | undefined> {
+  if (!type || !sub) return undefined;
   try {
     const P: [string, string][] = [["94185.15854", sub], ["94185.17073", type]];
     const codes = await lookup("94185.18055", [["103786", "104437", P], ["103785", "104438", P]], LIST_FORM);
     const tc = first(codes["103786"]), sc = first(codes["103785"]);
-    if (!tc || !sc) return null;
+    if (!tc || !sc) return undefined;
     const chart = (await lookup("0", [["102765", "104439", [["103678", tc], ["103787", sc]]]], "10026"))["102765"] ?? [];
     const hours = chart.map((r) => Number(r.SLA) * (/day/i.test(r.UNITE ?? "") ? 24 : 1)).filter((h) => h > 0);
     return hours.length ? Math.max(...hours) : null;
-  } catch { return null; } // the detail still shows; just no deadline line
+  } catch { return undefined; } // the detail still shows; just no deadline line
 }
 
 /**

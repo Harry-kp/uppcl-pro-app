@@ -126,7 +126,8 @@ export default function Login() {
 type Forgot = "user" | "pw" | null;
 type Go = (m: Mode, opts?: { forgot?: Forgot; prefill?: string }) => void;
 
-/** Mobile (or email) → 6-digit code → in. The code checks itself on the 6th digit. */
+/** Mobile (or email) → code → in. UPPCL's codes were 6 digits and are 5 since Nov 2026 (UX-R37): 4–6 are accepted;
+ *  the code checks itself on the 6th digit, or when it arrives whole (SMS autofill / paste). */
 function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forgot: Forgot; onOpened: () => Promise<void>; onGo: Go }) {
   const c = useColors();
   const { t, lang } = useI18n();
@@ -230,15 +231,15 @@ function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forg
             <TextInput
               style={[input, { flex: 1, fontSize: 24, letterSpacing: 8, textAlign: "center" }]} value={code} autoFocus
               keyboardType="number-pad" maxLength={6} autoComplete="sms-otp" textContentType="oneTimeCode" importantForAutofill="yes"
-              placeholder="••••••" placeholderTextColor={c.muted} accessibilityLabel={t("si_code")}
-              onChangeText={(v) => { const d = v.replace(/\D/g, "").slice(0, 6); setCode(d); setNote(null); if (d.length === 6 && !busy) void check(d); }}
+              placeholderTextColor={c.muted} accessibilityLabel={t("si_code")}
+              onChangeText={(v) => { const d = v.replace(/\D/g, "").slice(0, 6); const whole = d.length >= 4 && d.length - code.length > 1; setCode(d); setNote(null); if ((d.length === 6 || whole) && !busy) void check(d); }}
             />
           </Field>
           {noteText && <Note text={noteText} />}
           {note === "tooMany" && <Button kind="soft" label={t("si_with_password")} onPress={() => onGo("password")} />}
           {fail && <FailNote fail={fail} />}
           <Button label={stage === "checking" ? t("si_checking") : stage === "opening" ? t("signin_opening") : L.sign_in}
-            onPress={() => void check(code)} busy={busy} disabled={code.length !== 6} />
+            onPress={() => void check(code)} busy={busy} disabled={code.length < 4} />
           <View style={{ flexDirection: "row", gap: 8 }}>
             <View style={{ flex: 1 }}>
               <Button kind="soft" label={wait > 0 ? t("c19_resend_in", { s: wait }) : t("c19_resend")} disabled={wait > 0 || busy || note === "tooMany"} onPress={() => void send(true)} />
@@ -408,15 +409,15 @@ function SignUp({ onOpened, onGo }: { onOpened: () => Promise<void>; onGo: Go })
             <TextInput
               style={[input, { flex: 1, fontSize: 24, letterSpacing: 8, textAlign: "center" }]} value={code} autoFocus
               keyboardType="number-pad" maxLength={6} autoComplete="sms-otp" textContentType="oneTimeCode" importantForAutofill="yes"
-              placeholder="••••••" placeholderTextColor={c.muted} accessibilityLabel={t("si_code")}
-              onChangeText={(v) => { const d = v.replace(/\D/g, "").slice(0, 6); setCode(d); setNote(null); if (d.length === 6) pwRef.current?.focus(); }}
+              placeholderTextColor={c.muted} accessibilityLabel={t("si_code")}
+              onChangeText={(v) => { const d = v.replace(/\D/g, "").slice(0, 6); const whole = d.length >= 4 && d.length - code.length > 1; setCode(d); setNote(null); if (d.length === 6 || whole) pwRef.current?.focus(); }}
             />
           </Field>
           <Field label={t("su_password")} active={false} invalid={!!pwRefused}>
             <TextInput
               ref={pwRef} style={[input, { flex: 1 }]} value={password} onChangeText={(v) => { setPassword(v); setPwRefused(null); }}
               secureTextEntry={!showPw} autoComplete="new-password" textContentType="newPassword" accessibilityLabel={t("su_password")}
-              returnKeyType="go" onSubmitEditing={() => code.length === 6 && password.length >= 8 && void create()}
+              returnKeyType="go" onSubmitEditing={() => code.length >= 4 && password.length >= 8 && void create()}
             />
             <Eye shown={showPw} onToggle={() => setShowPw((s) => !s)} />
           </Field>
@@ -427,7 +428,7 @@ function SignUp({ onOpened, onGo }: { onOpened: () => Promise<void>; onGo: Go })
           {note === "already" && <Button kind="soft" label={t("si_with_code")} onPress={() => onGo("code")} />}
           {fail && <FailNote fail={fail} />}
           <Button label={stage === "creating" ? t("si_creating") : stage === "opening" ? t("signin_opening") : t("su_create")}
-            onPress={() => void create()} busy={busy} disabled={code.length !== 6 || password.length < 8} />
+            onPress={() => void create()} busy={busy} disabled={code.length < 4 || password.length < 8} />
         </>
       )}
       <TextLink label={t("su_back")} onPress={() => (sent ? setSent(null) : onGo("code"))} />

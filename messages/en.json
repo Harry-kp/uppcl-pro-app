@@ -520,9 +520,9 @@
     "si_sending": "Sending code…",
     "si_checking": "Checking code…",
     "si_creating": "Creating your login…",
-    "si_sent_sms": "We sent a 6-digit code to {to}. It fills in by itself.",
-    "si_sent_email": "We sent a 6-digit code to {to}.",
-    "si_code": "6-digit code",
+    "si_sent_sms": "We sent a code to {to}. It fills in by itself.",
+    "si_sent_email": "We sent a code to {to}.",
+    "si_code": "Code from the SMS",
     "si_looks_account": "This looks like an account number. Enter your mobile number, or sign in with password.",
     "si_bad_mobile": "Enter a 10-digit mobile number.",
     "si_bad_email": "Enter a full email address.",
@@ -634,6 +634,7 @@
     "tariff_lmv1": "Domestic",
     "tariff_lmv2": "Non-domestic",
     "tariff_lmv5": "Private tube well",
-    "meter_active": "Active"
+    "meter_active": "Active",
+    "cx_no_limit": "1912 doesn't publish a time limit for this kind of complaint."
   }
 }

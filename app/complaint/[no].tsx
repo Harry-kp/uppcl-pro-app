@@ -70,6 +70,8 @@ export default function ComplaintDetail() {
             <Txt v="caption" color="muted">{t("cx_limit_src")}</Txt>
           </View>
         )}
+        {/* 1912 publishes no limit for some kinds (e.g. major power failure): say so instead of staying silent (UX-R38). */}
+        {full?.complaint_no === no && full.limit_hours === null && <Txt v="caption" color="muted">{t("cx_no_limit")}</Txt>}
       </Card>
 
       {/* Open and already past the limit: the moment calling the JE helps (the numbers are just below). */}
