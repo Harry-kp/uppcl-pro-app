@@ -36,6 +36,7 @@ export default function Complaints() {
   // SMS / WhatsApp stay inside them as the fallback when 1912 can't take it.
   const { report: fromShortcut } = useLocalSearchParams<{ report?: string }>(); // app-icon shortcut "No power"
   const [report, setReport] = useState(fromShortcut === "1");
+  const [planBusy, setPlanBusy] = useState(false);
 
   return (
     <Screen onRefresh={() => (linked && !expired ? complaints.mutate() : setConnect(true))} refreshing={complaints.isValidating}>
@@ -52,7 +53,8 @@ export default function Complaints() {
       {/* Is it a planned cut? PVVNL posts the day's list as a PDF (the only discom that does). */}
       {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
         <Card style={{ padding: 0, gap: 0 }}>
-          <Contact first icon="event" label={t("planned_title")} value={t("planned_value")} onPress={() => void openPlannedCuts()} />
+          <Contact first icon="event" label={t("planned_title")} value={planBusy ? t("planned_opening") : t("planned_value")}
+            onPress={() => { if (planBusy) return; setPlanBusy(true); void openPlannedCuts().finally(() => setPlanBusy(false)); }} />
         </Card>
       )}
       {dash && <ReportSheet data={dash} visible={report} onClose={() => setReport(false)} />}
