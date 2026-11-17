@@ -6,6 +6,7 @@
  * headers and XML. The session is cookies set across a redirect chain; the phone's native cookie jar keeps
  * them, so this no longer needs the web project's server route.
  */
+import { parsePlannedCuts, slim, type PlannedList } from "./plannedCuts";
 import { cbc } from "@noble/ciphers/aes.js";
 import { ProxyError, send, type ComplaintDetail } from "./api";
 import { rsaOaepEncrypt } from "./crypto";
@@ -560,6 +561,24 @@ export function latestPlannedCutPdf(html: string): string | null {
     if (/Scheduled\s+Supply\s+Outage/i.test(m[2].replace(/<[^>]+>/g, " "))) return new URL(m[1], PVVNL_HOME).toString();
   }
   return null; // the list is newest-first, so the first match is today's (or the latest one posted)
+}
+
+let lastList: PlannedList | null = null; // the PDF is only downloaded again when PVVNL posts a new one
+
+/** PVVNL's latest planned-cut list, read on the phone (shared/plannedCuts.ts). null: no list, or one we can't read
+ *  (then the app just offers the PDF; never "no planned cuts"). */
+export async function plannedCutList(): Promise<PlannedList | null> {
+  const get = async (u: string) => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 30_000);
+    try { const r = await fetch(u, { signal: ctl.signal }); if (!r.ok) throw new Error(`PVVNL ${r.status}`); return r; } finally { clearTimeout(timer); }
+  };
+  const url = latestPlannedCutPdf(await (await get(PVVNL_HOME)).text());
+  if (!url) return null;
+  if (lastList?.url === url) return lastList;
+  const { cuts, problems } = parsePlannedCuts(new Uint8Array(await (await get(url)).arrayBuffer()));
+  if (cuts.length === 0 && problems.length) return null; // format changed: fall back to the PDF
+  return (lastList = { url, cuts: cuts.map(slim) });
 }
 export const COMPLAINT_SMS_NUMBER = "5616195"; // SMS shortcode
 

@@ -133,7 +133,7 @@ function data(id: Exclude<ScenarioId, "portal_down" | "offline">) {
     { data_id: "c1", complaint_no: "PV2609281234", status: "OPEN", is_open: true, entry_date: `${dmy(t - 1 * DAY).replace(/-/g, "/")} 07:42:00 PM`,
       closing_date: null, consumer_name: "Asha Verma", mobile_no: "9000000001", address: site.address, customer_account: site.connectionId,
       remarks: "Feeder tripped at the substation. Line crew assigned.", closing_remarks: null, closed_by: null, type: "Supply", sub_type: "No supply",
-      source: "SMS", je_name: "R. K. Verma", je_mobile: "9000000011", ae_name: "S. Mishra", ae_mobile: "9000000012", xen_name: "A. Yadav", xen_mobile: "9000000013" },
+      substation: "Test Nagar", source: "SMS", je_name: "R. K. Verma", je_mobile: "9000000011", ae_name: "S. Mishra", ae_mobile: "9000000012", xen_name: "A. Yadav", xen_mobile: "9000000013" },
     { data_id: "c2", complaint_no: "PV2608140917", status: "CLOSED", is_open: false, entry_date: `${dmy(t - 47 * DAY).replace(/-/g, "/")} 10:05:00 AM`,
       closing_date: `${dmy(t - 46 * DAY).replace(/-/g, "/")} 02:30:00 PM`, consumer_name: "Asha Verma", mobile_no: "9000000001", address: site.address,
       customer_account: site.connectionId, remarks: "Low voltage in the evening.", closing_remarks: "Transformer tap changed; voltage normal.", closed_by: "JE",
@@ -188,6 +188,11 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
   if (path === "/guests" || path === "/invitations") return []; // nobody shared in the sample account
   // 1912's "Outage Information" for the sample line: one logged breakdown, so the note on Home / No power? shows.
   if (path.startsWith("/complaints/claim/")) return { possible: true, reasons: [] }; // sample: 1912 would take the claim
+  // PVVNL's planned-cut list: one cut on the sample substation tomorrow, so the Home banner and its sheet show.
+  if (path === "/planned-cuts") return { url: "sample", cuts: [
+    { substation: "TEST NAGAR", feeder: "FEEDER NO-2", place: "MEERUT-1 EUDC-1 MEERUT", date: dmy(now() + DAY), from: "10:00", to: "14:00",
+      reason: "Pole replacement work", area: "Test Nagar, Sample Colony" },
+    { substation: "OTHER TOWN", feeder: "FEEDER NO-1", place: "MEERUT-1 EUDC-1 MEERUT", date: dmy(now() + DAY), from: "11:00", to: "13:00", reason: null, area: null }] };
   if (path === "/complaints/outage") return [{ id: "BD-SAMPLE-1", feeder: "Test Nagar 11 kV", substation: "Test Nagar", kind: "Breakdown",
     info: "Feeder tripped at the substation. Line crew on site.", from: "17-11-2026 19:30", to: "17-11-2026 22:30" }];
   // One day in 15-minute readings, so "hour by hour" shows in sample data too: a 6 am geyser spike, a busy
