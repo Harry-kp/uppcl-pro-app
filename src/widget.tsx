@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { Platform } from "react-native";
 import { FlexWidget, TextWidget, requestWidgetUpdate, type WidgetTaskHandler } from "react-native-android-widget";
 import { File, Paths } from "expo-file-system";
+import { dark, light } from "./palette";
 import en from "../messages/en.json";
 import hi from "../messages/hi.json";
 
@@ -103,10 +104,12 @@ export function clearSnapshot(): void {
   redraw(null);
 }
 
-// Same Dusk tokens as src/theme.ts (hex only: widgets can't read the app theme).
-const LIGHT = { bg: "#F3F3F8", text: "#1B1C2E", muted: "#585A73", ok: "#2E7550", warn: "#A04A14", critical: "#B3261E", big: "#1B1C2E", glow: "#FBE8C6", button: "#3B47A8", onButton: "#FFFFFF", soft: "#E3E4F4", onSoft: "#2B3380" } as const;
-const DARK = { bg: "#181A2E", text: "#E7E7F3", muted: "#A2A4BD", ok: "#7FD1A0", warn: "#F29A5E", critical: "#F4A59C", big: "#FFE3B0", glow: "#3A2F1E", button: "#FFE3B0", onButton: "#1B1C2E", soft: "#2A2D48", onSoft: "#E7E7F3" } as const;
-type Palette = { [K in keyof typeof LIGHT]: `#${string}` };
+// The app's Dusk tokens (src/palette.ts); only the widget's own surfaces are set here.
+type Palette = { [K in "bg" | "text" | "muted" | "ok" | "warn" | "critical" | "big" | "glow" | "button" | "onButton" | "soft" | "onSoft"]: `#${string}` };
+const pick = (p: typeof light) => ({ text: p.text, muted: p.muted, ok: p.ok, warn: p.warn, critical: p.critical, big: p.big, glow: p.glow });
+const LIGHT = { ...pick(light), bg: light.bg, button: light.primary, onButton: light.onPrimary, soft: "#E3E4F4", onSoft: "#2B3380" } as Palette;
+const DARK = { ...pick(dark), bg: "#181A2E", button: dark.big, onButton: "#1B1C2E", soft: "#2A2D48", onSoft: dark.text } as Palette; // a touch lighter than the app: sits on wallpapers
+
 
 /**
  * How old the snapshot is, decided at draw time (the widget redraws without the app). The background check

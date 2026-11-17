@@ -185,7 +185,7 @@ function ComplaintRow({ x, first }: { x: ComplaintDetail; first: boolean }) {
       style={({ pressed }) => [styles.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Txt v="body" weight="semibold" numberOfLines={1}>{what}</Txt>
-        <Txt v="caption" color="muted" numeric numberOfLines={1}>{line}</Txt>
+        <Txt v="caption" color="muted" numeric numberOfLines={2}>{line}</Txt>
       </View>
       {/* "Late" replaces "Closed" (never a second chip); text + warn tone, not colour alone. */}
       <Pill label={late !== null && !x.is_open ? t("late_pill") : x.is_open ? t("open") : t("closed")} tone={late !== null ? "warn" : x.is_open ? "accent" : "ok"} />
