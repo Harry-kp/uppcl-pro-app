@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMyComplaints, useSeenComplaintDetail, useTenantPreferences, useTickets, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { CGRF_NODAL, CGRF_URL, connected1912, HELPLINE_TEL, JANSUNWAI_URL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
+import { CGRF_URL, cgrfNodalUrl, connected1912, HELPLINE_TEL, JANSUNWAI_URL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -125,7 +125,7 @@ export default function Complaints() {
 
       {/* Not solved? The official next steps, in order: the consumer forum, its nodal officer for this discom, the state portal. */}
       {dash && (() => {
-        const nodal = CGRF_NODAL[String(dash.site.tenantId).toUpperCase()];
+        const code = String(dash.site.tenantId).toUpperCase();
         return (
           <>
             <View style={{ marginTop: 12 }}>
@@ -134,7 +134,7 @@ export default function Complaints() {
             </View>
             <Card style={{ padding: 0, gap: 0 }}>
               <Contact first icon="supportAgent" label={t("esc_cgrf")} value={t("esc_cgrf_value")} onPress={() => openLink(CGRF_URL)} />
-              {nodal && <Contact icon="call" label={t("esc_nodal", { discom: String(dash.site.tenantId).toUpperCase() })} value={`${nodal.name} · ${nodal.phone.slice(0, 5)} ${nodal.phone.slice(5)}`} onPress={() => openLink(`tel:${nodal.phone}`)} />}
+              <Contact icon="person" label={t("esc_nodal", { discom: code })} value={t("esc_nodal_value")} onPress={() => openLink(cgrfNodalUrl(code))} />
               <Contact icon="openInNew" label={t("esc_jansunwai")} value={t("esc_jansunwai_value")} onPress={() => openLink(JANSUNWAI_URL)} />
             </Card>
           </>

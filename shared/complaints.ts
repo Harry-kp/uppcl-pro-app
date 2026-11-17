@@ -500,15 +500,8 @@ export const CGRF_URL = "https://cgrf.uppcl.org/";
 export const JANSUNWAI_URL = "https://jansunwai.up.nic.in/onlineComplaint";
 /** UPPCL's tariff page (rates for every category, all discoms). */
 export const TARIFF_URL = "https://www.uppcl.org/uppcl/en/article/tariff-details";
-/** Each discom's CGRF nodal officer, as cgrf.uppcl.org lists them ("CGRF Nodal Officers", Nov 2026). Names change:
- *  the designation and the phone are what matter; re-check the page when updating. */
-export const CGRF_NODAL: Record<string, { name: string; phone: string; email: string }> = {
-  PVVNL: { name: "Akhileshwar Prasad", phone: "9193330030", email: "cgrfpvvnlhq@gmail.com" },
-  PUVVNL: { name: "Radheshyam", phone: "9580430422", email: "cgrfpuvvnl@gmail.com" },
-  KESCO: { name: "Prabhav Hareet", phone: "9151222039", email: "xen.cgrf@kesco.org.in" },
-  MVVNL: { name: "Pramod Kumar Sagar", phone: "9411977569", email: "cgrfmvvnl@gmail.com" },
-  DVVNL: { name: "Abhishek Mishra", phone: "8114161507", email: "dvvnlcgrf@gmail.com" },
-};
+/** The forum's own page of nodal officers, at this discom's section (names and numbers change; theirs stays current). */
+export const cgrfNodalUrl = (discom: string) => `${CGRF_URL}nodal_officers.php#${discom.toLowerCase()}`;
 
 /** PVVNL posts a daily "Scheduled Supply Outage Information" PDF on its home page (Nov 2026); other discoms don't. */
 export const PVVNL_HOME = "https://pvvnl.org/";

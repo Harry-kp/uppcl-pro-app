@@ -652,6 +652,7 @@
     "esc_jansunwai": "Jansunwai (UP government)",
     "esc_jansunwai_value": "The state's online grievance portal",
     "tariff_link": "Electricity rates for every category (UPPCL tariff)",
-    "cx_escalate": "Not fixed in time? Take it to the consumer forum (CGRF)"
+    "cx_escalate": "Not fixed in time? Take it to the consumer forum (CGRF)",
+    "esc_nodal_value": "Name and number on UPPCL's forum site"
   }
 }
