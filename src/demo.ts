@@ -186,6 +186,9 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
     return c ? { ...c, limit_hours: c.is_open ? 4 : 24, raw_fields: {} } : null;
   }
   if (path === "/guests" || path === "/invitations") return []; // nobody shared in the sample account
+  // 1912's "Outage Information" for the sample line: one logged breakdown, so the note on Home / No power? shows.
+  if (path === "/complaints/outage") return [{ id: "BD-SAMPLE-1", feeder: "Test Nagar 11 kV", substation: "Test Nagar", kind: "Breakdown",
+    info: "Feeder tripped at the substation. Line crew on site.", from: "17-11-2026 19:30", to: "17-11-2026 22:30" }];
   // One day in 15-minute readings, so "hour by hour" shows in sample data too: a 6 am geyser spike, a busy
   // 8–11 am, evening TV/lights. The tallest single hour sits outside the busiest 3 hours on purpose (UX-R05).
   if (path === "/day") return env(dayReadings(q.get("date") ?? ""));

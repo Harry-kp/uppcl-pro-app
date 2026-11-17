@@ -635,6 +635,10 @@
     "tariff_lmv2": "Non-domestic",
     "tariff_lmv5": "Private tube well",
     "meter_active": "Active",
-    "cx_no_limit": "1912 doesn't publish a time limit for this kind of complaint."
+    "cx_no_limit": "1912 doesn't publish a time limit for this kind of complaint.",
+    "outage_on": "UPPCL has logged an outage on {where}",
+    "outage_on_line": "UPPCL has logged an outage on your line",
+    "outage_when": "{from} to {to}",
+    "outage_since": "since {from}"
   }
 }

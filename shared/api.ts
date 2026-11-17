@@ -11,7 +11,7 @@
 import useSWR, { mutate as defaultMutate, unload as defaultUnload, type ScopedMutator, type Unloader } from "swr";
 import { newSealKey, sealBody, solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
-import { complaintDetail, complaints, connected1912, forget1912 } from "./complaints";
+import { areaOutages, complaintDetail, complaints, connected1912, forget1912, type AreaOutage } from "./complaints";
 import { billingPeriod, indiaTime } from "./utils";
 import {
   getSession,
@@ -524,6 +524,7 @@ function ids(site: SiteRecord): { cid: string; did: string; tid: string } {
 async function fetcher<T>(key: string): Promise<T> {
   const mocked = platform.mock?.(key); if (mocked !== undefined) return mocked as T; // data seam: sample data (src/demo.ts)
   // Complaints: UPPCL's 1912 portal, anonymous (no user creds), straight from the phone.
+  if (key === "/complaints/outage") return areaOutages() as Promise<T>;
   if (key.startsWith("/complaints/detail/")) return complaintDetail(decodeURIComponent(key.slice("/complaints/detail/".length))) as Promise<T>;
   if (key.startsWith("/complaints")) return complaints(key.slice("/complaints".length)) as Promise<T>;
 
@@ -1182,6 +1183,9 @@ export interface ComplaintDetail {
 /** A complaint's full record if it was opened before (cache only, never fetches): the list's "Late" pill. */
 export const useSeenComplaintDetail = (no: string) =>
   useSWR<ComplaintDetail | null>(connected1912() ? `/complaints/detail/${encodeURIComponent(no)}` : null, null, { revalidateOnMount: false, revalidateOnFocus: false });
+/** Outages 1912 lists for the user's line (connected to 1912 only); refreshed when shown — outages come and go. */
+export const useAreaOutage = () =>
+  useSWR<AreaOutage[]>(connected1912() ? "/complaints/outage" : null, fetcher, { ...swrOpts, revalidateIfStale: true, shouldRetryOnError: false });
 export const useComplaintDetail = (no: string | undefined) =>
   useSWR<ComplaintDetail | null>(connected1912() && no ? `/complaints/detail/${encodeURIComponent(no)}` : null, fetcher, { ...swrOpts, revalidateIfStale: true, shouldRetryOnError: false }); // opened by a tap: refresh a saved answer (BUG-030)
 
