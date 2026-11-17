@@ -468,7 +468,7 @@
     "last_reading": "Last official reading",
     "billing_office": "Billing office",
     "messages_title": "Messages from UPPCL",
-    "range_12": "1 year",
+    "range_12": "12 months",
     "vs_last_year": "{pct} vs {month} last year",
     "monthly_total": "{month}: {kwh} units",
     "how_calc": "How is this calculated?",
