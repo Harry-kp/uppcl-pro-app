@@ -23,7 +23,7 @@ import enStrings from "../messages/en.json";
 import hiStrings from "../messages/hi.json";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
-const { CGRF_NODAL, cleanRemarks, complaintNoIn, latestPlannedCutPdf, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
+const { cgrfNodalUrl, cleanRemarks, complaintNoIn, latestPlannedCutPdf, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -604,8 +604,8 @@ describe("planned cuts and escalation (public pages)", () => {
     expect(latestPlannedCutPdf(html)).toBe("https://pvvnl.org/uploads/news/2.pdf");
     expect(latestPlannedCutPdf("<a href='x.pdf'>Tariff</a>")).toBeNull();
   });
-  test("every discom has a CGRF nodal officer with a 10-digit number", () => {
-    for (const d of ["PVVNL", "PUVVNL", "KESCO", "MVVNL", "DVVNL"]) expect(CGRF_NODAL[d]?.phone).toMatch(/^[6-9]\d{9}$/);
+  test("nodal officers: the forum's own page, at the discom's section (no copied names or numbers)", () => {
+    expect(cgrfNodalUrl("PVVNL")).toBe("https://cgrf.uppcl.org/nodal_officers.php#pvvnl");
   });
 });
 
