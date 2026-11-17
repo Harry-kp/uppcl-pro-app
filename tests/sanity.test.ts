@@ -23,7 +23,7 @@ import enStrings from "../messages/en.json";
 import hiStrings from "../messages/hi.json";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
-const { cleanRemarks, complaintNoIn, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
+const { CGRF_NODAL, cleanRemarks, complaintNoIn, latestPlannedCutPdf, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -575,6 +575,20 @@ describe("1912 outage information (form 9252)", () => {
   });
   test("1912's '0' placeholders read as unknown", () => {
     expect(outageFromRow({ FEEDER: "0", DOWN_INFO: " " }).feeder).toBeNull();
+  });
+});
+
+describe("planned cuts and escalation (public pages)", () => {
+  test("the newest 'Scheduled Supply Outage Information' PDF on PVVNL's page, made absolute", () => {
+    const html = `<a href="/en/28/66/x">STATUS OF CGRFS</a>
+      <a href="uploads/news/2.pdf"><span>Scheduled Supply Outage Information 16.11.2026</span> (PDF)</a>
+      <a href="https://pvvnl.org/uploads/news/1.pdf">Scheduled Supply Outage Information 15.11.2026</a>
+      <a href="uploads/news/3.pdf">Tariff order</a>`;
+    expect(latestPlannedCutPdf(html)).toBe("https://pvvnl.org/uploads/news/2.pdf");
+    expect(latestPlannedCutPdf("<a href='x.pdf'>Tariff</a>")).toBeNull();
+  });
+  test("every discom has a CGRF nodal officer with a 10-digit number", () => {
+    for (const d of ["PVVNL", "PUVVNL", "KESCO", "MVVNL", "DVVNL"]) expect(CGRF_NODAL[d]?.phone).toMatch(/^[6-9]\d{9}$/);
   });
 });
 

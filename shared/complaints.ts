@@ -492,6 +492,33 @@ export async function fileSupplyComplaint(draft: SupplyDraft, remarks: string): 
 // ─── The user-sent channels (fallback when in-app filing can't go through) ───────
 /** Public UPPCL complaint channels (printed on every bill — not secrets). */
 export const HELPLINE_TEL = "1912";            // 24×7 toll-free
+
+// ─── When a complaint isn't solved: the official next steps (public; checked on cgrf.uppcl.org, Nov 2026) ─────────
+/** UPPCL's Consumer Grievance Redressal Forum portal (all five discoms). */
+export const CGRF_URL = "https://cgrf.uppcl.org/";
+/** UP government's grievance portal (IGRS / Jansunwai). */
+export const JANSUNWAI_URL = "https://jansunwai.up.nic.in/onlineComplaint";
+/** UPPCL's tariff page (rates for every category, all discoms). */
+export const TARIFF_URL = "https://www.uppcl.org/uppcl/en/article/tariff-details";
+/** Each discom's CGRF nodal officer, as cgrf.uppcl.org lists them ("CGRF Nodal Officers", Nov 2026). Names change:
+ *  the designation and the phone are what matter; re-check the page when updating. */
+export const CGRF_NODAL: Record<string, { name: string; phone: string; email: string }> = {
+  PVVNL: { name: "Akhileshwar Prasad", phone: "9193330030", email: "cgrfpvvnlhq@gmail.com" },
+  PUVVNL: { name: "Radheshyam", phone: "9580430422", email: "cgrfpuvvnl@gmail.com" },
+  KESCO: { name: "Prabhav Hareet", phone: "9151222039", email: "xen.cgrf@kesco.org.in" },
+  MVVNL: { name: "Pramod Kumar Sagar", phone: "9411977569", email: "cgrfmvvnl@gmail.com" },
+  DVVNL: { name: "Abhishek Mishra", phone: "8114161507", email: "dvvnlcgrf@gmail.com" },
+};
+
+/** PVVNL posts a daily "Scheduled Supply Outage Information" PDF on its home page (Nov 2026); other discoms don't. */
+export const PVVNL_HOME = "https://pvvnl.org/";
+/** The newest "Scheduled Supply Outage Information" PDF linked on PVVNL's home page, or null. */
+export function latestPlannedCutPdf(html: string): string | null {
+  for (const m of html.matchAll(/<a\b[^>]*href="([^"]+\.pdf)"[^>]*>([\s\S]*?)<\/a>/gi)) {
+    if (/Scheduled\s+Supply\s+Outage/i.test(m[2].replace(/<[^>]+>/g, " "))) return new URL(m[1], PVVNL_HOME).toString();
+  }
+  return null; // the list is newest-first, so the first match is today's (or the latest one posted)
+}
 export const COMPLAINT_SMS_NUMBER = "5616195"; // SMS shortcode
 
 /** UPPCL's SMS complaint format for a supply outage. */

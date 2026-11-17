@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDashboard, useMyComplaints, useSeenComplaintDetail, useTenantPreferences, useTickets, type ComplaintDetail } from "@shared/api";
 import { parseUppclDate, recordSummary } from "@shared/utils";
-import { connected1912, HELPLINE_TEL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
+import { CGRF_NODAL, CGRF_URL, connected1912, HELPLINE_TEL, JANSUNWAI_URL, is1912LoginOnly, lateBy, needsKyc1912, openFor, signedIn1912 } from "@shared/complaints";
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -11,7 +11,7 @@ import { font, useColors } from "../../src/theme";
 import { ActionTile, Insight, Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
-import { DangerRow, ReportSheet } from "../../src/report";
+import { DangerRow, openPlannedCuts, ReportSheet } from "../../src/report";
 
 export default function Complaints() {
   const c = useColors();
@@ -49,6 +49,12 @@ export default function Complaints() {
         <ActionTile icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />
       </View>
       <DangerRow />
+      {/* Is it a planned cut? PVVNL posts the day's list as a PDF (the only discom that does). */}
+      {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
+        <Card style={{ padding: 0, gap: 0 }}>
+          <Contact first icon="event" label={t("planned_title")} value={t("planned_value")} onPress={() => void openPlannedCuts()} />
+        </Card>
+      )}
       {dash && <ReportSheet data={dash} visible={report} onClose={() => setReport(false)} />}
 
       <View style={{ marginTop: 12 }}>
@@ -116,6 +122,24 @@ export default function Complaints() {
           </Card>
         </>
       )}
+
+      {/* Not solved? The official next steps, in order: the consumer forum, its nodal officer for this discom, the state portal. */}
+      {dash && (() => {
+        const nodal = CGRF_NODAL[String(dash.site.tenantId).toUpperCase()];
+        return (
+          <>
+            <View style={{ marginTop: 12 }}>
+              <Txt v="heading">{t("esc_title")}</Txt>
+              <Txt v="caption" color="muted">{t("esc_desc")}</Txt>
+            </View>
+            <Card style={{ padding: 0, gap: 0 }}>
+              <Contact first icon="supportAgent" label={t("esc_cgrf")} value={t("esc_cgrf_value")} onPress={() => openLink(CGRF_URL)} />
+              {nodal && <Contact icon="call" label={t("esc_nodal", { discom: String(dash.site.tenantId).toUpperCase() })} value={`${nodal.name} · ${nodal.phone.slice(0, 5)} ${nodal.phone.slice(5)}`} onPress={() => openLink(`tel:${nodal.phone}`)} />}
+              <Contact icon="openInNew" label={t("esc_jansunwai")} value={t("esc_jansunwai_value")} onPress={() => openLink(JANSUNWAI_URL)} />
+            </Card>
+          </>
+        );
+      })()}
 
       {(care || discom.email || discom.address) && (
         <>

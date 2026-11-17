@@ -16,6 +16,9 @@ import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
 import { BackHeader, Card, Pill, Screen, Section, Txt, type Tone } from "../src/ui";
 import { Icon } from "../src/icons";
+import { openLink } from "../src/links";
+import { TextLink } from "../src/report";
+import { TARIFF_URL } from "@shared/complaints";
 
 export default function MeterDetails() {
   const c = useColors();
@@ -86,6 +89,8 @@ export default function MeterDetails() {
             )}
           </View>
         </Card>
+        {/* What one unit costs in this category: UPPCL's own tariff page, not numbers we'd have to keep current. */}
+        <TextLink label={t("tariff_link")} onPress={() => openLink(TARIFF_URL)} />
       </Section>
 
       {q && (q.pfLatest !== null || q.demandPct !== null) && (

@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useAreaOutage, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
-import { fileSupplyComplaint, HELPLINE_TEL, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { fileSupplyComplaint, HELPLINE_TEL, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
@@ -175,6 +175,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           )}
           <Connect1912Sheet visible={connect} onClose={() => setConnect(false)} onDone={retry} />
           <TextLink label={t("rp_something_else")} onPress={full} />
+          <PlannedCutsLink discom={String(data.site.tenantId)} />
           <DangerRow />
         </>
       )}
@@ -192,6 +193,28 @@ export function AreaOutageNote() {
   const where = o.feeder ?? o.substation;
   const when = o.from && o.to ? t("outage_when", { from: o.from, to: o.to }) : o.from ? t("outage_since", { from: o.from }) : "";
   return <Insight tone="warn" icon="event" text={[t(where ? "outage_on" : "outage_on_line", { where: where ?? "" }), when, o.info].filter(Boolean).join(" · ")} />;
+}
+
+/** PVVNL's daily "Scheduled Supply Outage Information" PDF: found on its home page when asked (straight from the
+ *  phone), opened in the phone's PDF viewer. Falls back to PVVNL's site if the page changed or didn't load. */
+export async function openPlannedCuts(): Promise<void> {
+  let url = PVVNL_HOME;
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 12_000);
+    const html = await (await fetch(PVVNL_HOME, { signal: ctl.signal })).text();
+    clearTimeout(timer);
+    url = latestPlannedCutPdf(html) ?? PVVNL_HOME;
+  } catch { /* the site itself still opens */ }
+  await Linking.openURL(url);
+}
+
+/** "Is it a planned cut?" — only PVVNL publishes the daily list. */
+export function PlannedCutsLink({ discom }: { discom: string }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  if (discom.toUpperCase() !== "PVVNL") return null;
+  return <TextLink label={busy ? t("planned_opening") : t("planned_today")} onPress={() => { if (busy) return; setBusy(true); void openPlannedCuts().finally(() => setBusy(false)); }} />;
 }
 
 /** A centred text action, 48 dp tall (UX-R23). */

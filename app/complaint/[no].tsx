@@ -1,13 +1,14 @@
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useComplaintDetail, useMyComplaints } from "@shared/api";
-import { lateBy, openFor, sourceKind } from "@shared/complaints";
+import { CGRF_URL, lateBy, openFor, sourceKind } from "@shared/complaints";
 import { parseUppclDate } from "@shared/utils";
 import { useI18n } from "../../src/i18n";
 import { useColors } from "../../src/theme";
 import { BackHeader, Button, Card, Insight, Pill, Screen, Skeleton, SkeletonRows, SlowNote, Txt } from "../../src/ui";
 import { openLink } from "../../src/links";
 import { Icon } from "../../src/icons";
+import { TextLink } from "../../src/report";
 
 export default function ComplaintDetail() {
   const c = useColors();
@@ -76,6 +77,8 @@ export default function ComplaintDetail() {
 
       {/* Open and already past the limit: the moment calling the JE helps (the numbers are just below). */}
       {x.is_open && late !== null && !!x.limit_hours && <Insight tone="warn" icon="schedule" text={t("cx_open_late", { h: x.limit_hours })} />}
+      {/* Past UPPCL's own limit: the official next step is the consumer forum (Complaints tab has the full list). */}
+      {late !== null && <TextLink label={t("cx_escalate")} onPress={() => openLink(CGRF_URL)} />}
 
       {/* Closed late: the fact, and where 1912 takes a compensation request. UPPCL decides; no amounts promised. */}
       {!x.is_open && late !== null && (

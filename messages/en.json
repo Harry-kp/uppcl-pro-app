@@ -639,6 +639,19 @@
     "outage_on": "UPPCL has logged an outage on {where}",
     "outage_on_line": "UPPCL has logged an outage on your line",
     "outage_when": "{from} to {to}",
-    "outage_since": "since {from}"
+    "outage_since": "since {from}",
+    "planned_today": "Is it a planned cut? (PVVNL's latest list)",
+    "planned_opening": "Opening PVVNL's list…",
+    "planned_title": "Planned power cuts",
+    "planned_value": "PVVNL's latest daily list (PDF)",
+    "esc_title": "Complaint not solved?",
+    "esc_desc": "If calling the engineers didn't help, these are UPPCL's official next steps.",
+    "esc_cgrf": "Consumer forum (CGRF)",
+    "esc_cgrf_value": "File a grievance on UPPCL's forum portal",
+    "esc_nodal": "{discom} CGRF nodal officer",
+    "esc_jansunwai": "Jansunwai (UP government)",
+    "esc_jansunwai_value": "The state's online grievance portal",
+    "tariff_link": "Electricity rates for every category (UPPCL tariff)",
+    "cx_escalate": "Not fixed in time? Take it to the consumer forum (CGRF)"
   }
 }
