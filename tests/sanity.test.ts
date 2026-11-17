@@ -23,7 +23,7 @@ import enStrings from "../messages/en.json";
 import hiStrings from "../messages/hi.json";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
-const { cgrfNodalUrl, cleanRemarks, complaintNoIn, latestPlannedCutPdf, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
+const { cgrfNodalUrl, claimFrom, cleanRemarks, complaintNoIn, latestPlannedCutPdf, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -589,6 +589,18 @@ describe("planned cuts and escalation (public pages)", () => {
   });
   test("nodal officers: the forum's own page, at the discom's section (no copied names or numbers)", () => {
     expect(cgrfNodalUrl("PVVNL")).toBe("https://cgrf.uppcl.org/nodal_officers.php#pvvnl");
+  });
+});
+
+describe("1912 compensation pre-check (form 14047)", () => {
+  // Real answers, Nov 2026: a 28 Apr complaint (too old) and a 1 Nov one (1912 would take a claim).
+  const old = `<RESULT EVENT_CONTROL="153074.0"><RESULTS CHILDCONTROLID="153100" AC_ID="214551" SECCONTROLID=""><Rowset><temp1>N</temp1></Rowset></RESULTS><RESULTS CHILDCONTROLID="153124" AC_ID="214571" SECCONTROLID=""><Rowset><SNo TYPE="TEXT" CAPTION="SNo">1</SNo><Reason TYPE="TEXT" CAPTION="Reason">Complaint is More Than 60 days old</Reason></Rowset></RESULTS></RESULT>`;
+  const recent = `<RESULT EVENT_CONTROL="153074.0"><RESULTS CHILDCONTROLID="153100" AC_ID="214551" SECCONTROLID=""><Rowset><temp1>Y</temp1></Rowset></RESULTS><RESULTS CHILDCONTROLID="153124" AC_ID="214571" SECCONTROLID=""></RESULTS></RESULT>`;
+  test("too old: not possible, with 1912's reason", () => {
+    expect(claimFrom(parseByChild(old))).toEqual({ possible: false, reasons: ["Complaint is More Than 60 days old"] });
+  });
+  test("recent: 1912 would take the claim (not a promise of payment)", () => {
+    expect(claimFrom(parseByChild(recent))).toEqual({ possible: true, reasons: [] });
   });
 });
 

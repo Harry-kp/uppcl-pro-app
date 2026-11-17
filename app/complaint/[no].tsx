@@ -1,7 +1,7 @@
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { useComplaintDetail, useMyComplaints } from "@shared/api";
-import { CGRF_URL, lateBy, openFor, sourceKind } from "@shared/complaints";
+import { useCompensationCheck, useComplaintDetail, useMyComplaints } from "@shared/api";
+import { CGRF_URL, CLAIM_DAYS, COMPENSATION_FORM_URL, lateBy, openFor, sourceKind } from "@shared/complaints";
 import { parseUppclDate } from "@shared/utils";
 import { useI18n } from "../../src/i18n";
 import { useColors } from "../../src/theme";
@@ -24,6 +24,13 @@ export default function ComplaintDetail() {
   const when = (d: string | null) => parseUppclDate(d)?.toLocaleString(locale, d?.includes(":")
     ? { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" } : { day: "numeric", month: "short", year: "numeric" }) ?? null;
 
+  // 1912 takes a compensation claim for 60 days from the complaint; ask its pre-check only inside that window.
+  // (Before the early return below: hooks run on every render.)
+  const filedAt = parseUppclDate(x?.entry_date ?? null);
+  const claimBy = filedAt ? new Date(filedAt.getTime() + CLAIM_DAYS * 86_400_000) : null;
+  const claimOpen = !!claimBy && claimBy.getTime() > Date.now();
+  const claim = useCompensationCheck(x && !x.is_open && lateBy(x) !== null && claimOpen ? x.complaint_no : null);
+
   if (!x) return (
     <Screen>
       <BackHeader title={`#${no ?? ""}`} />
@@ -35,6 +42,7 @@ export default function ComplaintDetail() {
 
   const took = openFor(x);
   const late = lateBy(x); // whole hours past UPPCL's own limit, only when measurable
+
   const src = sourceKind(x.source);
   const closingNote = !x.is_open && x.closing_remarks && x.closing_remarks !== x.remarks ? x.closing_remarks : null;
   // Escalation chain, lowest first. Only officers UPPCL actually assigned (a number is enough to call).
@@ -80,13 +88,22 @@ export default function ComplaintDetail() {
       {/* Past UPPCL's own limit: the official next step is the consumer forum (Complaints tab has the full list). */}
       {late !== null && <TextLink label={t("cx_escalate")} onPress={() => openLink(CGRF_URL)} />}
 
-      {/* Closed late: the fact, and where 1912 takes a compensation request. UPPCL decides; no amounts promised. */}
+      {/* Closed late: 1912 takes a compensation claim for 60 days. Its own pre-check says if it will (not whether it
+          pays: UPPCL decides after registering). No amounts promised. */}
       {!x.is_open && late !== null && (
         <Card style={{ gap: 8 }}>
           <Txt v="body" weight="semibold">{t("cx_comp_title")}</Txt>
-          <Txt v="body" color="muted">{t("cx_comp_body")}</Txt>
-          <Txt v="caption" color="muted">{t("cx_comp_steps", { no: x.complaint_no })}</Txt>
-          <Button kind="soft" icon="openInNew" label={t("cx_comp_how")} onPress={() => openLink("https://1912.uppcl.org/")} />
+          {claimOpen ? (
+            <>
+              <Txt v="body" color="muted">{t("cx_comp_until", { date: claimBy!.toLocaleDateString(locale, { day: "numeric", month: "long" }) })}</Txt>
+              {claim.data && !claim.data.possible && <Insight tone="warn" icon="info" text={t("cx_comp_refused", { why: claim.data.reasons.join("; ") || "—" })} />}
+              <Txt v="caption" color="muted">{t("cx_comp_steps", { no: x.complaint_no })}</Txt>
+              <Txt v="caption" color="muted">{t("cx_comp_arrears")}</Txt>
+              <Button kind="soft" icon="openInNew" label={t("cx_comp_how")} onPress={() => openLink(COMPENSATION_FORM_URL)} />
+            </>
+          ) : (
+            <Txt v="body" color="muted">{claimBy ? t("cx_comp_closed", { date: claimBy.toLocaleDateString(locale, { day: "numeric", month: "long" }) }) : t("cx_comp_body")}</Txt>
+          )}
         </Card>
       )}
 
