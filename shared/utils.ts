@@ -118,3 +118,22 @@ export function stddev(xs: number[]): number {
 export function sum(xs: number[]): number {
   return xs.filter((x) => Number.isFinite(x)).reduce((a, b) => a + b, 0);
 }
+
+/** "1 day", not "1 days": when a number var is 1 and `<key>_one` exists, that text is used (UX-R17). */
+export function pickPlural<K extends string>(strings: Record<K, string>, key: K, vars?: Record<string, string | number>): string {
+  const one = vars && Object.values(vars).some((v) => v === 1) ? (strings as Record<string, string>)[`${key}_one`] : undefined;
+  return one ?? strings[key];
+}
+
+/** Hermes has no Hindi time format (it printed "8 am"): "सुबह 8", "दोपहर 12", "शाम 4", "रात 9" (UX-R24). */
+export function hindiHour(h: number): string {
+  const n = h % 12 || 12;
+  return `${h < 4 || h >= 20 ? "रात" : h < 12 ? "सुबह" : h < 16 ? "दोपहर" : "शाम"} ${n}`;
+}
+
+/** The tariff category we can name for sure ("LMV1" → "lmv1"), else null: the code is shown as-is (UX-R20). */
+export function tariffKey(code: string): { key: "tariff_lmv1" | "tariff_lmv2" | "tariff_lmv5"; code: string } | null {
+  const m = /^LMV-?(\d+)$/i.exec(code.trim());
+  return m && (m[1] === "1" || m[1] === "2" || m[1] === "5") ? { key: `tariff_lmv${m[1]}` as "tariff_lmv1", code: `LMV-${m[1]}` } : null;
+}
+

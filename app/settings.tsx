@@ -86,7 +86,9 @@ export default function Settings() {
       setAlerts(ok);
       if (!ok) setAlertError(t("alerts_denied"));
     } catch (e) {
-      setAlertError((e as Error).message); // wrong password: keep the field open to retry
+      // Plain words, not UPPCL's raw message; the field stays open to retry (UX-R30).
+      const st = (e as { status?: number }).status;
+      setAlertError(st === 400 || st === 401 || st === 403 ? t("alerts_pw_wrong") : t("alerts_pw_failed"));
     } finally {
       setAlertBusy(false);
     }
@@ -128,7 +130,7 @@ export default function Settings() {
 
       {dash && (
         <Group title={t("alerts_section")}>
-          <Row first icon="notifications" label={alertsLabel}
+          <Row first icon="notifications" label={alertsLabel} onPress={() => void toggleAlerts(!alerts)}
             right={<Switch value={alerts} onValueChange={toggleAlerts} trackColor={{ true: c.primary, false: c.track }} thumbColor={alerts ? c.onPrimary : c.muted} accessibilityLabel={alertsLabel} />} />
           <Row icon="savings" label={t("budget_title")} value={budget ? `₹${rupees(budget, { decimals: 0 })}` : t("off")} onPress={() => setSheet("budget")} />
           {alerts && (
@@ -140,10 +142,10 @@ export default function Settings() {
       {alertError && <Txt v="caption" color="critical">{alertError}</Txt>}
 
       <Group title={t("app_section")}>
-        <Row first icon="language" label={t("language")} value={langLabel} onPress={() => setSheet("lang")} />
+        <Row first icon="language" label={t("language_both")} value={langLabel} onPress={() => setSheet("lang")} />
         <Row icon="darkMode" label={t("theme")} value={themeLabel} onPress={() => setSheet("theme")} />
         {canBio && (
-          <Row icon="fingerprint" label={t("fingerprint")}
+          <Row icon="fingerprint" label={t("fingerprint")} onPress={() => void toggleBio(!bio)}
             right={<Switch value={bio} onValueChange={toggleBio} trackColor={{ true: c.primary, false: c.track }} thumbColor={bio ? c.onPrimary : c.muted} accessibilityLabel={t("fingerprint")} />} />
         )}
         {/* Home-screen widgets are Android-only for now. */}
@@ -188,10 +190,13 @@ export default function Settings() {
       <Sheet visible={askPw} title={alertsLabel} onClose={() => { setAskPw(false); setPw(""); }}>
         <Txt v="label" color="muted">{postpaid ? t("alerts_post_desc") : t("alerts_desc")}</Txt>
         <Txt v="caption" color="muted">{t("alerts_password")}</Txt>
+        {/* A visible label, and the screen reader says the same thing (UX-R30). */}
+        <Txt v="label" color="muted">{t("alerts_pw_label")}</Txt>
         <Field
-          value={pw} onChangeText={setPw} secureTextEntry autoComplete="current-password" autoFocus
-          accessibilityLabel={alertsLabel} placeholder="••••••••"
+          value={pw} onChangeText={(v) => { setPw(v); setAlertError(null); }} secureTextEntry autoComplete="current-password" autoFocus
+          accessibilityLabel={t("alerts_pw_label")} placeholder="••••••••"
         />
+        <Txt v="caption" color="muted">{t("alerts_pw_code")}</Txt>
         {alertError && <Txt v="caption" color="critical">{alertError}</Txt>}
         <Button label={t("alerts_turn_on")} onPress={confirmAlerts} busy={alertBusy} disabled={!pw} />
       </Sheet>
@@ -281,7 +286,7 @@ function Detail({ label, value, copy, first, sub, lead, lines = 1 }: { label: st
         {sub && <Txt v="caption" color="muted" numberOfLines={2}>{sub}</Txt>}
       </View>
       {copy && (
-        <Pressable accessibilityRole="button" accessibilityLabel={`${t("copy")} ${label}`} style={[styles.copy, { backgroundColor: c.pill }]}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("copy_x", { label })} style={[styles.copy, { backgroundColor: c.pill }]}
           onPress={async () => { await Clipboard.setStringAsync(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
           <Txt v="label" color="pillText" weight="bold">{copied ? t("copied") : t("copy")}</Txt>
         </Pressable>

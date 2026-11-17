@@ -67,6 +67,15 @@ function consumption(days: number) {
   });
 }
 
+const HOURLY = [0.05, 0.05, 0.05, 0.05, 0.05, 0.06, 1.1, 0.12, 0.62, 0.66, 0.85, 0.1, 0.4, 0.15, 0.62, 0.3, 0.32, 0.6, 0.18, 0.4, 0.2, 0.62, 0.15, 0.1];
+function dayReadings(date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
+  return HOURLY.flatMap((kwh, h) => [0, 15, 30, 45].map((m) => {
+    const at = `${date}T${p2(h)}:${p2(m)}:00`;
+    return { energyImportKWH: { unit: "kWh", value: kwh / 4, measureTime: at } };
+  }));
+}
+
 function monthly(year: number) {
   const out = [];
   const lastMonth = year === new Date().getFullYear() ? new Date().getMonth() : 11;
@@ -177,6 +186,9 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
     return c ? { ...c, limit_hours: c.is_open ? 4 : 24, raw_fields: {} } : null;
   }
   if (path === "/guests" || path === "/invitations") return []; // nobody shared in the sample account
+  // One day in 15-minute readings, so "hour by hour" shows in sample data too: a 6 am geyser spike, a busy
+  // 8–11 am, evening TV/lights. The tallest single hour sits outside the busiest 3 hours on purpose (UX-R05).
+  if (path === "/day") return env(dayReadings(q.get("date") ?? ""));
 
   switch (path) {
     case "/dashboard": return d.dashboard;

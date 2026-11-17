@@ -10,7 +10,7 @@ import { ProxyError, type ErrorSource } from "@shared/api";
 import { reportProblem } from "./github";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
-import { Button, Txt } from "./ui";
+import { animateNext, Button, Txt } from "./ui";
 import { Icon } from "./icons";
 
 const SYSTEM: Record<ErrorSource, string> = {
@@ -74,9 +74,17 @@ export function ErrorNote({ error, onRetry, compact, stale }: { error: unknown; 
         )}
       </View>
       {!compact && onRetry && <Button label={t("retry")} kind="soft" onPress={onRetry} />}
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)} style={styles.fold}>
-        <Txt v="label" color="primary" weight="semibold">{open ? t("err_hide_details") : t("err_details")}</Txt>
-      </Pressable>
+      <View style={{ flexDirection: "row", gap: 20 }}>
+        {/* Over saved data too: a way to try again right here, not only "wait" (UX-R14). */}
+        {compact && onRetry && (
+          <Pressable accessibilityRole="button" onPress={onRetry} style={styles.fold}>
+            <Txt v="label" color="primary" weight="semibold">{t("retry")}</Txt>
+          </Pressable>
+        )}
+        <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => { animateNext(); setOpen((o) => !o); }} style={styles.fold}>
+          <Txt v="label" color="primary" weight="semibold">{open ? t("err_hide_details") : t("err_details")}</Txt>
+        </Pressable>
+      </View>
       {open && (
         <View style={[styles.details, { backgroundColor: c.surface, borderColor: c.line }]}>
           {lines.map((l) => <Txt key={l} v="caption" color="muted">{l}</Txt>)}
@@ -99,6 +107,6 @@ const styles = StyleSheet.create({
   close: { width: 32, height: 32, marginTop: -4, marginRight: -6, alignItems: "center", justifyContent: "center" },
   box: { borderRadius: 16, padding: 12, gap: 8 },
   head: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  fold: { minHeight: 40, justifyContent: "center", alignSelf: "flex-start" },
+  fold: { minHeight: 48, justifyContent: "center", alignSelf: "flex-start" },
   details: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 10, gap: 3 },
 });

@@ -127,7 +127,8 @@ export async function checkAlerts(now: number = Date.now()): Promise<void> {
       const paid = Boolean((inv.payment_dt || "").trim());
       const daysLeft = daysBetween(new Date(now), inv.due_dt);
       if (!paid && daysLeft >= 0 && daysLeft <= DUE_DAYS && keystore.getItem(SEEN.due) !== today) {
-        await notify(fill(s.due_soon_title, { n: daysLeft }), fill(s.due_soon_body, { amount, month, date: day(inv.due_dt) }), "/");
+        // "Bill due today" / "Bill due tomorrow", not "in 0 days" / "in 1 days" (UX-R17).
+        await notify(daysLeft === 0 ? s.due_today_title : fill(daysLeft === 1 ? s.due_soon_title_one : s.due_soon_title, { n: daysLeft }), fill(s.due_soon_body, { amount, month, date: day(inv.due_dt) }), "/");
         keystore.setItem(SEEN.due, today);
       }
     }
@@ -138,7 +139,7 @@ export async function checkAlerts(now: number = Date.now()): Promise<void> {
       const { recommendedAmount } = derivePrepaid(data, undefined, undefined, undefined, now);
       const coverUntil = new Date(now + ((data.balance.inr + recommendedAmount) / data.runway.avg_daily_spend) * 86400_000);
       await notify(
-        fill(s.notif_title, { n: Math.max(0, Math.floor(days)) }),
+        fill(Math.floor(days) === 1 ? s.notif_title_one : s.notif_title, { n: Math.max(0, Math.floor(days)) }),
         fill(s.notif_body, { balance: rupees(data.balance.inr, { decimals: 0 }), amount: rupees(recommendedAmount, { decimals: 0 }), date: day(coverUntil) }),
         "/",
       );

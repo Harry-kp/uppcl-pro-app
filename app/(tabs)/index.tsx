@@ -21,7 +21,7 @@ import { ReportSheet } from "../../src/report";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, radius, useColors } from "../../src/theme";
-import { Button, Card, Centered, Glow, Insight, Pill, Screen, Skeleton, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
+import { ActionTile, animateNext, Button, Card, Centered, Glow, Insight, Pill, Screen, Skeleton, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
 
@@ -62,7 +62,7 @@ export default function Home() {
     <Screen onRefresh={() => mutate()} refreshing={isValidating}>
       <Greeting data={data} />
       <UpdateCard />
-      {error && <ErrorNote error={error} stale compact />}
+      {error && <ErrorNote error={error} stale compact onRetry={() => void mutate()} />}
       <PlannedCut />
       <ComplaintStatus />
       {data.site.connectionType === "postpaid" ? <Postpaid data={data} /> : <Prepaid data={data} />}
@@ -119,7 +119,7 @@ function HowLink({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   return (
     <View style={{ gap: 4 }}>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)} style={styles.how}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => { animateNext(); setOpen((o) => !o); }} style={styles.how}>
         <Icon name="info" size={16} color={useColors().primary} />
         <Txt v="label" color="primary" weight="semibold">{t("how_calc")}</Txt>
       </Pressable>
@@ -174,7 +174,7 @@ function Greeting({ data }: { data: DashboardResponse }) {
   testData = platform.mock?.("scenario:active") === true; // data seam: sample data (src/demo.ts)
   useEffect(() => { if (found && !testData) keystore.setItem(NAME_KEY, found); }, [found, testData]);
   const first = found || (testData ? "" : real(keystore.getItem(NAME_KEY)));
-  const greet = first ? first.charAt(0).toUpperCase() + first.slice(1) : t(h >= 5 && h < 12 ? "greeting_morning" : h >= 12 && h < 17 ? "greeting_afternoon" : "greeting_evening");
+  const greet = first ? first.charAt(0).toUpperCase() + first.slice(1) : t(h < 5 ? "greeting_hello" : h < 12 ? "greeting_morning" : h < 17 ? "greeting_afternoon" : "greeting_evening") // no "Good evening" at 3 am (UX-R26);
   // Prepaid has a live balance timestamp; postpaid only has daily readings, so use the latest one.
   const latestReading = data.consumption_30d.daily
     .map((r) => String(r.energyImportKWH?.measureTime ?? ""))
@@ -216,23 +216,12 @@ function QuickActions({ data, onBill, billBusy, hasDues }: { data: DashboardResp
     <View style={styles.actions}>
       <ReportSheet data={data} visible={report} onClose={() => setReport(false)} />
       {/* Prepaid has no bill PDF, so its tiles are the two ways to report a cut. */}
-      {onBill && <Action icon="receiptLong" label={billBusy ? t("opening") : t("qa_bill")} onPress={onBill} disabled={billBusy} />}
-      <Action icon="sms" label={t("qa_no_power")} onPress={() => setReport(true)} />
-      {!onBill && <Action icon="call" label={t("call_1912")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />}
+      {onBill && <ActionTile icon="receiptLong" title={billBusy ? t("opening") : t("qa_bill")} onPress={onBill} disabled={billBusy} />}
+      <ActionTile icon="bolt" title={t("qa_no_power")} onPress={() => setReport(true)} />
+      {!onBill && <ActionTile icon="call" title={t("call_1912")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />}
       {/* When a bill is due, the hero's Pay button is the one; the tile is for paying ahead. */}
-      {data.site.connectionType === "postpaid" && !hasDues && <Action icon="currencyRupee" label={t("qa_pay")} onPress={() => router.push("/pay")} />}
+      {data.site.connectionType === "postpaid" && !hasDues && <ActionTile icon="currencyRupee" title={t("qa_pay")} onPress={() => router.push("/pay")} />}
     </View>
-  );
-}
-
-function Action({ icon, label, onPress, disabled }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean }) {
-  const c = useColors();
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} disabled={disabled}
-      style={({ pressed }) => [styles.action, { backgroundColor: c.surface, borderColor: c.line, opacity: pressed || disabled ? 0.7 : 1 }]}>
-      <View style={[styles.actionIcon, { backgroundColor: c.pill }]}><Icon name={icon} size={22} color={c.primary} /></View>
-      <Txt v="label" weight="semibold" style={{ textAlign: "center" }}>{label}</Txt>
-    </Pressable>
   );
 }
 
@@ -431,7 +420,7 @@ function Postpaid({ data }: { data: DashboardResponse }) {
     if (!inv) return;
     setDownloading(true);
     setPdfError(null);
-    try { await downloadBillPdf({ invoice_id: inv.invoice_id }); }
+    try { await downloadBillPdf(inv); }
     catch (e) { setPdfError(e); }
     finally { setDownloading(false); }
   }
@@ -516,7 +505,7 @@ function Postpaid({ data }: { data: DashboardResponse }) {
             )}
             {/* Two chips instead of three lines: how it compares, and whether the last bill is settled. */}
             <View style={styles.chips}>
-              {d.lastBillAmt > 0 && <Pill tone={vsTone} icon="trendingUp" flipIcon={vsPct < 0} label={t("projected_vs", { pct })} />}
+              {d.lastBillAmt > 0 && <Pill tone={vsTone} icon="trendingUp" flipIcon={vsPct < 0} label={billMonth ? t("projected_vs", { pct, month: billMonth }) : t("projected_vs_last", { pct })} />} {/* names the bill it compares with (UX-R07) */}
               {billStatus && <Pill tone={billStatus.tone} label={billStatus.chip} />}
               {budget && <Pill tone={shown > budget ? "warn" : "ok"} label={t(shown > budget ? "budget_over" : "budget_ok", { amount: rupees(budget, { decimals: 0 }) })} />}
             </View>
@@ -568,12 +557,10 @@ const styles = StyleSheet.create({
   strip: { flexDirection: "row", gap: 12 },
   mini: { flex: 1, gap: 2, borderRadius: radius.tile, padding: 12 },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  how: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, alignSelf: "flex-start" },
+  how: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48, alignSelf: "flex-start" },
   tileHead: { flexDirection: "row", alignItems: "center", gap: 5 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 },
   kind: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 },
   actions: { flexDirection: "row", gap: 10 },
-  action: { flex: 1, minHeight: 96, borderRadius: radius.tile, borderWidth: StyleSheet.hairlineWidth, padding: 10, alignItems: "center", justifyContent: "center", gap: 8 },
-  actionIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
 });

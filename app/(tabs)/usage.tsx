@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { useConsumption, useDashboard, useDayReadings, useLatestInvoice, useSavingTip, useYearlyHistory, type MonthlyInvoice } from "@shared/api";
+import { hindiHour } from "@shared/utils";
 import { busiestHours, derivePostpaid, hourlyUnits, monthFromDaily } from "@shared/insights";
 import { FALLBACK_RATE, kwh, mean, rupees, stddev, toNum } from "@shared/utils";
 import { Bars } from "../../src/Bars";
@@ -128,7 +129,8 @@ export default function Usage() {
         </>
       )}
 
-      <DayProfile />
+      {/* One day's hours belong with day bars; the 1-year view has months (UX-R21). */}
+      {range !== "365" && <DayProfile />}
       <SavingTip />
 
       {/* Advanced: detailed patterns and meter data, for those who want them. */}
@@ -145,7 +147,7 @@ export default function Usage() {
  * stretch of the day used the most. Hidden when the meter's data source doesn't offer day readings.
  */
 function DayProfile() {
-  const { t, locale } = useI18n();
+  const { t, locale, lang } = useI18n();
   const { data: dash } = useDashboard();
   const latest = [...(dash?.consumption_30d.daily ?? [])].map((r) => String(r.energyImportKWH?.measureTime ?? "")).filter(Boolean).sort().pop();
   const day = latest ? latest.slice(0, 10) : null;
@@ -153,7 +155,7 @@ function DayProfile() {
   const hours = useMemo(() => hourlyUnits(data?.data ?? []), [data]);
   const peak = busiestHours(hours);
   if (!day || !data?.data?.length || !peak) return null;
-  const clock = (h: number) => new Date(2000, 0, 1, h).toLocaleTimeString(locale, { hour: "numeric" });
+  const clock = (h: number) => (lang === "hi" ? hindiHour(h) : new Date(2000, 0, 1, h).toLocaleTimeString(locale, { hour: "numeric" }));
   const date = new Date(`${day}T00:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short" });
   return (
     <Card>
@@ -163,6 +165,7 @@ function DayProfile() {
         values={hours}
         highlight={[0, 1, 2].map((k) => peak.start + k).reduce((a, b) => (hours[b] > hours[a] ? b : a))}
         average={false}
+        band={[peak.start, peak.start + 2]} // the 3 hours the sentence above names (UX-R05)
         labels={hours.map((_, h) => clock(h))}
         details={hours.map((v, h) => `${clock(h)}–${clock((h + 1) % 24)} · ${kwh(v, 2)} ${t("units")}`)}
         summary={t("day_busiest", { from: clock(peak.start), to: clock((peak.start + 3) % 24), pct: peak.share })}

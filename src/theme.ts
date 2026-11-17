@@ -28,6 +28,7 @@ const light = {
   big: "#1B1C2E",
   accentSoft: "#F6EAD6",
   criticalSoft: "#F9E3E1",
+  scrim: "rgba(10,10,25,0.45)", // behind sheets (one value for every sheet: UX-R27)
 };
 
 const dark: typeof light = {
@@ -51,6 +52,7 @@ const dark: typeof light = {
   big: "#FFE3B0",
   accentSoft: "#2E2616",
   criticalSoft: "#3A1F1E",
+  scrim: "rgba(0,0,0,0.6)",
 };
 
 export type Colors = typeof light;
@@ -84,4 +86,16 @@ export function getThemeChoice(): ThemeChoice {
 export function setThemeChoice(v: ThemeChoice): void {
   if (v === "system") keystore.removeItem(THEME_KEY); else keystore.setItem(THEME_KEY, v);
   Appearance.setColorScheme(v === "system" ? "unspecified" : v);
+}
+
+/** Android reports the phone's own scheme again after a configuration change (text size, display size, dark mode),
+ *  which silently drops the override above: put the saved choice back whenever the two disagree (UX-R12). */
+let keeping = false;
+export function keepThemeChoice(): void {
+  if (keeping) return;
+  keeping = true;
+  Appearance.addChangeListener(({ colorScheme }) => {
+    const v = getThemeChoice();
+    if (v !== "system" && colorScheme !== v) Appearance.setColorScheme(v);
+  });
 }

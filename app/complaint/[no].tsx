@@ -108,7 +108,7 @@ export default function ComplaintDetail() {
                   <Txt v="body" weight="semibold" numberOfLines={1} color={o.name ? undefined : "muted"}>{o.name || t("cx_no_name")}</Txt>
                 </View>
                 {o.phone && (
-                  <Pressable accessibilityRole="button" accessibilityLabel={`${t("call")} ${o.name ?? o.role}`}
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("call_x", { name: o.name ?? o.role })}
                     onPress={() => Linking.openURL(`tel:${o.phone}`)} hitSlop={8}
                     style={({ pressed }) => [styles.call, { backgroundColor: c.pill, opacity: pressed ? 0.8 : 1 }]}>
                     <Icon name="call" size={18} color={c.pillText} />

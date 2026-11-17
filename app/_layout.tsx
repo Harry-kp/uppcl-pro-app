@@ -19,9 +19,10 @@ import { persistentCache } from "../src/cache";
 import { DevBanner } from "../src/dev"; // @dev-tools
 import { I18nProvider, useI18n } from "../src/i18n";
 import { FINGERPRINT_KEY, keystore } from "../src/boot";
-import { getThemeChoice, setThemeChoice, useColors } from "../src/theme";
+import { getThemeChoice, keepThemeChoice, setThemeChoice, useColors } from "../src/theme";
 
 setThemeChoice(getThemeChoice()); // apply the saved theme before the first frame
+keepThemeChoice(); // and keep it through Android configuration changes (UX-R12)
 import { AppIcon, Button, Glow, Txt } from "../src/ui";
 import { Icon } from "../src/icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";

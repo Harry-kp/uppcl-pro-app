@@ -11,9 +11,11 @@ import { Txt } from "./ui";
 import { useI18n } from "./i18n";
 
 export const Bars = memo(function Bars({
-  values, labels, details, hint, highlightLast = true, highlight, flagged = [], good = [], average = true, height = 120, summary,
+  values, labels, details, hint, highlightLast = true, highlight, flagged = [], good = [], average = true, height = 120, summary, band,
 }: {
   values: number[]; labels?: string[]; details?: string[]; hint?: string; highlightLast?: boolean; highlight?: number; flagged?: number[]; good?: number[]; average?: boolean; height?: number; summary: string;
+  /** [first, last] index of a stretch the caption talks about: tinted so it can be seen (UX-R05). */
+  band?: [number, number];
 }) {
   const c = useColors();
   const { t } = useI18n();
@@ -27,6 +29,7 @@ export const Bars = memo(function Bars({
   const finite = values.filter(Number.isFinite);
   const max = Math.max(...finite, 0.001);
   const avg = finite.length ? finite.reduce((a, b) => a + b, 0) / finite.length : 0;
+  const showAvg = average && avg > 0;
   const top = 14, bottom = labels ? 18 : 4, plot = height - top - bottom;
   const slot = n ? w / n : 0;
   const barW = Math.max(2, Math.min(28, slot * 0.66));
@@ -48,8 +51,10 @@ export const Bars = memo(function Bars({
             {average && avg > 0 && <Line x1={0} x2={w} y1={y(avg)} y2={y(avg)} stroke={c.muted} strokeWidth={1} strokeDasharray="3 3" />}
             {values.map((v, i) => {
               const h = Number.isFinite(v) ? Math.max(1.5, (v / max) * plot) : 0;
-              return <Rect key={i} x={i * slot + (slot - barW) / 2} y={top + plot - h} width={barW} height={h} rx={Math.min(5, barW / 3)} fill={fillFor(i)} />;
+              const inBand = !!band && i >= band[0] && i <= band[1] && i !== selected && !flagged.includes(i);
+              return <Rect key={i} x={i * slot + (slot - barW) / 2} y={top + plot - h} width={barW} height={h} rx={Math.min(5, barW / 3)} fill={inBand ? c.primary : fillFor(i)} fillOpacity={inBand ? 0.5 : 1} />;
             })}
+
             {labels?.map((l, i) => {
               if (!(i % labelEvery === 0 || i === n - 1)) return null;
               if (i !== n - 1 && n - 1 - i < labelEvery / 2) return null; // would collide with the last label
@@ -72,8 +77,12 @@ export const Bars = memo(function Bars({
             }} />
         )}
       </View>
-      {details && (
-        <Txt v="label" color="muted" numeric style={{ marginTop: 6 }}>{selected !== null ? details[selected] : hint ?? t("tap_bar")}</Txt>
+      {(details || showAvg) && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+          {details && <Txt v="label" color="muted" numeric style={{ flex: 1 }}>{selected !== null ? details[selected] : hint ?? t("tap_bar")}</Txt>}
+          {/* Say what the dashed line is (UX-R08): a legend, so no bar is covered. */}
+          {showAvg && <Txt v="caption" color="muted" numeric style={details ? undefined : { marginLeft: "auto" }}>{`┄ ${t("avg_short", { v: avg >= 100 ? Math.round(avg).toLocaleString("en-IN") : avg.toFixed(1) })}`}</Txt>}
+        </View>
       )}
     </View>
   );

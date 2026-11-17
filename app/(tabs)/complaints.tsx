@@ -8,10 +8,10 @@ import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
-import { Insight, Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote } from "../../src/ui";
+import { ActionTile, Insight, Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
-import { ReportSheet } from "../../src/report";
+import { DangerRow, ReportSheet } from "../../src/report";
 
 export default function Complaints() {
   const c = useColors();
@@ -42,12 +42,13 @@ export default function Complaints() {
       <Txt v="title">{t("complaints_title")}</Txt>
 
       <Txt v="heading" style={{ marginTop: 4 }}>{t("report_title")}</Txt>
-      <Action icon="bolt" title={t("no_power")} desc={t(signedIn1912() ? "no_power_desc" : "no_power_desc_connect")} primary disabled={!dash} onPress={() => setReport(true)} />
+      <ActionTile icon="bolt" title={t("no_power")} desc={t(signedIn1912() ? "no_power_desc" : "no_power_desc_connect")} primary disabled={!dash} onPress={() => setReport(true)} />
       {/* The other ways sit side by side, so "Report no power" stays the obvious first choice. */}
       <View style={styles.pair}>
-        <Action compact icon="chat" title={t("other_problem")} desc={t("other_problem_short")} onPress={() => router.push("/report")} />
-        <Action compact icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />
+        <ActionTile icon="widgets" title={t("other_problem")} desc={t("other_problem_short")} onPress={() => router.push("/report")} />
+        <ActionTile icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />
       </View>
+      <DangerRow />
       {dash && <ReportSheet data={dash} visible={report} onClose={() => setReport(false)} />}
 
       <View style={{ marginTop: 12 }}>
@@ -64,7 +65,7 @@ export default function Complaints() {
               <Txt v="caption" color="muted">{t("c19_card_body")}</Txt>
             </View>
           </View>
-          <Button label={t("c19_connect")} icon="chat" onPress={() => setConnect(true)} />
+          <Button label={t("c19_connect")} icon="lock" onPress={() => setConnect(true)} />
         </Card>
       ) : (
         <>
@@ -177,31 +178,9 @@ function Contact({ icon, label, value, onPress, first, lines = 1 }: { icon: Icon
   );
 }
 
-function Action({ icon, title, desc, onPress, primary, disabled, compact }: {
-  icon: IconName; title: string; desc: string; onPress: () => void; primary?: boolean; disabled?: boolean; compact?: boolean;
-}) {
-  const c = useColors();
-  const fg = primary ? c.onPrimary : c.text;
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} disabled={disabled}
-      style={({ pressed }) => [styles.action, compact && styles.compact, primary ? { backgroundColor: c.primary } : { backgroundColor: c.surface, borderColor: c.line, borderWidth: StyleSheet.hairlineWidth }, { opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }]}>
-      <View style={[styles.actionIcon, { backgroundColor: primary ? "transparent" : c.pill }]}>
-        <Icon name={icon} size={22} color={primary ? c.onPrimary : c.pillText} />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Txt v="heading" style={{ color: fg }}>{title}</Txt>
-        <Txt v="caption" color={primary ? undefined : "muted"} style={primary ? { color: fg, opacity: 0.9 } : undefined}>{desc}</Txt>
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  action: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 20, padding: 14, minHeight: 72 },
-  actionIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 13, minHeight: 60 },
   pair: { flexDirection: "row", gap: 10 },
-  compact: { flex: 1, flexDirection: "column", alignItems: "flex-start", gap: 10 },
   note: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   stale: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 14, paddingHorizontal: 14, minHeight: 48 },
   contactIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },

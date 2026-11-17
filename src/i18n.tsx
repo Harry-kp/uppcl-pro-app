@@ -3,6 +3,7 @@
  * (shared with the web's next-intl files — add every key to both).
  */
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { pickPlural } from "@shared/utils";
 import en from "../messages/en.json";
 import hi from "../messages/hi.json";
 import { keystore } from "./boot";
@@ -39,7 +40,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     locale: lang === "hi" ? "hi-IN" : "en-IN",
     // Anek Devanagari renders the space after "·" almost zero-width; a no-break space keeps it
     // visible and stops a line starting with "·" (UX-037).
-    t: (key, vars) => (lang === "hi" ? fill(STRINGS.hi[key], vars).replace(/ · /g, "\u00A0·\u00A0") : fill(STRINGS.en[key], vars)),
+    t: (key, vars) => (lang === "hi" ? fill(pickPlural(STRINGS.hi, key, vars), vars).replace(/ · /g, "\u00A0·\u00A0") : fill(pickPlural(STRINGS.en, key, vars), vars)),
     ago: (d) => relative(STRINGS[lang], d),
     span: (ms) => duration(STRINGS[lang], ms),
   }), [lang, setLang]);
@@ -72,7 +73,7 @@ function duration(s: Record<Key, string>, ms: number): string {
 /** English defaults if something renders outside the provider (e.g. mid hot-reload) — never crash on copy. */
 const FALLBACK: I18n = {
   lang: "en", setLang: () => {}, locale: "en-IN",
-  t: (key, vars) => fill(STRINGS.en[key], vars),
+  t: (key, vars) => fill(pickPlural(STRINGS.en, key, vars), vars),
   ago: (d) => relative(STRINGS.en, d),
   span: (ms) => duration(STRINGS.en, ms),
 };

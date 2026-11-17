@@ -132,10 +132,8 @@ function PaperlessRow({ site, portalMode, portalEmail }: { site: { email?: unkno
       </View>
       {portalDiffers && <Txt v="caption" color="muted">{t("pl_portal_differs", { mode: portalMode })}</Txt>}
       {on && placeholder && (
-        <View style={{ gap: 8 }}>
-          <Insight tone="warn" icon="warning" text={portalEmail ? t("pl_placeholder", { own: portalEmail.replace(/^(.)[^@]*(@.*)$/, "$1••••$2") }) : t("pl_placeholder_none")} />
-          <Button kind="soft" icon="openInNew" label={t("change_on_official")} onPress={() => openLink(UPPCL_CONSUMER_URL)} />
-        </View>
+        // The "Change them on UPPCL's official site" link is the card's last row, just below: one door, not two (UX-R09).
+        <Insight tone="warn" icon="warning" text={portalEmail ? t("pl_placeholder", { own: portalEmail.replace(/^(.)[^@]*(@.*)$/, "$1••••$2") }) : t("pl_placeholder_none")} />
       )}
       {undo && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

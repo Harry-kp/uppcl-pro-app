@@ -6,15 +6,15 @@
  * Danger isn't a complaint type: it's a call, its own red row at the end.
  */
 import { useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { mutate, useDashboard } from "@shared/api";
-import { fileSupplyComplaint, HELPLINE_TEL, is1912NotLinked, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { mutate, useDashboard, useMyComplaints } from "@shared/api";
+import { fileSupplyComplaint, is1912NotLinked, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { Connect1912Sheet } from "../src/connect1912";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { Icon, type IconName } from "../src/icons";
-import { cantFileKey, Filed, ReportFallback, useOwnDraft } from "../src/report";
+import { cantFileKey, DangerRow, Filed, ReportFallback, TextLink, useOwnDraft } from "../src/report";
 import { useColors } from "../src/theme";
 import { BackHeader, Button, Card, Choices, Insight, Screen, Sheet, Skeleton, Txt, Field } from "../src/ui";
 
@@ -22,13 +22,15 @@ type Supply = "no_power" | "voltage" | "phase";
 type Edit = "problem" | "where" | "affected" | "note" | null;
 
 export default function Report() {
-  const { t } = useI18n();
+  const { t, span } = useI18n();
   const params = useLocalSearchParams<{ problem?: Supply }>();
+  const { data: complaints } = useMyComplaints();
+  const open = complaints?.complaints.find((x) => x.is_open);
   const { data } = useDashboard();
   const [supply, setSupply] = useState<Supply>(params.problem ?? "no_power");
   const [whose, setWhose] = useState<"mine" | "other">("mine");
   const own = useOwnDraft(data, supply, whose === "mine");
-  const [edit, setEdit] = useState<Edit>(null);
+  const [edit, setEdit] = useState<Edit>(params.problem ? null : "problem");
   const [connect, setConnect] = useState(false);
 
   // Someone else's connection: just their account number. 1912 files it in-app only if it's added to the
@@ -99,21 +101,26 @@ export default function Report() {
         {!otherByText && <Row icon="chat" label={t("rp_row_note")} sub={note} onPress={() => setEdit("note")} />}
       </Card>
 
+      {mine && !!open && (
+        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/complaint/[no]", params: { no: open.complaint_no } })}>
+          <Insight tone="warn" icon="supportAgent"
+            text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
+        </Pressable>
+      )}
+
       {otherByText && <Insight tone="accent" icon="info" text={t(is1912NotLinked(other.error) ? "rp_other_by_text" : (cantFileKey(other.error) ?? "rp_other_by_text"))} />}
       {mine && !!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={own.retry} />)}
-      {mine && cantFileKey(prepError) === "rp_1912_login" && <Button label={t("c19_connect")} icon="chat" onPress={() => setConnect(true)} />}
       <Connect1912Sheet visible={connect} onClose={() => setConnect(false)} onDone={own.retry} />
       {!!error && <ErrorNote error={error} onRetry={() => void file()} />}
       {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
       {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
       {(!!error || !!prepError || !!draft?.blocked || (filed && !filed.ok)) && data &&
         <ReportFallback data={data} problem={supply} only={paused} account={mine ? undefined : otherAcct} />}
+      {/* Connecting is for next time: a link under the way that works now (UX-R13). */}
+      {mine && cantFileKey(prepError) === "rp_1912_login" && <TextLink label={t("c19_connect_next")} onPress={() => setConnect(true)} />}
 
       {/* Danger is a call, not a form. */}
-      <Card style={{ padding: 0, gap: 0 }}>
-        <Row first icon="warning" danger label={t("rp_danger_row")} sub={t("rp_danger_row_sub")} chevron="call"
-          onPress={() => void Linking.openURL(`tel:${HELPLINE_TEL}`)} />
-      </Card>
+      <DangerRow />
 
       {/* One sheet per row: change one answer, close, back on the list. */}
       <Sheet visible={edit === "problem"} title={t("rp_row_problem")} onClose={() => setEdit(null)}>
@@ -127,7 +134,7 @@ export default function Report() {
       </Sheet>
 
       <Sheet visible={edit === "note"} title={t("rp_row_note")} onClose={() => setEdit(null)}>
-        <Field value={note} onChangeText={(x) => setNote(x.slice(0, 200))} multiline autoFocus accessibilityLabel={t("rp_row_note")} />
+        <Field value={note} onChangeText={setNote} limit={200} multiline autoFocus accessibilityLabel={t("rp_row_note")} />
         <Button label={t("rp_done")} disabled={!note.trim()} onPress={() => setEdit(null)} />
       </Sheet>
 
@@ -152,22 +159,21 @@ export default function Report() {
 }
 
 /** A list row: icon, label, current answer (or a preview line), chevron. 56dp+, the whole row is the target. */
-function Row({ icon, label, value, sub, onPress, first, loading, attention, danger, chevron = "chevronRight" }: {
-  icon: IconName; label: string; value?: string; sub?: string; onPress: () => void; first?: boolean; loading?: boolean
-  attention?: boolean; danger?: boolean; chevron?: IconName;
+function Row({ icon, label, value, sub, onPress, first, loading, attention }: {
+  icon: IconName; label: string; value?: string; sub?: string; onPress: () => void; first?: boolean; loading?: boolean; attention?: boolean;
 }) {
   const c = useColors();
-  const tint = danger ? c.critical : attention ? c.warn : c.primary;
+  const tint = attention ? c.warn : c.primary;
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${label}${value ? `, ${value}` : ""}`} onPress={onPress}
       style={({ pressed }) => [styles.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
-      <View style={[styles.rowIcon, { backgroundColor: danger ? c.criticalSoft : c.pill }]}><Icon name={icon} size={20} color={tint} /></View>
+      <View style={[styles.rowIcon, { backgroundColor: c.pill }]}><Icon name={icon} size={20} color={tint} /></View>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Txt v="body" weight="semibold" color={danger ? "critical" : undefined} numberOfLines={1}>{label}</Txt>
+        <Txt v="body" weight="semibold" numberOfLines={1}>{label}</Txt>
         {loading ? <Skeleton w="60%" h={12} /> : !!sub && <Txt v="caption" color="muted" numberOfLines={1}>{sub}</Txt>}
       </View>
       {!!value && <Txt v="label" weight="semibold" color={attention ? "warn" : "muted"} numberOfLines={1} style={{ maxWidth: "45%" }}>{value}</Txt>}
-      <Icon name={chevron} size={20} color={danger ? c.critical : c.muted} />
+      <Icon name="chevronRight" size={20} color={c.muted} />
     </Pressable>
   );
 }

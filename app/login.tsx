@@ -65,13 +65,13 @@ export default function Login() {
   const L = (lang === "hi" ? hi : en).login; // field labels shared with the web login
   const [mode, setMode] = useState<Mode>(() => (keystore.getItem(METHOD_KEY) === "password" ? "password" : "code"));
   const [expired] = useState(sessionWasExpired); // UPPCL rejected the saved session (MISS-047)
-  const [forgot, setForgot] = useState(false); // came from "Forgot password?": say why there's no password here
+  const [forgot, setForgot] = useState<Forgot>(null); // came from "Forgot username/password?": say why it isn't needed here
   const [prefill, setPrefill] = useState("");
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, StatusBar.currentHeight ?? 0); // insets.top can be 0 right after sign-out
   useEffect(() => { void prepareSignIn(); }, []);
 
-  const go = (m: Mode, opts?: { forgot?: boolean; prefill?: string }) => { setForgot(!!opts?.forgot); if (opts?.prefill !== undefined) setPrefill(opts.prefill); setMode(m); };
+  const go: Go = (m, opts) => { setForgot(opts?.forgot ?? null); if (opts?.prefill !== undefined) setPrefill(opts.prefill); setMode(m); };
   /** Signed in: remember the way, then let /health swap this screen for Home. */
   const opened = async (way: "code" | "password") => { keystore.setItem(METHOD_KEY, way); await mutate("/health"); };
 
@@ -123,10 +123,11 @@ export default function Login() {
   );
 }
 
-type Go = (m: Mode, opts?: { forgot?: boolean; prefill?: string }) => void;
+type Forgot = "user" | "pw" | null;
+type Go = (m: Mode, opts?: { forgot?: Forgot; prefill?: string }) => void;
 
 /** Mobile (or email) → 6-digit code → in. The code checks itself on the 6th digit. */
-function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forgot: boolean; onOpened: () => Promise<void>; onGo: Go }) {
+function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forgot: Forgot; onOpened: () => Promise<void>; onGo: Go }) {
   const c = useColors();
   const { t, lang } = useI18n();
   const L = (lang === "hi" ? hi : en).login;
@@ -193,7 +194,7 @@ function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forg
 
   return (
     <Card style={styles.form}>
-      {forgot && <Insight tone="accent" icon="info" text={t("si_forgot_note")} />}
+      {!!forgot && <Insight tone="accent" icon="info" text={t(forgot === "user" ? "si_forgot_user_note" : "si_forgot_note")} />}
       {!to ? (
         <>
           <Field label={byEmail ? t("si_email") : t("si_mobile")} active={focused} invalid={note === "badMobile" || note === "badEmail" || note === "looksAccount"}>
@@ -288,12 +289,12 @@ function PasswordSignIn({ onOpened, onGo }: { onOpened: () => Promise<void>; onG
 
   const edited = () => { if (badCreds) setFail(null); };
   const input = [styles.input, { color: c.text, fontFamily: familyFor("medium", lang === "hi") }];
-  const forgot = () => onGo("code", { forgot: true, prefill: mobileOf(username) ?? "" });
+  const forgot = (which: "user" | "pw") => onGo("code", { forgot: which, prefill: mobileOf(username) ?? "" });
 
   return (
     <Card style={styles.form}>
       {/* Each "forgot" link sits by the field it recovers and opens code sign-in: no password needed. */}
-      <Field label={L.username} link={t("forgot_username")} onLink={forgot} active={focused === "user"} invalid={badCreds}>
+      <Field label={L.username} link={t("forgot_username")} onLink={() => forgot("user")} active={focused === "user"} invalid={badCreds}>
         <TextInput
           style={[input, { flex: 1 }]} value={username} onChangeText={(v) => { setUsername(v); edited(); }}
           placeholder={L.username_hint} placeholderTextColor={c.muted}
@@ -303,7 +304,7 @@ function PasswordSignIn({ onOpened, onGo }: { onOpened: () => Promise<void>; onG
         />
       </Field>
 
-      <Field label={L.password} link={t("forgot_password_short")} onLink={forgot} active={focused === "pw"} invalid={badCreds}>
+      <Field label={L.password} link={t("forgot_password_short")} onLink={() => forgot("pw")} active={focused === "pw"} invalid={badCreds}>
         <TextInput
           ref={pwRef} style={[input, { flex: 1 }]} value={password} onChangeText={(v) => { setPassword(v); edited(); }}
           secureTextEntry={!showPw} autoComplete="current-password" textContentType="password"

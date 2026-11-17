@@ -18,7 +18,9 @@ import { ProxyError, type DashboardResponse } from "@shared/api";
 import { onTimeSaving, payAmountError, paymentRef, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, rsaOaepEncrypt, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { billRebate, busiestHours, withPaymentsFeed, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
-import { billingPeriod, kwh, parseUppclDate, rupees } from "@shared/utils";
+import { billingPeriod, hindiHour, kwh, parseUppclDate, pickPlural, rupees, tariffKey } from "@shared/utils";
+import enStrings from "../messages/en.json";
+import hiStrings from "../messages/hi.json";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
 const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
@@ -504,3 +506,59 @@ describe("home-screen widget: what it may show", async () => {
     expect(JSON.stringify(s)).not.toContain("₹");
   });
 });
+
+describe("UX remodel copy rules (ux/findings.md)", () => {
+  test("a number var of 1 picks the _one text; others keep the plural (UX-R17)", () => {
+    const s = { sh_count: "{n} people", sh_count_one: "1 person", more: "{pct}% more than the {n} days before" };
+    expect(pickPlural(s, "sh_count", { n: 1 })).toBe("1 person");
+    expect(pickPlural(s, "sh_count", { n: 2 })).toBe("{n} people");
+    expect(pickPlural(s, "more", { pct: 1, n: 30 })).toBe(s.more); // no _one key: unchanged
+  });
+
+  test("every _one key has its base key, in both languages (UX-R17)", () => {
+    for (const app of [enStrings.app, hiStrings.app] as Record<string, string>[]) {
+      for (const k of Object.keys(app).filter((k) => k.endsWith("_one"))) expect(app[k.slice(0, -4)]).toBeDefined();
+    }
+  });
+
+  test("Hindi hours read as Hindi parts of the day, not '8 am' (UX-R24)", () => {
+    expect(hindiHour(0)).toBe("रात 12");
+    expect(hindiHour(8)).toBe("सुबह 8");
+    expect(hindiHour(12)).toBe("दोपहर 12");
+    expect(hindiHour(17)).toBe("शाम 5");
+    expect(hindiHour(21)).toBe("रात 9");
+  });
+
+  test("tariff codes we're sure of get a name; the rest stay as UPPCL wrote them (UX-R20)", () => {
+    expect(tariffKey("LMV1")).toEqual({ key: "tariff_lmv1", code: "LMV-1" });
+    expect(tariffKey("lmv-2")).toEqual({ key: "tariff_lmv2", code: "LMV-2" });
+    expect(tariffKey("LMV6")).toBeNull();
+    expect(tariffKey("HV2")).toBeNull();
+  });
+
+  test("'can't file' notes don't name a channel the sheet may not offer (UX-R34)", () => {
+    for (const app of [enStrings.app, hiStrings.app] as Record<string, string>[]) {
+      for (const k of ["rp_1912_login", "rp_1912_link", "rp_filing_paused"]) expect(app[k]).not.toMatch(/SMS/);
+    }
+  });
+
+  test("the app-feedback row and the complaint form no longer share a name (UX-R15)", () => {
+    expect(enStrings.app.report_problem).not.toBe(enStrings.app.rp_form_title);
+    expect(hiStrings.app.report_problem).not.toBe(hiStrings.app.rp_form_title);
+  });
+});
+
+describe("sample data shows the hour-by-hour card (UX-R05)", () => {
+  test("a day of 15-minute readings whose busiest 3 hours don't contain the single tallest hour", () => {
+    setScenario(DEMO);
+    const res = mockFor("/day?date=2026-11-16", { outcome: "success" }) as { data: Parameters<typeof hourlyUnits>[0] };
+    setScenario(null);
+    expect(res.data.length).toBe(96);
+    const hours = hourlyUnits(res.data);
+    const peak = busiestHours(hours)!;
+    expect(peak.start).toBe(8); // 8–11 am
+    const tallest = hours.indexOf(Math.max(...hours));
+    expect(tallest < peak.start || tallest > peak.start + 2).toBe(true); // why the band is needed
+  });
+});
+

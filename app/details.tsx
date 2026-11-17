@@ -10,7 +10,7 @@ import {
   type MonthlyInvoice,
 } from "@shared/api";
 import { derivePostpaid } from "@shared/insights";
-import { kwh, mean, parseUppclDate, recordSummary, toNum } from "@shared/utils";
+import { kwh, mean, parseUppclDate, recordSummary, tariffKey, toNum } from "@shared/utils";
 import { Bars } from "../src/Bars";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
@@ -70,10 +70,10 @@ export default function MeterDetails() {
         <Card style={{ padding: 0, gap: 0 }}>
           {dash && <Row first label={t("meter_no")} value={String(dash.site.meterInstallationNumber || dash.site.deviceId)} />}
           <View style={[styles.grid, { borderTopColor: c.line }]}>
-            {!!wm?.purposeOfSupply && <Cell label={t("tariff")} value={wm.purposeOfSupply} />}
+            {!!wm?.purposeOfSupply && <Cell label={t("tariff")} value={(() => { const k = tariffKey(wm.purposeOfSupply); return k ? `${t(k.key)} (${k.code})` : wm.purposeOfSupply; })()} /* "Domestic (LMV-1)", not "LMV1" (UX-R20) */ />}
             {!!wm?.meterStatus && (
               <Cell label={t("meter_status")}>
-                <Pill tone={/active/i.test(wm.meterStatus) ? "ok" : "warn"} label={wm.meterStatus} />
+                <Pill tone={/active/i.test(wm.meterStatus) ? "ok" : "warn"} label={/^active$/i.test(wm.meterStatus) ? t("meter_active") : wm.meterStatus.charAt(0) + wm.meterStatus.slice(1).toLowerCase()} />
               </Cell>
             )}
             {!!dash?.site.sanctionedLoad && <Cell label={t("sanctioned_load")} value={`${kwh(toNum(dash.site.sanctionedLoad), 0)} kW`} />}
@@ -81,7 +81,7 @@ export default function MeterDetails() {
             {!!meterKind && <Cell label={t("meter_kind")} value={meterKind} />}
             {!!since(site?.meterInstallationDate) && <Cell label={t("meter_installed")} value={since(site?.meterInstallationDate)!} />}
             {!!wm?.previousReadingKWH && (
-              <Cell label={t("last_reading")} value={`${kwh(toNum(wm.previousReadingKWH), 0)} kWh`}
+              <Cell label={t("last_reading")} value={`${kwh(toNum(wm.previousReadingKWH), 0)} ${t("units")}`}
                 sub={readAt ? readAt.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : undefined} />
             )}
           </View>

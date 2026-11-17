@@ -1,7 +1,7 @@
 /** Small design-system primitives. Every colour comes from theme.ts. */
-import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  Animated, Easing, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
+  AccessibilityInfo, Animated, Easing, KeyboardAvoidingView, LayoutAnimation, Modal, PanResponder, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
   type DimensionValue, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -49,6 +49,9 @@ export function Txt({
   const s = SIZES[v];
   const hindi = lang === "hi";
   const family = familyFor(weight ?? s.weight, hindi);
+  // `{value} {unit}` arrives as an array: join plain pieces so the Hindi fixes below apply to it too (UX-R24:
+  // "6.0 यूनिट" lost its unit to a hidden second line).
+  if (Array.isArray(children) && children.every((x) => typeof x === "string" || typeof x === "number")) children = children.join("");
   // The "·" glyph in Anek Devanagari has uneven side bearings, so the gap around it changed with the
   // neighbouring letters. Rendering just the separator in the Latin face keeps it even (UX-037).
   const body = hindi && typeof children === "string"
@@ -99,13 +102,26 @@ export function Screen({ children, onRefresh, refreshing = false, footer }: { ch
 }
 
 /** The app's one text box: same height, radius, type and colours everywhere (multiline grows from the top). */
-export function Field({ style, warn, multiline, ...props }: TextInputProps & { warn?: boolean }) {
+/** Every text box. Same focus ring as the sign-in fields (UX-R35); `limit` cuts at that length and shows
+ *  "n/limit" near the end, so text is never dropped silently. */
+export function Field({ style, warn, multiline, limit, value, onChangeText, onFocus, onBlur, ...props }: TextInputProps & { warn?: boolean; limit?: number }) {
   const c = useColors();
   const { lang } = useI18n();
-  return (
-    <TextInput placeholderTextColor={c.muted} multiline={multiline} {...props}
+  const [focused, setFocused] = useState(false);
+  const n = value?.length ?? 0;
+  const input = (
+    <TextInput placeholderTextColor={c.muted} multiline={multiline} {...props} value={value}
+      onChangeText={limit ? (v) => onChangeText?.(v.slice(0, limit)) : onChangeText}
+      onFocus={(e) => { setFocused(true); onFocus?.(e); }} onBlur={(e) => { setFocused(false); onBlur?.(e); }}
       style={[styles.field, multiline && styles.fieldMulti,
-        { color: c.text, backgroundColor: c.bg, borderColor: warn ? c.warn : c.line, fontFamily: familyFor("medium", lang === "hi") }, style]} />
+        { color: c.text, backgroundColor: c.bg, borderColor: warn ? c.warn : focused ? c.primary : c.line, borderWidth: focused || warn ? 2 : 1, paddingHorizontal: focused || warn ? 13 : 14 /* text stays still */, fontFamily: familyFor("medium", lang === "hi") }, style]} />
+  );
+  if (!limit || n < limit - 20) return input;
+  return (
+    <View style={{ gap: 4 }}>
+      {input}
+      <Txt v="caption" color={n >= limit ? "warn" : "muted"} numeric style={{ alignSelf: "flex-end" }}>{`${n}/${limit}`}</Txt>
+    </View>
   );
 }
 
@@ -164,13 +180,37 @@ function toneColors(c: Colors, tone: Tone) {
 }
 
 /** Status pill: never colour alone — always an icon and a word too. */
+/** A quick-action tile: icon, title, optional one-line description. One look for the same job on Home and
+ *  Complaints (UX-R27). `primary` is the filled card for a screen's main action (icon left, text right). */
+export function ActionTile({ icon, title, desc, onPress, primary, disabled }: {
+  icon: IconName; title: string; desc?: string; onPress: () => void; primary?: boolean; disabled?: boolean;
+}) {
+  const c = useColors();
+  const fg = primary ? c.onPrimary : c.text;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={desc ? `${title}, ${desc}` : title} accessibilityState={{ disabled: !!disabled }}
+      onPress={onPress} disabled={disabled}
+      style={({ pressed }) => [primary ? styles.tileRow : styles.tile,
+        primary ? { backgroundColor: c.primary } : { backgroundColor: c.surface, borderColor: c.line, borderWidth: StyleSheet.hairlineWidth },
+        { opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }]}>
+      <View style={[styles.tileIcon, { backgroundColor: primary ? "transparent" : c.pill }]}>
+        <Icon name={icon} size={22} color={primary ? c.onPrimary : c.primary} />
+      </View>
+      <View style={primary ? { flex: 1, gap: 2 } : { gap: 2, alignSelf: "stretch" }}>
+        <Txt v={desc ? "heading" : "label"} weight="semibold" style={{ color: fg }}>{title}</Txt>
+        {!!desc && <Txt v="caption" color={primary ? undefined : "muted"} style={primary ? { color: fg, opacity: 0.9 } : undefined}>{desc}</Txt>}
+      </View>
+    </Pressable>
+  );
+}
+
 export function Pill({ label, tone = "ok", icon, flipIcon }: { label: string; tone?: Tone; icon?: IconName; flipIcon?: boolean }) {
   const c = useColors();
   const { bg, fg } = toneColors(c, tone);
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
       <View style={flipIcon && { transform: [{ scaleY: -1 }] }}><Icon name={icon ?? TONE_ICON[tone]} size={12} color={fg} /></View>
-      <Txt v="caption" weight="bold" style={{ color: fg }}>{label}</Txt>
+      <Txt v="caption" weight="bold" style={{ color: fg, flexShrink: 1 }}>{label}</Txt>
     </View>
   );
 }
@@ -265,7 +305,8 @@ export function Centered({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingTop: 8, gap: 12 },
-  grabber: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 4 },
+  grabber: { width: 36, height: 4, borderRadius: 2, alignSelf: "center" },
+  grabZone: { height: 24, marginTop: -8, marginHorizontal: -16, justifyContent: "center" },
   choice: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 56 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   radioDot: { width: 11, height: 11, borderRadius: 6 },
@@ -278,7 +319,10 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 10 },
   buttonRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   button: { borderRadius: radius.button, paddingVertical: 13, paddingHorizontal: 16, minHeight: 48, justifyContent: "center" },
-  pill: { borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4 },
+  tile: { flex: 1, minHeight: 96, borderRadius: radius.tile, padding: 14, gap: 10, alignItems: "flex-start" },
+  tileRow: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: radius.tile, padding: 14, minHeight: 72 },
+  tileIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  pill: { borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4, flexShrink: 1, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4 },
   seg: { flexDirection: "row", borderRadius: 14, padding: 3 },
   segItem: { flex: 1, borderRadius: 11, minHeight: 48, justifyContent: "center", paddingHorizontal: 4 }, // labels wrap, never touch the edge
   insight: { flexDirection: "row", gap: 10, borderRadius: 16, padding: 12, alignItems: "flex-start" },
@@ -288,25 +332,56 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
 });
 
+/** The phone's "Remove animations" setting, kept current: motion becomes instant when it's on (UX-R29). */
+let reduceMotion = false;
+void AccessibilityInfo.isReduceMotionEnabled?.().then((v) => { reduceMotion = v; }).catch(() => {});
+AccessibilityInfo.addEventListener?.("reduceMotionChanged", (v: boolean) => { reduceMotion = v; });
+export const motionReduced = () => reduceMotion;
+
+/** Animate the next layout change (an expander opening) instead of jumping (UX-R28). */
+export function animateNext(): void {
+  if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.create(200, "easeInEaseOut", "opacity"));
+}
+
 /**
- * Bottom sheet for one small choice or input (Settings rows open these). Tap outside or Back to close.
+ * Bottom sheet for one small choice or input (Settings rows open these). Tap outside, Back, or drag the
+ * grabber down to close. The backdrop fades; the sheet slides up from the bottom edge (UX-R28).
  */
 export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const y = useRef(new Animated.Value(0)).current;
+  const height = useRef(600);
+  useEffect(() => {
+    if (!visible) return;
+    if (reduceMotion) { y.setValue(0); return; }
+    y.setValue(height.current);
+    Animated.timing(y, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [visible, y]);
+  // The grabber does what it promises: follow the finger down, close past 80 dp or on a flick.
+  const drag = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, g) => g.dy > 4,
+    onPanResponderMove: (_, g) => y.setValue(Math.max(0, g.dy)),
+    onPanResponderRelease: (_, g) => {
+      if (g.dy > 80 || g.vy > 0.8) onClose();
+      else Animated.timing(y, { toValue: 0, duration: 150, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    },
+  }), [onClose, y]);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+    <Modal visible={visible} transparent animationType={reduceMotion ? "none" : "fade"} onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: "flex-end" }}>
-        <Pressable accessibilityLabel="Close" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,10,25,0.45)" }]} />
+        <Pressable accessibilityLabel="Close" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} />
         {/* Never taller than the screen below the status bar: long lists scroll inside. */}
-        <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: 16 + insets.bottom, maxHeight: "100%", marginTop: Math.max(insets.top, StatusBar.currentHeight ?? 0) + 24 }]}>
-          <View style={[styles.grabber, { backgroundColor: c.line }]} />
+        <Animated.View onLayout={(e) => { height.current = e.nativeEvent.layout.height; }}
+          style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: 16 + insets.bottom, maxHeight: "100%", marginTop: Math.max(insets.top, StatusBar.currentHeight ?? 0) + 24, transform: [{ translateY: y }] }]}>
+          <View {...drag.panHandlers} style={styles.grabZone}><View style={[styles.grabber, { backgroundColor: c.line }]} /></View>
           {/* "handled": a tap on Save acts on the first press instead of only closing the keyboard. */}
           <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ gap: 12 }}>
             <Txt v="heading">{title}</Txt>
             {children}
           </ScrollView>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -360,6 +435,7 @@ export function Skeleton({ w = "100%", h = 14, r = 8, style }: { w?: DimensionVa
   const c = useColors();
   const pulse = useRef(new Animated.Value(0.55)).current;
   useEffect(() => {
+    if (reduceMotion) { pulse.setValue(0.8); return; } // "Remove animations" on: a still placeholder (UX-R29)
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0.55, duration: 700, useNativeDriver: true }),

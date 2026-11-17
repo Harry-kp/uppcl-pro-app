@@ -12,7 +12,7 @@ import useSWR, { mutate as defaultMutate, unload as defaultUnload, type ScopedMu
 import { newSealKey, sealBody, solveAltcha, wssEncrypt, wssDecrypt, type AltchaChallenge } from "./crypto";
 import { platform } from "./platform";
 import { complaintDetail, complaints, connected1912, forget1912 } from "./complaints";
-import { indiaTime } from "./utils";
+import { billingPeriod, indiaTime } from "./utils";
 import {
   getSession,
   saveSession,
@@ -442,7 +442,7 @@ export async function wssPost<T = Record<string, unknown>>(path: string, payload
 }
 
 /** Download the official bill PDF for a monthly invoice. */
-export async function downloadBillPdf(invoice: { invoice_id: string }): Promise<void> {
+export async function downloadBillPdf(invoice: { invoice_id: string; bill_dt?: string }): Promise<void> {
   const site = await primarySite();
   const res = await wssPost<{ statusCode?: string; Response?: string; statusMsg?: string }>(
     "v2/api/viewBillDownloadPDF",
@@ -451,7 +451,10 @@ export async function downloadBillPdf(invoice: { invoice_id: string }): Promise<
   if (res.statusCode !== "VIEW_BILL_PDF_200" || !res.Response) {
     throw new ProxyError(404, res.statusMsg || "Bill PDF not available for this connection", undefined, "wss");
   }
-  await platform.savePdf(res.Response, `uppcl-bill-${invoice.invoice_id}.pdf`);
+  // The month in the name: shared bills shouldn't all be "uppcl-bill-<number>.pdf" (UX-R31).
+  const from = invoice.bill_dt ? billingPeriod(invoice.bill_dt).from : null;
+  const month = from && !isNaN(from.getTime()) ? `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-` : "";
+  await platform.savePdf(res.Response, `uppcl-bill-${month}${invoice.invoice_id}.pdf`);
 }
 
 /**
@@ -1000,7 +1003,9 @@ export const usePayments = (limit = 50) =>
 
 /** One day in 15-minute readings (null data when the meter's source isn't supported). `date` is YYYY-MM-DD. */
 export const useDayReadings = (date: string | null) =>
-  useSWR<UpstreamEnvelope<ConsumptionRow[] | null>>(date ? `/day?date=${date}` : null, fetcher, swrOpts);
+  // An early answer is often empty (UPPCL publishes the day later): refresh a saved one when shown, or the
+  // hour-by-hour card stays hidden for that day (UX-R36, same class as BUG-030).
+  useSWR<UpstreamEnvelope<ConsumptionRow[] | null>>(date ? `/day?date=${date}` : null, fetcher, { ...swrOpts, revalidateIfStale: true });
 
 export const useConsumption = (days = 30) =>
   useSWR<UpstreamEnvelope<ConsumptionRow[]>>(`/consumption?days=${days}`, fetcher, swrOpts);

@@ -107,8 +107,10 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const [busy, setBusy] = useState(false);
   const [filed, setFiled] = useState<{ ok: boolean; complaintNo: string | null; message: string } | null>(null);
   const [fileError, setFileError] = useState<unknown>(null);
+  const [again, setAgain] = useState(false); // open complaint: filing another is a deliberate extra tap (UX-R01)
 
-  const close = () => { setExtra(""); setFiled(null); setFileError(null); onClose(); };
+  const close = () => { setExtra(""); setFiled(null); setFileError(null); setAgain(false); onClose(); };
+  const seeOpen = () => { if (!open) return; close(); router.push({ pathname: "/complaint/[no]", params: { no: open.complaint_no } }); };
   const full = () => { close(); router.push("/report"); };
   async function file() {
     if (!draft) return;
@@ -121,11 +123,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
     } catch (e) { setFileError(e); } finally { setBusy(false); }
   }
   const failed = !!prepError || !!fileError || !!draft?.blocked || (!!filed && !filed.ok);
-  const link = (label: string, onPress: () => void) => (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.link}>
-      <Txt v="label" color="primary" weight="semibold">{label}</Txt>
-    </Pressable>
-  );
+  const holdForOpen = !!open && !again;
 
   return (
     <Sheet visible={visible} onClose={close} title={filed?.ok ? t("rp_title") : t("rp_title_quick")}>
@@ -136,12 +134,13 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           {/* An open complaint or a planned cut: say so first, filing again won't speed it up. */}
           {!!planned && <Insight tone="warn" icon="event" text={t("rp_planned", { notice: String(planned).trim() })} />}
           {!!open && (
-            <Pressable accessibilityRole="button" onPress={() => { close(); router.push({ pathname: "/complaint/[no]", params: { no: open.complaint_no } }); }}>
-              <Insight tone="accent" icon="supportAgent"
-                text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
-            </Pressable>
+            <Insight tone="warn" icon="supportAgent"
+              text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
           )}
-          {!failed && (
+          {/* The open complaint IS the action: its page has the engineers to call, in order. */}
+          {holdForOpen && <Button label={t("rp_see_open")} icon="supportAgent" onPress={seeOpen} />}
+          {holdForOpen && <TextLink label={t("rp_report_again")} onPress={() => setAgain(true)} />}
+          {!holdForOpen && !failed && (
             <>
               {/* Where it goes, once, above the action (not a wall of text under it). */}
               <View style={styles.where}>
@@ -151,34 +150,68 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
                 </Txt>
               </View>
               {/* Optional and already open: typing is never an extra step, skipping it costs nothing. */}
-              <Field value={extra} onChangeText={(x) => setExtra(x.slice(0, 150))} multiline
+              <Field value={extra} onChangeText={setExtra} limit={150} multiline
                 placeholder={t("rp_extra_ph")} accessibilityLabel={t("rp_extra_ph")}
                 style={styles.input} />
               <Button label={busy ? t("rp_filing") : !draft ? t("rp_getting_ready") : t("rp_quick")} icon="bolt" busy={busy || !draft}
                 onPress={() => (draft && !draft.substation ? full() : void file())} />
             </>
           )}
-          {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
-          {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
-          {slow && <Insight tone="warn" icon="schedule" text={t("rp_slow")} />}
-          {slow && <ReportFallback data={data} problem="no_power" onDone={close} />}
-          {/* 1912 is OTP-login-only now: say it plainly, no "UPPCL is having a problem" + retry that can't work. */}
-          {!!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={retry} />)}
-          {/* Not signed in to 1912 (or it expired): connect right here, then the complaint prepares itself. */}
-          {cantFileKey(prepError) === "rp_1912_login" && <Button label={t("c19_connect")} icon="chat" onPress={() => setConnect(true)} />}
+          {!holdForOpen && (
+            <>
+              {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
+              {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
+              {slow && !failed && <Insight tone="warn" icon="schedule" text={t("rp_slow")} />}
+              {slow && !failed && <ReportFallback data={data} problem="no_power" onDone={close} />}
+              {/* 1912 is OTP-login-only now: say it plainly, no "UPPCL is having a problem" + retry that can't work. */}
+              {!!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={retry} />)}
+              {!!fileError && <ErrorNote error={fileError} onRetry={() => void file()} />}
+              {/* Can't file from here (not connected, offline, refused): the SMS works right now, so it is THE button (UX-R13). */}
+              {failed && <ReportFallback data={data} problem="no_power" onDone={close} only />}
+              {/* Not signed in to 1912 (or it expired): connecting is for next time, so it's a link under the way that works now. */}
+              {cantFileKey(prepError) === "rp_1912_login" && <TextLink label={t("c19_connect_next")} onPress={() => setConnect(true)} />}
+            </>
+          )}
           <Connect1912Sheet visible={connect} onClose={() => setConnect(false)} onDone={retry} />
-          {!!fileError && <ErrorNote error={fileError} onRetry={() => void file()} />}
-          {/* 1912 couldn't place the account (e.g. the bill's city isn't a 1912 district): the full form lets them pick. */}
-          {failed && <ReportFallback data={data} problem="no_power" onDone={close} only={!!cantFileKey(prepError)} />}
-          {link(t("rp_something_else"), full)}
+          <TextLink label={t("rp_something_else")} onPress={full} />
+          <DangerRow />
         </>
       )}
     </Sheet>
   );
 }
 
+/** A centred text action, 48 dp tall (UX-R23). */
+export function TextLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.link}>
+      <Txt v="label" color="primary" weight="semibold" style={{ textAlign: "center" }}>{label}</Txt>
+    </Pressable>
+  );
+}
+
+/** Danger is a call, not a complaint: one red row wherever power problems are (UX-R33). */
+export function DangerRow() {
+  const c = useColors();
+  const { t } = useI18n();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${t("rp_danger_row")}. ${t("rp_danger_row_sub")}`}
+      onPress={() => void Linking.openURL(`tel:${HELPLINE_TEL}`)}
+      style={({ pressed }) => [styles.danger, { backgroundColor: pressed ? c.criticalSoft : c.surface, borderColor: c.line }]}>
+      <View style={[styles.dangerIcon, { backgroundColor: c.criticalSoft }]}><Icon name="warning" size={20} color={c.critical} /></View>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Txt v="body" weight="semibold" color="critical">{t("rp_danger_row")}</Txt>
+        <Txt v="caption" color="muted">{t("rp_danger_row_sub")}</Txt>
+      </View>
+      <Icon name="call" size={20} color={c.critical} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  link: { minHeight: 36, justifyContent: "center", alignSelf: "center", marginTop: -6, marginBottom: -8 },
+  link: { minHeight: 48, paddingHorizontal: 12, justifyContent: "center", alignSelf: "center" },
+  danger: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 64, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth },
+  dangerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   where: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: -4 },
   done: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
   input: { minHeight: 104 },

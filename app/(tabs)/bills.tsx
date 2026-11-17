@@ -11,7 +11,8 @@ import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
 import { font, useColors } from "../../src/theme";
 import { Bars } from "../../src/Bars";
-import { Card, Insight, Pill, Screen, SkeletonRows, Txt } from "../../src/ui";
+import { animateNext, Button, Card, Insight, Pill, Screen, SkeletonRows, Txt } from "../../src/ui";
+import { router } from "expo-router";
 import { Icon } from "../../src/icons";
 
 export default function Bills() {
@@ -121,8 +122,11 @@ export default function Bills() {
           const credit = amt < 0; // negative bill = UPPCL owes you, carried forward
           const paid = Boolean((inv.payment_dt || "").trim());
           const saved = postpaid && !("fromPayments" in inv && inv.fromPayments) ? billRebate(inv) : null; // rebate: only UPPCL's record can confirm
+          // The latest bill, unpaid: pay it right here instead of going back to Home (UX-R04).
+          const payHere = postpaid && i === 0 && !paid && !credit && amt > 0;
           return (
-            <Row key={inv.invoice_id} first={i === 0}
+            <View key={inv.invoice_id}>
+            <Row first={i === 0}
               title={month(inv.bill_dt)}
               // Prepaid statements are charged from the balance: there is nothing to pay, so no pay status.
               sub={credit ? t("credit_note") : !postpaid ? t("from_balance") : paid && inv.payment_dt ? `${t("paid")} · ${day(inv.payment_dt)}` : t("unpaid")}
@@ -134,9 +138,11 @@ export default function Bills() {
                 ? <PdfLink label={t("pdf")} busy={busy === inv.invoice_id} onPress={() => pdf(inv.invoice_id, () => downloadBillPdf(inv))} />
                 : undefined}
             />
+            {payHere && <View style={styles.payHere}><Button label={t("pay_title")} icon="currencyRupee" onPress={() => router.push("/pay")} /></View>}
+            </View>
           );
         })}
-        {!allBills && statements.length > 6 && <More label={t("show_all", { n: statements.length })} onPress={() => setAllBills(true)} />}
+        {!allBills && statements.length > 6 && <More label={t("show_all", { n: statements.length })} onPress={() => { animateNext(); setAllBills(true); }} />}
       </Section>
 
       <Section title={postpaid ? t("payments") : t("recharges")} error={payments.error} stale={payList.length > 0}>
@@ -153,7 +159,7 @@ export default function Bills() {
               : <Pill label={postpaid ? t("received") : t("credited")} />}
           />
         ))}
-        {!allPayments && payList.length > 3 && <More label={t("show_all", { n: Math.min(10, payList.length) })} onPress={() => setAllPayments(true)} />}
+        {!allPayments && payList.length > 3 && <More label={t("show_all", { n: Math.min(10, payList.length) })} onPress={() => { animateNext(); setAllPayments(true); }} />}
       </Section>
 
       {postpaid && arrearsAmt > 0 && (
@@ -225,6 +231,7 @@ function PdfLink({ label, onPress, busy }: { label: string; onPress: () => void;
 }
 
 const styles = StyleSheet.create({
+  payHere: { paddingHorizontal: 16, paddingBottom: 14 },
   sub: { flexDirection: "row", alignItems: "center", gap: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 13, minHeight: 56 },
   empty: { padding: 16 },

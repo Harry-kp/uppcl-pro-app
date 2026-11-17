@@ -160,7 +160,7 @@ export default function Pay() {
   // One action per sheet: the amount, one Pay button, one quiet "different amount" link. Everything else is a caption.
   return (
     <SheetFrame title={payable > 0 && billMonth ? t("pay_title_month", { month: billMonth }) : t("pay_title")}
-      sub={[dueText, `A/c ••${acctTail.slice(-4)}`].filter(Boolean).join(" · ")} locked={busy}>
+      sub={[dueText, t("meter_only", { id: acctTail })].filter(Boolean).join(" · ")} locked={busy}>{/* the full number, as on Home and the bill: the one thing people check before paying (UX-R10) */}
       <View style={{ alignItems: "center", gap: 4, paddingVertical: 8 }}>
         {payable > 0 ? (
           <Txt v="hero" numeric color="big" style={{ fontSize: 48, lineHeight: 52 }}>₹{rupees(payable, { decimals: 0 })}</Txt>
@@ -208,7 +208,7 @@ export default function Pay() {
           <Txt v="caption" color="muted" style={{ flexShrink: 1 }}>{t("pay_billdesk_short")}</Txt>
         </View>
         {!editing && !busy && (
-          <Pressable accessibilityRole="button" onPress={() => setCustom(true)} hitSlop={10}>
+          <Pressable accessibilityRole="button" onPress={() => setCustom(true)} hitSlop={10} style={{ minHeight: 48, justifyContent: "center" }}>
             <Txt v="label" color="primary" weight="semibold">{t("pay_other_amount")}</Txt>
           </Pressable>
         )}
@@ -229,7 +229,7 @@ export default function Pay() {
               {upiNote === "opened" ? t("pay_upi_back") : upiNote === "none" ? t("pay_upi_none") : t("pay_upi_tip")}
             </Txt>
             {!!upiLink && !showQr && (
-              <Pressable accessibilityRole="button" onPress={() => setShowQr(true)} hitSlop={10}>
+              <Pressable accessibilityRole="button" onPress={() => setShowQr(true)} hitSlop={10} style={{ minHeight: 48, justifyContent: "center" }}>
                 <Txt v="label" weight="semibold" color={upiNote === "none" ? "critical" : "pillText"}>{t("pay_show_qr")}</Txt>
               </Pressable>
             )}
@@ -272,7 +272,7 @@ function SheetFrame({ title, sub, locked, children }: { title: string; sub?: str
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: "flex-end" }}>
-      <Pressable accessibilityLabel="Close" onPress={() => !locked && router.back()} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,10,25,0.72)" }]} />
+      <Pressable accessibilityLabel="Close" onPress={() => !locked && router.back()} style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} />
       <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: 16 + insets.bottom }]}>
         <View style={[styles.grabber, { backgroundColor: c.line }]} />
         <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ gap: 12 }}>
