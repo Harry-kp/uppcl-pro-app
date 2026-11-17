@@ -196,9 +196,9 @@
     "c19_expired": "1912 needs a new code to show your complaints.",
     "c19_refresh": "Get code",
     "c19_listed_for": "Complaints on {mobile}",
-    "rp_filing_paused": "UPPCL changed how 1912 takes complaints, and filing from the app is being updated. Right now, report it here:",
-    "rp_1912_login": "The app can file for you once 1912 is connected. Right now, report it here:",
-    "rp_1912_link": "1912 files only for connections linked to your 1912 number. Link this one once (below). Right now, report it here:",
+    "rp_filing_paused": "Filing from the app is paused while UPPCL changes 1912. Report it here for now:",
+    "rp_1912_login": "1912 isn't connected yet. Report it here for now:",
+    "rp_1912_link": "This connection isn't linked to your 1912 number yet. Report it here for now:",
     "cx_1912_login": "1912 needs a code from your phone to show complaints. Connect once to see them here.",
     "cx_open_1912": "Open 1912 portal",
     "pay_show_qr": "Show QR",
@@ -678,6 +678,8 @@
     "lk_4": "If Discom, Zone, Division or Substation show 0 or are empty, pick them (they're on your bill), then tap \"Register\".",
     "lk_5": "\"Some problem occurred\" right after \"Record saved\" can still mean it worked. Come back and tap \"Check again\".",
     "lk_open": "Open 1912's Register Account page",
-    "lk_check": "I've linked it, check again"
+    "lk_check": "I've linked it, check again",
+    "rp_add_note": "+ Add a note for the engineer",
+    "rp_more_options": "More options"
   }
 }
