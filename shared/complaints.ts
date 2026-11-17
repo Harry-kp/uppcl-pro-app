@@ -286,6 +286,27 @@ export function lateBy(c: { limit_hours?: number | null; entry_date: string | nu
   return over > (c.is_open ? 0 : 1) ? Math.max(1, Math.round(over)) : null;
 }
 
+/**
+ * 1912's own pre-check for a compensation claim ("Register For Compensation", form 14047; read the way its page does,
+ * one lookup at a time — its single combined request hangs, Nov 2026). `possible` only means 1912 will take the claim
+ * (e.g. under 60 days old); whether anything is paid is decided after registering. `reasons` say why not.
+ */
+export async function compensationCheck(complaintNo: string): Promise<{ possible: boolean; reasons: string[] }> {
+  const P: [string, string][] = [["153073", complaintNo], ["153071", "2"]]; // 2 = "Compensation Against Service"
+  return claimFrom(await lookup("153074", [["153100", "214551", P], ["153124", "214571", P]], "14047"));
+}
+/** 153100 = "Y"/"N" (claim possible), 153124 = rows of { SNo, Reason }. */
+export function claimFrom(r: Record<string, Row[]>): { possible: boolean; reasons: string[] } {
+  return {
+    possible: /^y$/i.test(first(r["153100"]).trim()),
+    reasons: (r["153124"] ?? []).map((row) => String(row.Reason ?? "").trim()).filter(Boolean),
+  };
+}
+/** 1912 takes a compensation claim for 60 days from the complaint (its pre-check's reason when older, Nov 2026). */
+export const CLAIM_DAYS = 60;
+/** 1912's own compensation form (sign in on 1912 first). */
+export const COMPENSATION_FORM_URL = "https://1912.uppcl.org/UI/Form?FormId=14047";
+
 /** One outage UPPCL has logged on the line in the signed-in number's KYC (1912 "Outage Information", form 9252). */
 export interface AreaOutage { id: string | null; feeder: string | null; substation: string | null; kind: string | null; info: string | null; from: string | null; to: string | null }
 const clean = (v: string | undefined) => { const t = String(v ?? "").replace(/\s+/g, " ").trim(); return t && t !== "0" ? t : null; };

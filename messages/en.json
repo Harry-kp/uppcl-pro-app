@@ -556,8 +556,8 @@
     "cx_open_late": "UPPCL's {h}-hour limit has passed. Call the Junior Engineer (JE).",
     "cx_comp_title": "Fixed later than UPPCL's own time limit",
     "cx_comp_body": "1912 has a form to ask for compensation for delays. UPPCL decides if it applies.",
-    "cx_comp_steps": "On 1912: sign in, open \"Compensation / मुआवज़ा\" and pick complaint #{no}.",
-    "cx_comp_how": "How to apply on 1912",
+    "cx_comp_steps": "On 1912 (sign in with your mobile): Register For Compensation → Compensation Against Service → enter #{no} → Search → Check Arrear → Save.",
+    "cx_comp_how": "Open 1912's compensation form",
     "late_pill": "Late",
     "cx_late_a11y": "{type}, fixed {h} hours late",
     "pl_row": "Bills by email",
@@ -650,6 +650,10 @@
     "tariff_link": "Electricity rates for every category (UPPCL tariff)",
     "cx_escalate": "Not fixed in time? Take it to the consumer forum (CGRF)",
     "esc_nodal_value": "Name and number on UPPCL's forum site",
-    "toll_free": "1912 busy? Call toll-free 1800-410-1912"
+    "toll_free": "1912 busy? Call toll-free 1800-410-1912",
+    "cx_comp_until": "You can ask UPPCL for compensation for the delay until {date}. UPPCL decides if it applies after you register.",
+    "cx_comp_closed": "The 60-day window to claim compensation for this complaint ended on {date}.",
+    "cx_comp_refused": "1912 won't take a claim for this complaint: {why}",
+    "cx_comp_arrears": "A bill left unpaid for more than 30 days can stop the claim."
   }
 }
