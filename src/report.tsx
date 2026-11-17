@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useAreaOutage, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
-import { fileSupplyComplaint, HELPLINE_TEL, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { fileSupplyComplaint, HELPLINE_TEL, HELPLINE_TOLL_FREE, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { platform } from "@shared/platform";
 import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
@@ -89,6 +89,7 @@ export function ReportFallback({ data, problem, onDone, only, account }: {
         openLink(`https://wa.me/${wa}?text=${encodeURIComponent(t(discom ? "rp_wa_text" : "rp_wa_text_other", { problem: t(`rp_${problem}`), account: site.connectionId, discom }))}`); onDone?.();
       }} />}
       <Button label={t("rp_call_1912")} kind={kind(!sms && !wa)} icon="call" onPress={() => { void Linking.openURL(`tel:${HELPLINE_TEL}`); onDone?.(); }} />
+      <TollFreeLink />
     </View>
   );
 }
@@ -227,6 +228,12 @@ export function PlannedCutsLink({ discom }: { discom: string }) {
   const [busy, setBusy] = useState(false);
   if (discom.toUpperCase() !== "PVVNL") return null;
   return <TextLink label={busy ? t("planned_opening") : t("planned_today")} onPress={() => { if (busy) return; setBusy(true); void openPlannedCuts().finally(() => setBusy(false)); }} />;
+}
+
+/** 1912 rings busy in a big outage: UPPCL's toll-free line takes the same complaints. */
+export function TollFreeLink() {
+  const { t } = useI18n();
+  return <TextLink label={t("toll_free")} onPress={() => void Linking.openURL(`tel:${HELPLINE_TOLL_FREE}`)} />;
 }
 
 /** A centred text action, 48 dp tall (UX-R23). */

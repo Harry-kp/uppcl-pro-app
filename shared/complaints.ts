@@ -492,6 +492,8 @@ export async function fileSupplyComplaint(draft: SupplyDraft, remarks: string): 
 // ─── The user-sent channels (fallback when in-app filing can't go through) ───────
 /** Public UPPCL complaint channels (printed on every bill — not secrets). */
 export const HELPLINE_TEL = "1912";            // 24×7 toll-free
+/** UPPCL's toll-free line for 1912, for when 1912 itself is busy (1912 portal "Helpline Directory", Nov 2026). */
+export const HELPLINE_TOLL_FREE = "18004101912";
 
 // ─── When a complaint isn't solved: the official next steps (public; checked on cgrf.uppcl.org, Nov 2026) ─────────
 /** UPPCL's Consumer Grievance Redressal Forum portal (all five discoms). */

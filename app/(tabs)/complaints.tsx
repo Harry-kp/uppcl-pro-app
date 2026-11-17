@@ -11,7 +11,7 @@ import { font, useColors } from "../../src/theme";
 import { ActionTile, Insight, Button, Card, Pill, Screen, Txt, SkeletonRows, SlowNote } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
-import { DangerRow, openPlannedCuts, ReportSheet } from "../../src/report";
+import { DangerRow, openPlannedCuts, ReportSheet, TollFreeLink } from "../../src/report";
 
 export default function Complaints() {
   const c = useColors();
@@ -49,6 +49,7 @@ export default function Complaints() {
         <ActionTile icon="widgets" title={t("other_problem")} desc={t("other_problem_short")} onPress={() => router.push("/report")} />
         <ActionTile icon="call" title={t("call_1912")} desc={t("call_short")} onPress={() => openLink(`tel:${HELPLINE_TEL}`)} />
       </View>
+      <TollFreeLink />
       <DangerRow />
       {/* Is it a planned cut? PVVNL posts the day's list as a PDF (the only discom that does). */}
       {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
