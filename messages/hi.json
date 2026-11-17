@@ -635,6 +635,19 @@
     "outage_on": "UPPCL ने {where} पर बिजली कटौती दर्ज की है",
     "outage_on_line": "UPPCL ने आपकी लाइन पर बिजली कटौती दर्ज की है",
     "outage_when": "{from} से {to} तक",
-    "outage_since": "{from} से"
+    "outage_since": "{from} से",
+    "planned_today": "क्या यह तय कटौती है? (PVVNL की ताज़ा सूची)",
+    "planned_opening": "PVVNL की सूची खुल रही है…",
+    "planned_title": "तय बिजली कटौती",
+    "planned_value": "PVVNL की ताज़ा दैनिक सूची (PDF)",
+    "esc_title": "शिकायत हल नहीं हुई?",
+    "esc_desc": "अगर इंजीनियरों को कॉल करने से बात नहीं बनी, तो ये UPPCL के आधिकारिक अगले कदम हैं।",
+    "esc_cgrf": "उपभोक्ता शिकायत निवारण फोरम (CGRF)",
+    "esc_cgrf_value": "UPPCL के फोरम पोर्टल पर शिकायत दर्ज करें",
+    "esc_nodal": "{discom} CGRF नोडल अधिकारी",
+    "esc_jansunwai": "जनसुनवाई (उत्तर प्रदेश सरकार)",
+    "esc_jansunwai_value": "राज्य का ऑनलाइन शिकायत पोर्टल",
+    "tariff_link": "हर श्रेणी की बिजली दरें (UPPCL टैरिफ)",
+    "cx_escalate": "समय पर ठीक नहीं हुआ? उपभोक्ता फोरम (CGRF) में ले जाएँ"
   }
 }
