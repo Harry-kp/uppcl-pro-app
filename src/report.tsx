@@ -19,7 +19,7 @@ import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
 import { useColors } from "./theme";
-import { Button, Insight, Sheet, Txt, useSlow, Field } from "./ui";
+import { animateNext, Button, Insight, Sheet, Txt, useSlow, Field } from "./ui";
 import { Icon } from "./icons";
 import { openLink } from "./links";
 
@@ -70,28 +70,37 @@ export function cantFileKey(e: unknown): "rp_filing_paused" | "rp_1912_login" | 
  * the first is primary). `account`: someone else's connection (their number in the texts, no discom guessed).
  * The SMS keyword is "NO POWER", so it's offered for no power only; voltage / one phase is WhatsApp or a call.
  */
-export function ReportFallback({ data, problem, onDone, only, account }: {
+export function ReportFallback({ data, problem, onDone, only, account, lean }: {
   data: DashboardResponse; problem: Problem; onDone?: () => void; only?: boolean; account?: string;
+  /** No-power sheet: SMS + call only; WhatsApp and toll-free live under its "More options". */
+  lean?: boolean;
 }) {
   const { t } = useI18n();
-  const { data: prefs } = useTenantPreferences();
-  const waRaw = (prefs?.data?.discomDetails?.whatsappNumber || "").replace(/[^0-9]/g, "");
-  const wa = waRaw ? (waRaw.length === 10 ? `91${waRaw}` : waRaw) : null;
+  const wa = useWhatsAppUrl(data, problem, account);
   const site = account ? { connectionId: account } : { connectionId: String(data.site.connectionId), tenantId: data.site.tenantId };
-  const discom = String(site.tenantId ?? "").toUpperCase();
   const sms = problem === "no_power";
   const kind = (first: boolean) => (only && first ? undefined : "soft" as const);
+  const showWa = !!wa && !(lean && sms);
   return (
     <View style={{ gap: 8 }}>
-      {!only && <Txt v="label" color="muted">{t("rp_other_ways")}</Txt>}
+      {!only && !lean && <Txt v="label" color="muted">{t("rp_other_ways")}</Txt>}
       {sms && <Button label={t("rp_send_sms")} kind={kind(true)} icon="sms" onPress={() => { void Linking.openURL(noPowerSmsUrl(site, Platform.OS === "ios")); onDone?.(); }} />}
-      {wa && <Button label={t("rp_send_wa")} kind={kind(!sms)} icon="chat" onPress={() => {
-        openLink(`https://wa.me/${wa}?text=${encodeURIComponent(t(discom ? "rp_wa_text" : "rp_wa_text_other", { problem: t(`rp_${problem}`), account: site.connectionId, discom }))}`); onDone?.();
-      }} />}
-      <Button label={t("rp_call_1912")} kind={kind(!sms && !wa)} icon="call" onPress={() => { void Linking.openURL(`tel:${HELPLINE_TEL}`); onDone?.(); }} />
-      <TollFreeLink />
+      {showWa && <Button label={t("rp_send_wa")} kind={kind(!sms)} icon="chat" onPress={() => { openLink(wa!); onDone?.(); }} />}
+      <Button label={t("rp_call_1912")} kind={kind(!sms && !showWa)} icon="call" onPress={() => { void Linking.openURL(`tel:${HELPLINE_TEL}`); onDone?.(); }} />
+      {!lean && <TollFreeLink />}
     </View>
   );
+}
+
+/** The discom's WhatsApp complaint link with the message filled in, or null when the discom has none. */
+function useWhatsAppUrl(data: DashboardResponse, problem: Problem, account?: string): string | null {
+  const { t } = useI18n();
+  const { data: prefs } = useTenantPreferences();
+  const raw = (prefs?.data?.discomDetails?.whatsappNumber || "").replace(/[^0-9]/g, "");
+  if (!raw) return null;
+  const discom = account ? "" : String(data.site.tenantId ?? "").toUpperCase();
+  const text = t(discom ? "rp_wa_text" : "rp_wa_text_other", { problem: t(`rp_${problem}`), account: account ?? String(data.site.connectionId), discom });
+  return `https://wa.me/${raw.length === 10 ? `91${raw}` : raw}?text=${encodeURIComponent(text)}`;
 }
 
 export function ReportSheet({ data, visible, onClose }: { data: DashboardResponse; visible: boolean; onClose: () => void }) {
@@ -110,8 +119,12 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const [filed, setFiled] = useState<{ ok: boolean; complaintNo: string | null; message: string } | null>(null);
   const [fileError, setFileError] = useState<unknown>(null);
   const [again, setAgain] = useState(false); // open complaint: filing another is a deliberate extra tap (UX-R01)
+  const [noteOpen, setNoteOpen] = useState(false); // the optional note is a link until asked for (UX-N02)
+  const [more, setMore] = useState(false); // everything that isn't THE action sits behind "More options" (UX-N01)
+  const wa = useWhatsAppUrl(data, "no_power");
 
-  const close = () => { setExtra(""); setFiled(null); setFileError(null); setAgain(false); onClose(); };
+  const close = () => { setExtra(""); setFiled(null); setFileError(null); setAgain(false); setNoteOpen(false); setMore(false); onClose(); };
+  const reveal = (f: (v: boolean) => void) => () => { animateNext(); f(true); };
   const seeOpen = () => { if (!open) return; close(); router.push({ pathname: "/complaint/[no]", params: { no: open.complaint_no } }); };
   const full = () => { close(); router.push("/report"); };
   async function file() {
@@ -152,10 +165,12 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
                   {draft?.substation ? t("rp_sheet_where", { place: draft.substation }) : t("rp_getting_ready")}
                 </Txt>
               </View>
-              {/* Optional and already open: typing is never an extra step, skipping it costs nothing. */}
-              <Field value={extra} onChangeText={setExtra} limit={150} multiline
-                placeholder={t("rp_extra_ph")} accessibilityLabel={t("rp_extra_ph")}
-                style={styles.input} />
+              {/* Optional: most people skip it, so it's a link, not an empty box in the way (UX-N02). */}
+              {noteOpen ? (
+                <Field value={extra} onChangeText={setExtra} limit={150} multiline autoFocus
+                  placeholder={t("rp_extra_ph")} accessibilityLabel={t("rp_extra_ph")}
+                  style={styles.input} />
+              ) : <TextLink label={t("rp_add_note")} onPress={reveal(setNoteOpen)} />}
               <Button label={busy ? t("rp_filing") : !draft ? t("rp_getting_ready") : t("rp_quick")} icon="bolt" busy={busy || !draft}
                 onPress={() => (draft && !draft.substation ? full() : void file())} />
             </>
@@ -165,20 +180,27 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
               {!!draft?.blocked && <Insight tone="warn" text={t("rp_blocked", { msg: draft.blocked })} />}
               {filed && !filed.ok && <Insight tone="warn" text={t("rp_file_refused", { msg: filed.message || "—" })} />}
               {slow && !failed && <Insight tone="warn" icon="schedule" text={t("rp_slow")} />}
-              {slow && !failed && <ReportFallback data={data} problem="no_power" onDone={close} />}
+              {slow && !failed && <ReportFallback data={data} problem="no_power" onDone={close} lean />}
               {/* 1912 is OTP-login-only now: say it plainly, no "UPPCL is having a problem" + retry that can't work. */}
               {!!prepError && (cantFileKey(prepError) ? <Insight tone="accent" icon="info" text={t(cantFileKey(prepError)!)} /> : <ErrorNote error={prepError} onRetry={retry} />)}
               {!!fileError && <ErrorNote error={fileError} onRetry={() => void file()} />}
               {/* Can't file from here (not connected, offline, refused): the SMS works right now, so it is THE button (UX-R13). */}
-              {failed && <ReportFallback data={data} problem="no_power" onDone={close} only />}
-              {/* Not signed in to 1912 (or it expired): connecting is for next time, so it's a link under the way that works now. */}
-              {cantFileKey(prepError) === "rp_1912_login" && <TextLink label={t("c19_connect_next")} onPress={() => setConnect(true)} />}
-              {cantFileKey(prepError) === "rp_1912_link" && <LinkHelp onCheck={retry} />}
+              {failed && <ReportFallback data={data} problem="no_power" onDone={close} only lean />}
             </>
           )}
+          {/* One link for the rest; each item is for a minority of visits (UX-N01). */}
+          {more ? (
+            <View>
+              <TextLink label={t("rp_something_else")} onPress={full} />
+              <PlannedCutsLink discom={String(data.site.tenantId)} />
+              {!holdForOpen && (failed || slow) && wa && <TextLink label={t("rp_send_wa")} onPress={() => { openLink(wa); close(); }} />}
+              <TollFreeLink />
+              {/* Not signed in to 1912 (or it expired): connecting is for next time. */}
+              {!holdForOpen && cantFileKey(prepError) === "rp_1912_login" && <TextLink label={t("c19_connect_next")} onPress={() => setConnect(true)} />}
+              {!holdForOpen && cantFileKey(prepError) === "rp_1912_link" && <LinkHelp onCheck={retry} />}
+            </View>
+          ) : <TextLink label={t("rp_more_options")} onPress={reveal(setMore)} />}
           <Connect1912Sheet visible={connect} onClose={() => setConnect(false)} onDone={retry} />
-          <TextLink label={t("rp_something_else")} onPress={full} />
-          <PlannedCutsLink discom={String(data.site.tenantId)} />
           <DangerRow />
         </>
       )}
