@@ -23,7 +23,7 @@ import enStrings from "../messages/en.json";
 import hiStrings from "../messages/hi.json";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
 const { appLinkFor, isInAppUrl } = await import("../src/links");
-const { cleanRemarks, complaintNoIn, mobile10, openFor, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
+const { cleanRemarks, complaintNoIn, mobile10, openFor, outageFromRow, parseByChild, personName, save9212Xml, sourceKind } = await import("@shared/complaints");
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00`;
@@ -576,6 +576,22 @@ describe("sample data shows the hour-by-hour card (UX-R05)", () => {
     expect(peak.start).toBe(8); // 8–11 am
     const tallest = hours.indexOf(Math.max(...hours));
     expect(tallest < peak.start || tallest > peak.start + 2).toBe(true); // why the band is needed
+  });
+});
+
+describe("1912 outage information (form 9252)", () => {
+  // The real "no outage" answer, as 1912 sent it (Nov 2026), and the same grid with one row in its column names.
+  const none = `<RESULT EVENT_CONTROL="0.0"><RESULTS CHILDCONTROLID="94516" AC_ID="84673" SECCONTROLID=""></RESULTS><RESULTS CHILDCONTROLID="149498" AC_ID="205772" SECCONTROLID=""><Rowset><VAL>Currently No Outage in your area.</VAL></Rowset></RESULTS><RESULTS CHILDCONTROLID="99155" AC_ID="93696" SECCONTROLID=""></RESULTS></RESULT>`;
+  const one = `<RESULT EVENT_CONTROL="0.0"><RESULTS CHILDCONTROLID="94516" AC_ID="84673" SECCONTROLID=""><Rowset><BREAKDOWN_ID>77</BREAKDOWN_ID><FEEDER>RAJPUR 11 KV</FEEDER><SUBSTATION>PALLAVPURAM</SUBSTATION><DOWNTYPE>Breakdown</DOWNTYPE><DOWN_INFO>Cable fault &amp; jointing</DOWN_INFO><DOWN_TO>17-11-2026 22:30</DOWN_TO><DOWN_FROM>17-11-2026 19:30</DOWN_FROM></Rowset></RESULTS></RESULT>`;
+  test("'no outage' is an empty list, never a claim", () => {
+    expect((parseByChild(none)["94516"] ?? []).map(outageFromRow)).toEqual([]);
+  });
+  test("a listed outage maps every column", () => {
+    const [o] = (parseByChild(one)["94516"] ?? []).map(outageFromRow);
+    expect(o).toEqual({ id: "77", feeder: "RAJPUR 11 KV", substation: "PALLAVPURAM", kind: "Breakdown", info: "Cable fault & jointing", from: "17-11-2026 19:30", to: "17-11-2026 22:30" });
+  });
+  test("1912's '0' placeholders read as unknown", () => {
+    expect(outageFromRow({ FEEDER: "0", DOWN_INFO: " " }).feeder).toBeNull();
   });
 });
 

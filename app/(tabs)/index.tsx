@@ -16,7 +16,7 @@ import { HELPLINE_TEL, openFor } from "@shared/complaints";
 import { getBudget } from "../../src/alerts";
 import { FINGERPRINT_KEY, JUST_PAID_KEY, keystore, NAME_KEY, UPPCL_SMART_URL } from "../../src/boot";
 import { UpdateCard } from "../../src/github";
-import { ReportSheet } from "../../src/report";
+import { AreaOutageNote, ReportSheet } from "../../src/report";
 
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
@@ -64,6 +64,7 @@ export default function Home() {
       <UpdateCard />
       {error && <ErrorNote error={error} stale compact onRetry={() => void mutate()} />}
       <PlannedCut />
+      <AreaOutageNote />
       <ComplaintStatus />
       {data.site.connectionType === "postpaid" ? <Postpaid data={data} /> : <Prepaid data={data} />}
     </Screen>

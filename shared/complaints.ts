@@ -286,6 +286,23 @@ export function lateBy(c: { limit_hours?: number | null; entry_date: string | nu
   return over > (c.is_open ? 0 : 1) ? Math.max(1, Math.round(over)) : null;
 }
 
+/** One outage UPPCL has logged on the line in the signed-in number's KYC (1912 "Outage Information", form 9252). */
+export interface AreaOutage { id: string | null; feeder: string | null; substation: string | null; kind: string | null; info: string | null; from: string | null; to: string | null }
+const clean = (v: string | undefined) => { const t = String(v ?? "").replace(/\s+/g, " ").trim(); return t && t !== "0" ? t : null; };
+/** Grid 94516 "Outage detail as per KYC": BREAKDOWN_ID, FEEDER, SUBSTATION, DOWNTYPE, DOWN_INFO, DOWN_FROM, DOWN_TO. */
+export function outageFromRow(r: Row): AreaOutage {
+  return { id: clean(r.BREAKDOWN_ID), feeder: clean(r.FEEDER), substation: clean(r.SUBSTATION), kind: clean(r.DOWNTYPE), info: clean(r.DOWN_INFO), from: clean(r.DOWN_FROM), to: clean(r.DOWN_TO) };
+}
+/**
+ * Outages 1912 lists for the signed-in number's line, read the way its own page does (Nov 2026). Empty when there are
+ * none — and also when 1912 doesn't know the line (its feeder code was 0 for a real account), so the app shows an
+ * outage when there is one and never claims "no outage in your area".
+ */
+export async function areaOutages(): Promise<AreaOutage[]> {
+  const rows = (await lookup("0", [["94516", "84673"]], "9252"))["94516"] ?? [];
+  return rows.map(outageFromRow).filter((o) => o.info || o.kind || o.from);
+}
+
 /** `?action=my` → { phone, complaints }: the signed-in number's complaints, open first, newest first. */
 export async function complaints(_query: string): Promise<{ phone: string; complaints: ComplaintDetail[] }> {
   const a = auth();

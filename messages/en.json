@@ -631,6 +631,10 @@
     "meter_active": "Active",
     "cx_no_limit": "1912 doesn't publish a time limit for this kind of complaint.",
     "signin_again_title": "Sign in to keep bill reminders",
-    "signin_again_body": "UPPCL signs you out after 60 days. Open Bijli Saathi and sign in again to keep getting reminders."
+    "signin_again_body": "UPPCL signs you out after 60 days. Open Bijli Saathi and sign in again to keep getting reminders.",
+    "outage_on": "UPPCL has logged an outage on {where}",
+    "outage_on_line": "UPPCL has logged an outage on your line",
+    "outage_when": "{from} to {to}",
+    "outage_since": "since {from}"
   }
 }

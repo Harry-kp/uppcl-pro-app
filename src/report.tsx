@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { mutate, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
+import { mutate, useAreaOutage, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
 import { fileSupplyComplaint, HELPLINE_TEL, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
@@ -133,6 +133,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
         <>
           {/* An open complaint or a planned cut: say so first, filing again won't speed it up. */}
           {!!planned && <Insight tone="warn" icon="event" text={t("rp_planned", { notice: String(planned).trim() })} />}
+          <AreaOutageNote />
           {!!open && (
             <Insight tone="warn" icon="supportAgent"
               text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
@@ -179,6 +180,18 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
       )}
     </Sheet>
   );
+}
+
+/** UPPCL has logged an outage on the user's line (1912 "Outage Information"): say what and since when, so nobody
+ *  wonders whether it's just their house. Shown only when 1912 lists one. */
+export function AreaOutageNote() {
+  const { t } = useI18n();
+  const { data } = useAreaOutage();
+  const o = data?.[0];
+  if (!o) return null;
+  const where = o.feeder ?? o.substation;
+  const when = o.from && o.to ? t("outage_when", { from: o.from, to: o.to }) : o.from ? t("outage_since", { from: o.from }) : "";
+  return <Insight tone="warn" icon="event" text={[t(where ? "outage_on" : "outage_on_line", { where: where ?? "" }), when, o.info].filter(Boolean).join(" · ")} />;
 }
 
 /** A centred text action, 48 dp tall (UX-R23). */
