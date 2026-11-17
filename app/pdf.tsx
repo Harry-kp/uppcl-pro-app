@@ -16,9 +16,10 @@ export default function PdfViewer() {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  // Filenames come from shared/api.ts: uppcl-bill-*, uppcl-receipt-*, uppcl-arrears-*.
+  // Filenames come from shared/api.ts (uppcl-bill-*, uppcl-receipt-*, uppcl-arrears-*) and src/report.tsx (pvvnl-planned-cuts-*).
   const title = name?.startsWith("uppcl-receipt") ? t("pdf_receipt")
     : name?.startsWith("uppcl-arrears") ? t("pdf_arrears")
+    : name?.startsWith("pvvnl-planned-cuts") ? t("planned_title")
     : t("pdf_bill");
 
   return (
