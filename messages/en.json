@@ -196,7 +196,7 @@
     "c19_listed_for": "Complaints on {mobile}",
     "rp_filing_paused": "UPPCL changed how 1912 takes complaints, and filing from the app is being updated. Right now, report it here:",
     "rp_1912_login": "The app can file for you once 1912 is connected. Right now, report it here:",
-    "rp_1912_link": "1912 files only for connections added to your 1912 number. Add this one once on 1912.uppcl.org (Register Account, with an OTP). Right now, report it here:",
+    "rp_1912_link": "1912 files only for connections linked to your 1912 number. Link this one once (below). Right now, report it here:",
     "cx_1912_login": "1912 needs a code from your phone to show complaints. Connect once to see them here.",
     "cx_open_1912": "Open 1912 portal",
     "pay_show_qr": "Show QR",
@@ -664,6 +664,16 @@
     "cg_checking": "Asking the forum…",
     "cg_error": "The forum's site didn't answer. Try again, or check on the site itself.",
     "cg_unknown": "The forum answered in a way the app can't read yet. Check it on the site itself.",
-    "cg_open_site": "Open the forum's status page"
+    "cg_open_site": "Open the forum's status page",
+    "lk_how": "How to link this connection to 1912",
+    "lk_title": "Link your connection to 1912",
+    "lk_why": "Once linked, \"No power?\" files with 1912 in one tap. It's done on 1912's own website, once.",
+    "lk_1": "On 1912's site, sign in with your mobile and the code 1912 texts you.",
+    "lk_2": "Open \"Register Account\", choose your district, enter your account number and tap \"Search account\".",
+    "lk_3": "1912 texts a code to the mobile registered on that connection. Enter it there.",
+    "lk_4": "If Discom, Zone, Division or Substation show 0 or are empty, pick them (they're on your bill), then tap \"Register\".",
+    "lk_5": "\"Some problem occurred\" right after \"Record saved\" can still mean it worked. Come back and tap \"Check again\".",
+    "lk_open": "Open 1912's Register Account page",
+    "lk_check": "I've linked it, check again"
   }
 }

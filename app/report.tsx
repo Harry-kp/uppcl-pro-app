@@ -14,7 +14,7 @@ import { Connect1912Sheet } from "../src/connect1912";
 import { ErrorNote } from "../src/errors";
 import { useI18n } from "../src/i18n";
 import { Icon, type IconName } from "../src/icons";
-import { cantFileKey, DangerRow, Filed, ReportFallback, TextLink, useOwnDraft } from "../src/report";
+import { cantFileKey, DangerRow, Filed, LinkHelp, ReportFallback, TextLink, useOwnDraft } from "../src/report";
 import { useColors } from "../src/theme";
 import { BackHeader, Button, Card, Choices, Insight, Screen, Sheet, Skeleton, Txt, Field } from "../src/ui";
 
@@ -118,6 +118,7 @@ export default function Report() {
         <ReportFallback data={data} problem={supply} only={paused} account={mine ? undefined : otherAcct} />}
       {/* Connecting is for next time: a link under the way that works now (UX-R13). */}
       {mine && cantFileKey(prepError) === "rp_1912_login" && <TextLink label={t("c19_connect_next")} onPress={() => setConnect(true)} />}
+      {mine && cantFileKey(prepError) === "rp_1912_link" && <LinkHelp onCheck={own.retry} />}
 
       {/* Danger is a call, not a form. */}
       <DangerRow />

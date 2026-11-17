@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { mutate, useAreaOutage, useDowntime, useMe, useMyComplaints, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
-import { fileSupplyComplaint, HELPLINE_TEL, HELPLINE_TOLL_FREE, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
+import { fileSupplyComplaint, HELPLINE_TEL, HELPLINE_TOLL_FREE, LINK_ACCOUNT_URL, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { platform } from "@shared/platform";
 import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
@@ -173,6 +173,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
               {failed && <ReportFallback data={data} problem="no_power" onDone={close} only />}
               {/* Not signed in to 1912 (or it expired): connecting is for next time, so it's a link under the way that works now. */}
               {cantFileKey(prepError) === "rp_1912_login" && <TextLink label={t("c19_connect_next")} onPress={() => setConnect(true)} />}
+              {cantFileKey(prepError) === "rp_1912_link" && <LinkHelp onCheck={retry} />}
             </>
           )}
           <Connect1912Sheet visible={connect} onClose={() => setConnect(false)} onDone={retry} />
@@ -230,6 +231,32 @@ export function PlannedCutsLink({ discom }: { discom: string }) {
   return <TextLink label={busy ? t("planned_opening") : t("planned_today")} onPress={() => { if (busy) return; setBusy(true); void openPlannedCuts().finally(() => setBusy(false)); }} />;
 }
 
+/**
+ * The connection isn't linked to the user's 1912 number, so 1912 won't file for it. Linking happens on 1912's own
+ * "Register Account" page (an OTP goes to the connection's registered mobile). Steps match that page as driven by hand
+ * (Oct–Nov 2026), including its trap: "Record saved" followed by "Some problem occurred" can still have linked it.
+ */
+export function LinkHelp({ onCheck }: { onCheck: () => void }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <TextLink label={t("lk_how")} onPress={() => setOpen(true)} />
+      <Sheet visible={open} title={t("lk_title")} onClose={() => setOpen(false)}>
+        <Txt v="body" color="muted">{t("lk_why")}</Txt>
+        {(["lk_1", "lk_2", "lk_3", "lk_4", "lk_5"] as const).map((k, i) => (
+          <View key={k} style={styles.step}>
+            <Txt v="label" weight="bold" color="primary">{i + 1}</Txt>
+            <Txt v="body" style={{ flex: 1 }}>{t(k)}</Txt>
+          </View>
+        ))}
+        <Button icon="openInNew" label={t("lk_open")} onPress={() => void Linking.openURL(LINK_ACCOUNT_URL)} />
+        <Button kind="soft" icon="refresh" label={t("lk_check")} onPress={() => { setOpen(false); onCheck(); }} />
+      </Sheet>
+    </>
+  );
+}
+
 /** 1912 rings busy in a big outage: UPPCL's toll-free line takes the same complaints. */
 export function TollFreeLink() {
   const { t } = useI18n();
@@ -266,6 +293,7 @@ export function DangerRow() {
 const styles = StyleSheet.create({
   link: { minHeight: 48, paddingHorizontal: 12, justifyContent: "center", alignSelf: "center" },
   danger: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 64, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth },
+  step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   dangerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   where: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: -4 },
   done: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
