@@ -155,7 +155,7 @@
     "theme_light": "Light",
     "theme_dark": "Dark",
     "not_supported_yet": "Other details can't be changed in this app yet.",
-    "change_on_official": "Change them on UPPCL's official site",
+    "change_on_official": "Change other details on UPPCL's site",
     "pay_title_month": "Pay {month} bill",
     "pay_rebate_line": "Includes ₹{saving} on-time rebate",
     "pay_opening": "Opening BillDesk…",
@@ -601,8 +601,8 @@
     "sh_remove_title": "Stop sharing with {name}?",
     "sh_remove_body": "They won't see this connection any more. You can add them again later.",
     "sh_invite_again": "Add again",
-    "pl_placeholder": "Your e-bills go to a UPPCL placeholder address, not to you. Your own email {own} is only on file at the billing office. Ask UPPCL to set it for e-bills, or switch back to paper.",
-    "pl_placeholder_none": "Your e-bills go to a UPPCL placeholder address, not to you. Add your own email on UPPCL's site, or switch back to paper.",
+    "pl_placeholder": "E-bills go to a UPPCL placeholder, not to {own}. Ask UPPCL to fix it, or switch to paper.",
+    "pl_placeholder_none": "E-bills go to a UPPCL placeholder, not to you. Add your email on UPPCL's site, or switch to paper.",
     "no_power_desc_connect": "Connect 1912 once with a code, then it's one tap.",
     "budget_save_on": "Save and turn on reminders",
     "rp_see_open": "See complaint · call the engineer",
@@ -679,6 +679,8 @@
     "si_code_by_email": "Get the code by email",
     "just_looking": "Just looking?",
     "rp_add_note": "+ Add a note for the engineer",
-    "rp_more_options": "More options"
+    "rp_more_options": "More options",
+    "more_help": "More help",
+    "toll_free_label": "Toll-free, when 1912 is busy"
   }
 }

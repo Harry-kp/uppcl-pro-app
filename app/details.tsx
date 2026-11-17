@@ -66,7 +66,6 @@ export default function MeterDetails() {
   return (
     <Screen>
       <BackHeader title={t("meter_details")} />
-      <Txt v="caption" color="muted">{t("meter_details_desc")}</Txt>
 
       <Section title={t("meter_section")}>
         {/* A grid of short facts scans faster than a five-row list; status reads as a chip. */}
