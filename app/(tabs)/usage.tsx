@@ -48,7 +48,8 @@ export default function Usage() {
     const total = values.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
     const avg = mean(values), sd = stddev(values);
     // Same rule as the web dashboard's anomaly flag: z ≥ 1.5.
-    const flagged = sd > 0 ? values.map((v, i) => ((v - avg) / sd >= 1.5 ? i : -1)).filter((i) => i >= 0) : [];
+    // Unusual = far from the spread AND clearly bigger: over 7 quiet days the spread is tiny, so +19% alone isn't "much more".
+    const flagged = sd > 0 ? values.map((v, i) => ((v - avg) / sd >= 1.5 && v >= avg * 1.25 ? i : -1)).filter((i) => i >= 0) : [];
     const top = flagged.length ? flagged.reduce((a, b) => (values[b] > values[a] ? b : a)) : null;
     // Average kWh per weekday, Monday first.
     const buckets = Array.from({ length: 7 }, () => [] as number[]);
@@ -57,7 +58,6 @@ export default function Usage() {
     const busiest = weekday.indexOf(Math.max(...weekday));
     return { values, dates, total, avg, flagged, top, weekday, busiest, vsPrev };
   }, [data, n]);
-
 
   if (error && !data) return <Screen><View style={{ marginTop: 24 }}><ErrorNote error={error} onRetry={() => mutate()} /></View></Screen>;
 

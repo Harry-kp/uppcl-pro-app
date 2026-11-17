@@ -137,7 +137,7 @@
     "billing_address": "Billing address",
     "phone_mismatch": "Your app login uses {app} but your bill record has {bill}. We check complaints for both; update the old one on UPPCL SMART.",
     "budget_title": "Monthly bill budget",
-    "budget_desc": "We'll warn you if this month's bill looks set to cross it. Bill reminders need to be on.",
+    "budget_desc": "We'll warn you if this month's bill looks set to cross it.",
     "budget_ph": "e.g. 2000",
     "budget_ok": "Within your ₹{amount} budget",
     "budget_over": "May cross your ₹{amount} budget",
@@ -676,6 +676,7 @@
     "pc_running": "Planned cut on your substation until {to}. A complaint won't bring power back sooner.",
     "pc_ok": "OK",
     "pc_report_anyway": "Report anyway",
-    "pc_on_yours": "{when} on your substation"
+    "pc_on_yours": "{when} on your substation",
+    "budget_needs_alerts": "Bill reminders need to be on."
   }
 }

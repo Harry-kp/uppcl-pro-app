@@ -214,7 +214,7 @@ function BudgetSheet({ visible, onClose, alertsOn, onTurnOnAlerts }: { visible: 
   const save = (n: number | null) => { setBudget(n); onClose(); if (n && !alertsOn) onTurnOnAlerts(); };
   return (
     <Sheet visible={visible} title={t("budget_title")} onClose={onClose}>
-      <Txt v="label" color="muted">{t("budget_desc")}</Txt>
+      <Txt v="label" color="muted">{t("budget_desc")}{alertsOn ? "" : ` ${t("budget_needs_alerts")}`}</Txt>
       <View style={styles.budgetRow}>
         <Txt v="value" color="muted">₹</Txt>
         <Field value={v} onChangeText={(x) => setV(x.replace(/[^0-9]/g, "").slice(0, 6))} autoFocus
