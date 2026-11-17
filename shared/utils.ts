@@ -137,3 +137,12 @@ export function tariffKey(code: string): { key: "tariff_lmv1" | "tariff_lmv2" | 
   return m && (m[1] === "1" || m[1] === "2" || m[1] === "5") ? { key: `tariff_lmv${m[1]}` as "tariff_lmv1", code: `LMV-${m[1]}` } : null;
 }
 
+
+/** UPPCL's closing notes come Title Cased with " : " ("Resolved : Supply Restored After…"): read them as a sentence.
+ *  All-caps words (DT, LT, 11KV) and sentence starts keep their capitals. */
+export function tidyRemark(s: string): string {
+  const t = s.replace(/\s+:/g, ":").replace(/\s+/g, " ").trim();
+  const words = t.split(" ");
+  if (words.filter((w) => /^[A-Z][a-z]/.test(w)).length < words.length * 0.6) return t; // already a sentence
+  return words.map((w, i) => (i === 0 || /^[A-Z0-9/.-]+$/.test(w) || /[:.]$/.test(words[i - 1]) ? w : w.replace(/(^|\/)([A-Z])(?=[a-z])/g, (_, p: string, c: string) => p + c.toLowerCase()))).join(" "); // "Fault/Tripping" too
+}

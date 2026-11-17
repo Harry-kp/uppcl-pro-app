@@ -18,7 +18,7 @@ import { ProxyError, type DashboardResponse } from "@shared/api";
 import { onTimeSaving, payAmountError, paymentRef, type PayBillHome } from "@shared/payment";
 import { newVaultKey, openJson, rsaOaepEncrypt, sealJson, wssDecrypt, wssEncrypt } from "@shared/crypto";
 import { billRebate, busiestHours, withPaymentsFeed, derivePostpaid, derivePrepaid, hourlyUnits, monthFromDaily } from "@shared/insights";
-import { billingPeriod, hindiHour, kwh, parseUppclDate, pickPlural, rupees, tariffKey } from "@shared/utils";
+import { billingPeriod, hindiHour, kwh, parseUppclDate, pickPlural, rupees, tariffKey, tidyRemark } from "@shared/utils";
 import enStrings from "../messages/en.json";
 import hiStrings from "../messages/hi.json";
 const { DEMO, mockFor, SCENARIOS, setScenario } = await import("../src/demo");
@@ -635,3 +635,9 @@ describe("consumer forum grievance status (cgrf.uppcl.org)", () => {
   });
 });
 
+
+test("UPPCL closing notes read as a sentence; acronyms and plain sentences untouched", () => {
+  expect(tidyRemark("Resolved : Supply Restored After Attending Local Fault/Tripping")).toBe("Resolved: Supply restored after attending local fault/tripping");
+  expect(tidyRemark("DT Damaged. Replaced By New DT")).toBe("DT damaged. Replaced by new DT");
+  expect(tidyRemark("supply restored by lineman")).toBe("supply restored by lineman");
+});
