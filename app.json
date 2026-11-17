@@ -3,13 +3,13 @@
     "name": "Bijli Saathi",
     "slug": "uppcl-pro",
     "scheme": "uppclpro",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.harrykp.uppclpro",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT"
