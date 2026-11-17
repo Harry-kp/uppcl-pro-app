@@ -99,7 +99,7 @@ export default function Settings() {
       {dash && (
         <Group title={t("your_connection")}>
           <Detail first lead label={t("account_no")} value={String(dash.site.connectionId)} copy
-            sub={`${discomName(String(dash.site.tenantId))} · ${dash.site.connectionType === "postpaid" ? t("postpaid") : t("prepaid")}`} />
+            sub={`${discomName(String(dash.site.tenantId), lang === "hi")} · ${dash.site.connectionType === "postpaid" ? t("postpaid") : t("prepaid")}`} />
           <Row icon="person" label={t("your_details")} onPress={() => router.push("/profile")} />
           <Row icon="group" label={t("sh_row")} value={guests?.length ? t("sh_count", { n: guests.length }) : undefined} onPress={() => router.push("/share")} />
           {/* Advanced observability lives on its own screen, not here. */}
@@ -229,13 +229,14 @@ function BudgetSheet({ visible, onClose, alertsOn, onTurnOnAlerts }: { visible: 
 }
 
 /** UPPCL's five discoms. site.tenantId is the short code (e.g. "pvvnl"); tenantCode is an internal id. */
-const DISCOMS: Record<string, string> = {
-  PVVNL: "Paschimanchal (PVVNL)", MVVNL: "Madhyanchal (MVVNL)", DVVNL: "Dakshinanchal (DVVNL)",
-  PUVVNL: "Purvanchal (PuVVNL)", KESCO: "KESCo, Kanpur",
+const DISCOMS: Record<string, [string, string]> = { // [English, Hindi]
+  PVVNL: ["Paschimanchal (PVVNL)", "पश्चिमांचल (PVVNL)"], MVVNL: ["Madhyanchal (MVVNL)", "मध्यांचल (MVVNL)"],
+  DVVNL: ["Dakshinanchal (DVVNL)", "दक्षिणांचल (DVVNL)"], PUVVNL: ["Purvanchal (PuVVNL)", "पूर्वांचल (PuVVNL)"],
+  KESCO: ["KESCo, Kanpur", "केस्को, कानपुर"],
 };
-function discomName(tenantId: string): string {
+function discomName(tenantId: string, hindi: boolean): string {
   const code = tenantId.toUpperCase();
-  return DISCOMS[code] ?? code;
+  return DISCOMS[code]?.[hindi ? 1 : 0] ?? code;
 }
 
 /** A label/value row; `copy` adds a Copy button (e.g. the account number, needed to pay elsewhere). */
