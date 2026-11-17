@@ -10,7 +10,7 @@ import { HELPLINE_TEL } from "@shared/complaints";
 import { sessionWasExpired } from "@shared/session";
 import { useI18n, type Lang } from "../src/i18n";
 import { font, radius, useColors } from "../src/theme";
-import { AppIcon, Button, Card, Glow, Insight, Txt, familyFor } from "../src/ui";
+import { AppIcon, animateNext, Button, Card, Glow, Insight, Txt, familyFor } from "../src/ui";
 import { ErrorNote } from "../src/errors";
 import { Icon, type IconName } from "../src/icons";
 import en from "../messages/en.json";
@@ -104,11 +104,8 @@ export default function Login() {
             <>
               {/* Look around first: invented data, nothing is sent to UPPCL (src/demo.ts). */}
               <Pressable accessibilityRole="button" onPress={() => { setScenario(DEMO); void mutate("/health"); }} style={styles.newHere}>
+                <Txt v="label" color="muted">{t("just_looking")} </Txt>
                 <Txt v="label" color="primary" weight="semibold">{t("try_sample")}</Txt>
-              </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => go("signup")} style={styles.newHere}>
-                <Txt v="label" color="muted">{t("new_here_short")} </Txt>
-                <Txt v="label" color="primary" weight="semibold">{t("si_create_with_acct")}</Txt>
               </Pressable>
             </>
           )}
@@ -133,6 +130,7 @@ function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forg
   const { t, lang } = useI18n();
   const L = (lang === "hi" ? hi : en).login;
   const [byEmail, setByEmail] = useState(false);
+  const [others, setOthers] = useState(false); // "Other ways to sign in": one link instead of three (UX-L01)
   const [value, setValue] = useState(prefill);
   const [to, setTo] = useState<CodeTo | null>(null); // set once the code is sent
   const [code, setCode] = useState("");
@@ -209,7 +207,6 @@ function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forg
               onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
             />
           </Field>
-          <TextLink label={byEmail ? t("si_use_mobile") : t("si_use_email")} onPress={() => { setByEmail(!byEmail); setValue(""); setNote(null); }} />
           {noteText && <Note text={noteText} />}
           {note === "looksAccount" && <Button kind="soft" label={t("si_with_password")} onPress={() => onGo("password")} />}
           {note === "noAccount" && (
@@ -252,7 +249,14 @@ function CodeSignIn({ prefill, forgot, onOpened, onGo }: { prefill: string; forg
           <TextLink label={t("si_reset_web")} muted onPress={() => openLink(`${UPPCL_SMART_URL}forgot-password`)} />
         </>
       )}
-      <TextLink label={t("si_with_password")} onPress={() => onGo("password")} />
+      {!to && (others ? (
+        <View>
+          <TextLink label={byEmail ? t("si_use_mobile") : t("si_code_by_email")} onPress={() => { setByEmail(!byEmail); setValue(""); setNote(null); }} />
+          <TextLink label={t("si_with_password")} onPress={() => onGo("password")} />
+          <TextLink label={t("si_create_with_acct")} onPress={() => onGo("signup")} />
+        </View>
+      ) : <TextLink label={t("si_other_ways")} onPress={() => { animateNext(); setOthers(true); }} />)}
+      {to && <TextLink label={t("si_with_password")} onPress={() => onGo("password")} />}
       <Privacy text={t("si_privacy_code")} />
     </Card>
   );
@@ -295,7 +299,7 @@ function PasswordSignIn({ onOpened, onGo }: { onOpened: () => Promise<void>; onG
   return (
     <Card style={styles.form}>
       {/* Each "forgot" link sits by the field it recovers and opens code sign-in: no password needed. */}
-      <Field label={L.username} link={t("forgot_username")} onLink={() => forgot("user")} active={focused === "user"} invalid={badCreds}>
+      <Field label={L.username} active={focused === "user"} invalid={badCreds}>
         <TextInput
           style={[input, { flex: 1 }]} value={username} onChangeText={(v) => { setUsername(v); edited(); }}
           placeholder={L.username_hint} placeholderTextColor={c.muted}

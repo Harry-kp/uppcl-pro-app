@@ -82,7 +82,7 @@
     "unofficial": "Unofficial app. Not affiliated with UPPCL or any electricity company. Your data comes straight from UPPCL SMART.",
     "source": "Open source on GitHub",
     "login_title": "Bijli Saathi",
-    "login_sub": "Sign in with your UPPCL SMART account",
+    "login_sub": "Sign in with your UPPCL mobile number. We send a code, no password needed.",
     "login_privacy": "Your password goes only to UPPCL.",
     "unlock": "Unlock",
     "unlock_prompt": "Unlock Bijli Saathi",
@@ -678,6 +678,9 @@
     "lk_4": "If Discom, Zone, Division or Substation show 0 or are empty, pick them (they're on your bill), then tap \"Register\".",
     "lk_5": "\"Some problem occurred\" right after \"Record saved\" can still mean it worked. Come back and tap \"Check again\".",
     "lk_open": "Open 1912's Register Account page",
-    "lk_check": "I've linked it, check again"
+    "lk_check": "I've linked it, check again",
+    "si_other_ways": "Other ways to sign in",
+    "si_code_by_email": "Get the code by email",
+    "just_looking": "Just looking?"
   }
 }
