@@ -165,9 +165,6 @@ function rowsOf(block: string): Row[] {
   return rows;
 }
 
-function parseRowsets(raw: string): Row[] {
-  return [...raw.matchAll(/<RESULTS[^>]*>([\s\S]*?)<\/RESULTS>/gi)].flatMap((block) => rowsOf(block[1]));
-}
 
 /** The same answer split per requested control: CHILDCONTROLID → rows (one request can ask for many). */
 export function parseByChild(raw: string): Record<string, Row[]> {
@@ -567,7 +564,8 @@ let lastList: PlannedList | null = null; // the PDF is only downloaded again whe
 
 /** PVVNL's latest planned-cut list, read on the phone (shared/plannedCuts.ts). null: no list, or one we can't read
  *  (then the app just offers the PDF; never "no planned cuts"). */
-export async function plannedCutList(): Promise<PlannedList | null> {
+export async function plannedCutList(saved?: PlannedList | null): Promise<PlannedList | null> {
+  await new Promise((r) => setTimeout(r, 3000)); // after launch settles: the parse is ~0.5 s of JS on an old phone
   const get = async (u: string) => {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 30_000);
@@ -576,6 +574,7 @@ export async function plannedCutList(): Promise<PlannedList | null> {
   const url = latestPlannedCutPdf(await (await get(PVVNL_HOME)).text());
   if (!url) return null;
   if (lastList?.url === url) return lastList;
+  if (saved?.url === url) return (lastList = saved);
   const { cuts, problems } = parsePlannedCuts(new Uint8Array(await (await get(url)).arrayBuffer()));
   if (cuts.length === 0 && problems.length) return null; // format changed: fall back to the PDF
   return (lastList = { url, cuts: cuts.map(slim) });

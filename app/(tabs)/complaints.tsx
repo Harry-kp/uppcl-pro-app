@@ -7,7 +7,7 @@ import { CGRF_STATUS_URL, CGRF_URL, cgrfNodalUrl, cgrfStatusFrom, connected1912,
 import { Connect1912Sheet } from "../../src/connect1912";
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
-import { font, useColors } from "../../src/theme";
+import {useColors } from "../../src/theme";
 import { ActionTile, Insight, Button, Card, Field, Pill, Screen, Sheet, Txt, SkeletonRows, SlowNote } from "../../src/ui";
 import { keystore } from "../../src/boot";
 import { Icon, type IconName } from "../../src/icons";
@@ -147,7 +147,7 @@ export default function Complaints() {
       <Card style={{ padding: 0, gap: 0 }}>
         {/* PVVNL posts the day's planned cuts as a PDF (the only discom that does). */}
         {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
-          <Contact first icon="event" label={t("planned_title")}
+          <Contact first lines={2} icon="event" label={t("planned_title")}
             value={planBusy ? t("planned_opening") : myCuts[0] ? t("pc_on_yours", { when: cutWhen(myCuts[0]) }) : t("planned_value")}
             onPress={() => { if (myCuts[0]) return setCutsOpen(true); if (planBusy) return; setPlanBusy(true); void openPlannedCuts().finally(() => setPlanBusy(false)); }} />
         )}
@@ -170,11 +170,11 @@ function ComplaintRows({ list }: { list: ComplaintDetail[] }) {
 
 function ComplaintRow({ x, first }: { x: ComplaintDetail; first: boolean }) {
   const c = useColors();
-  const { t, locale, span } = useI18n();
+  const { t, locale, span, upstream } = useI18n();
   // Late only once its full record has been seen (it has the times and UPPCL's limit); the list itself has dates only.
   const { data: seen } = useSeenComplaintDetail(x.complaint_no);
   const late = seen ? lateBy(seen) : null;
-  const what = x.sub_type || x.type || t("complaint_no", { no: x.complaint_no });
+  const what = x.sub_type || x.type ? upstream(x.sub_type || x.type!) : t("complaint_no", { no: x.complaint_no });
   // "#PV010126… · 19 May · fixed in 3 h 22 min": the date, and how long UPPCL took (or has taken so far).
   const d = parseUppclDate(x.entry_date), ms = openFor(seen ?? x);
   const line = [`#${x.complaint_no}`, d && d.toLocaleDateString(locale, { day: "numeric", month: "short" }),
@@ -185,7 +185,7 @@ function ComplaintRow({ x, first }: { x: ComplaintDetail; first: boolean }) {
       style={({ pressed }) => [styles.row, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }, pressed && { backgroundColor: c.bg }]}>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Txt v="body" weight="semibold" numberOfLines={1}>{what}</Txt>
-        <Txt v="caption" color="muted" numeric numberOfLines={1}>{line}</Txt>
+        <Txt v="caption" color="muted" numeric numberOfLines={2}>{line}</Txt>
       </View>
       {/* "Late" replaces "Closed" (never a second chip); text + warn tone, not colour alone. */}
       <Pill label={late !== null && !x.is_open ? t("late_pill") : x.is_open ? t("open") : t("closed")} tone={late !== null ? "warn" : x.is_open ? "accent" : "ok"} />
@@ -264,6 +264,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 13, minHeight: 60 },
   pair: { flexDirection: "row", gap: 10 },
   note: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  stale: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 14, paddingHorizontal: 14, minHeight: 48 },
+  stale: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, minHeight: 48 },
   contactIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });

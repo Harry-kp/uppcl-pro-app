@@ -2,7 +2,7 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useCompensationCheck, useComplaintDetail, useMyComplaints } from "@shared/api";
 import { CGRF_URL, CLAIM_DAYS, COMPENSATION_FORM_URL, lateBy, openFor, sourceKind } from "@shared/complaints";
-import { parseUppclDate } from "@shared/utils";
+import { parseUppclDate, tidyRemark } from "@shared/utils";
 import { useI18n } from "../../src/i18n";
 import { useColors } from "../../src/theme";
 import { BackHeader, Button, Card, Insight, Pill, Screen, Skeleton, SkeletonRows, SlowNote, Txt } from "../../src/ui";
@@ -12,7 +12,7 @@ import { TextLink } from "../../src/report";
 
 export default function ComplaintDetail() {
   const c = useColors();
-  const { t, locale, span } = useI18n();
+  const { t, locale, span, upstream } = useI18n();
   const { no } = useLocalSearchParams<{ no: string }>();
   const { data } = useMyComplaints(); // already cached by the list
   const row = data?.complaints.find((k) => k.complaint_no === no);
@@ -44,7 +44,7 @@ export default function ComplaintDetail() {
   const late = lateBy(x); // whole hours past UPPCL's own limit, only when measurable
 
   const src = sourceKind(x.source);
-  const closingNote = !x.is_open && x.closing_remarks && x.closing_remarks !== x.remarks ? x.closing_remarks : null;
+  const closingNote = !x.is_open && x.closing_remarks && x.closing_remarks !== x.remarks ? tidyRemark(x.closing_remarks) : null;
   // Escalation chain, lowest first. Only officers UPPCL actually assigned (a number is enough to call).
   const officers = [
     { role: t("je"), name: x.je_name, phone: x.je_mobile },
@@ -59,8 +59,8 @@ export default function ComplaintDetail() {
       <Card>
         <View style={styles.head}>
           <View style={{ flex: 1, gap: 2 }}>
-            <Txt v="heading">{x.sub_type || x.type || x.status}</Txt>
-            {!!x.type && x.type !== x.sub_type && <Txt v="caption" color="muted">{x.type}</Txt>}
+            <Txt v="heading">{upstream(x.sub_type || x.type || x.status || "")}</Txt>
+            {!!x.type && x.type !== x.sub_type && <Txt v="caption" color="muted">{upstream(x.type)}</Txt>}
           </View>
           <Pill label={late !== null && !x.is_open ? t("late_pill") : x.is_open ? t("open") : t("closed")} tone={late !== null ? "warn" : x.is_open ? "accent" : "ok"} />
         </View>

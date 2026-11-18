@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AppState, Pressable, StyleSheet, Switch, View, Platform } from "react-native";
 import { router } from "expo-router";
-import Constants from "expo-constants";
+
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Clipboard from "expo-clipboard";
 import { logout, mutate, useDashboard, useGuests } from "@shared/api";
@@ -13,7 +13,7 @@ import { clearPersistentCache } from "../src/cache";
 import { APP_VERSION, FROM_STORE, REPO, reportProblem, useUpdate } from "../src/github";
 import { DevSettingsSection } from "../src/dev"; // @dev-tools
 import { useI18n } from "../src/i18n";
-import { font, getThemeChoice, setThemeChoice, useColors, type ThemeChoice } from "../src/theme";
+import {getThemeChoice, setThemeChoice, useColors, type ThemeChoice } from "../src/theme";
 import { BackHeader, Button, Card, Choices, Screen, Sheet, Txt, Field } from "../src/ui";
 import { rupees } from "@shared/utils";
 import { Icon, type IconName } from "../src/icons";
@@ -22,7 +22,7 @@ import { setScenario, useDemo } from "../src/demo";
 
 export default function Settings() {
   const c = useColors();
-  const { t, lang, setLang, locale } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const { data: dash } = useDashboard();
   const { data: guests } = useGuests();
   const postpaid = dash?.site.connectionType === "postpaid";
@@ -99,7 +99,7 @@ export default function Settings() {
       {dash && (
         <Group title={t("your_connection")}>
           <Detail first lead label={t("account_no")} value={String(dash.site.connectionId)} copy
-            sub={`${discomName(String(dash.site.tenantId))} · ${dash.site.connectionType === "postpaid" ? t("postpaid") : t("prepaid")}`} />
+            sub={`${discomName(String(dash.site.tenantId), lang === "hi")} · ${dash.site.connectionType === "postpaid" ? t("postpaid") : t("prepaid")}`} />
           <Row icon="person" label={t("your_details")} onPress={() => router.push("/profile")} />
           <Row icon="group" label={t("sh_row")} value={guests?.length ? t("sh_count", { n: guests.length }) : undefined} onPress={() => router.push("/share")} />
           {/* Advanced observability lives on its own screen, not here. */}
@@ -109,8 +109,8 @@ export default function Settings() {
 
       {dash && (
         <Group title={t("alerts_section")}>
-          <Row first icon="notifications" label={alertsLabel} onPress={() => void toggleAlerts(!alerts)}
-            right={<Switch value={alerts} onValueChange={toggleAlerts} trackColor={{ true: c.primary, false: c.track }} thumbColor={alerts ? c.onPrimary : c.muted} accessibilityLabel={alertsLabel} />} />
+          <Row first icon="notifications" label={alertsLabel} onPress={() => void toggleAlerts(!alerts)} checked={alerts}
+            right={<View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><Switch value={alerts} onValueChange={toggleAlerts} trackColor={{ true: c.primary, false: c.track }} thumbColor={alerts ? c.onPrimary : c.muted} /></View>} />
           <Row icon="savings" label={t("budget_title")} value={budget ? `₹${rupees(budget, { decimals: 0 })}` : t("off")} onPress={() => setSheet("budget")} />
           {alerts && (
             <Row icon="chat" label={t("test_btn")}
@@ -181,8 +181,10 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** One settings row: icon, name, current value on the right, then a chevron (tappable) or a control. */
-function Row({ icon, label, value, valueTone, right, onPress, first, tone }: {
+function Row({ icon, label, value, valueTone, right, onPress, first, tone, checked }: {
   icon: IconName; label: string; value?: string; valueTone?: "ok"; right?: ReactNode; onPress?: () => void; first?: boolean; tone?: "critical";
+  /** A whole-row switch: TalkBack hears one "switch, on/off" stop, not the row and then the switch again. */
+  checked?: boolean;
 }) {
   const c = useColors();
   const body = (
@@ -200,14 +202,14 @@ function Row({ icon, label, value, valueTone, right, onPress, first, tone }: {
   );
   const style = [styles.detail, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }];
   return onPress
-    ? <Pressable accessibilityRole="button" accessibilityLabel={value ? `${label}, ${value}` : label} onPress={onPress} style={({ pressed }) => [...style, pressed && { backgroundColor: c.bg }]}>{body}</Pressable>
+    ? <Pressable accessibilityRole={checked === undefined ? "button" : "switch"} accessibilityState={checked === undefined ? undefined : { checked }}
+        accessibilityLabel={value ? `${label}, ${value}` : label} onPress={onPress} style={({ pressed }) => [...style, pressed && { backgroundColor: c.bg }]}>{body}</Pressable>
     : <View style={style}>{body}</View>;
 }
 
 /** One number the user picks; "Turn off" clears it. Saved on the phone, checked by the alert task. */
 function BudgetSheet({ visible, onClose, alertsOn, onTurnOnAlerts }: { visible: boolean; onClose: () => void; alertsOn: boolean; onTurnOnAlerts: () => void }) {
-  const c = useColors();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [v, setV] = useState(() => String(getBudget() ?? ""));
   useEffect(() => { if (visible) setV(String(getBudget() ?? "")); }, [visible]);
   // A budget only warns through bill reminders: saving one with reminders off goes straight on to switch them on,
@@ -215,7 +217,7 @@ function BudgetSheet({ visible, onClose, alertsOn, onTurnOnAlerts }: { visible: 
   const save = (n: number | null) => { setBudget(n); onClose(); if (n && !alertsOn) onTurnOnAlerts(); };
   return (
     <Sheet visible={visible} title={t("budget_title")} onClose={onClose}>
-      <Txt v="label" color="muted">{t("budget_desc")}</Txt>
+      <Txt v="label" color="muted">{t("budget_desc")}{alertsOn ? "" : ` ${t("budget_needs_alerts")}`}</Txt>
       <View style={styles.budgetRow}>
         <Txt v="value" color="muted">₹</Txt>
         <Field value={v} onChangeText={(x) => setV(x.replace(/[^0-9]/g, "").slice(0, 6))} autoFocus
@@ -230,13 +232,14 @@ function BudgetSheet({ visible, onClose, alertsOn, onTurnOnAlerts }: { visible: 
 }
 
 /** UPPCL's five discoms. site.tenantId is the short code (e.g. "pvvnl"); tenantCode is an internal id. */
-const DISCOMS: Record<string, string> = {
-  PVVNL: "Paschimanchal (PVVNL)", MVVNL: "Madhyanchal (MVVNL)", DVVNL: "Dakshinanchal (DVVNL)",
-  PUVVNL: "Purvanchal (PuVVNL)", KESCO: "KESCo, Kanpur",
+const DISCOMS: Record<string, [string, string]> = { // [English, Hindi]
+  PVVNL: ["Paschimanchal (PVVNL)", "पश्चिमांचल (PVVNL)"], MVVNL: ["Madhyanchal (MVVNL)", "मध्यांचल (MVVNL)"],
+  DVVNL: ["Dakshinanchal (DVVNL)", "दक्षिणांचल (DVVNL)"], PUVVNL: ["Purvanchal (PuVVNL)", "पूर्वांचल (PuVVNL)"],
+  KESCO: ["KESCo, Kanpur", "केस्को, कानपुर"],
 };
-function discomName(tenantId: string): string {
+function discomName(tenantId: string, hindi: boolean): string {
   const code = tenantId.toUpperCase();
-  return DISCOMS[code] ?? code;
+  return DISCOMS[code]?.[hindi ? 1 : 0] ?? code;
 }
 
 /** A label/value row; `copy` adds a Copy button (e.g. the account number, needed to pay elsewhere). */

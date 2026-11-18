@@ -207,10 +207,12 @@ export function ActionTile({ icon, title, desc, onPress, primary, disabled }: {
 export function Pill({ label, tone = "ok", icon, flipIcon }: { label: string; tone?: Tone; icon?: IconName; flipIcon?: boolean }) {
   const c = useColors();
   const { bg, fg } = toneColors(c, tone);
+  const { lang } = useI18n();
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
       <View style={flipIcon && { transform: [{ scaleY: -1 }] }}><Icon name={icon ?? TONE_ICON[tone]} size={12} color={fg} /></View>
-      <Txt v="caption" weight="bold" style={{ color: fg, flexShrink: 1 }}>{label}</Txt>
+      {/* Devanagari's headline sits high in the taller Hindi line box: nudge it to the icon's centre (seen in chips). */}
+      <Txt v="caption" weight="bold" style={{ color: fg, flexShrink: 1, marginTop: lang === "hi" ? 3 : 0 }}>{label}</Txt>
     </View>
   );
 }
@@ -303,7 +305,19 @@ export function Centered({ children }: { children: ReactNode }) {
   return <View style={[styles.centered, { backgroundColor: c.bg }]}>{children}</View>;
 }
 
+/** A read-only label above its value, inside a Card (Your details, Meter details). */
+export function InfoRow({ label, value, first, lines = 1 }: { label: string; value: string; first?: boolean; lines?: number }) {
+  const c = useColors();
+  return (
+    <View style={[styles.info, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
+      <Txt v="caption" color="muted">{label}</Txt>
+      <Txt v="body" weight="semibold" numeric numberOfLines={lines}>{value}</Txt>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  info: { paddingHorizontal: 16, paddingVertical: 10, minHeight: 56, justifyContent: "center" },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingTop: 8, gap: 12 },
   grabber: { width: 36, height: 4, borderRadius: 2, alignSelf: "center" },
   grabZone: { height: 24, marginTop: -8, marginHorizontal: -16, justifyContent: "center" },
@@ -328,7 +342,6 @@ const styles = StyleSheet.create({
   insight: { flexDirection: "row", gap: 10, borderRadius: 16, padding: 12, alignItems: "flex-start" },
   backRow: { flexDirection: "row", alignItems: "center", gap: 8, marginLeft: -8 },
   backBtn: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  stale: { flexDirection: "row", gap: 8, alignItems: "center", borderRadius: 14, padding: 10 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
 });
 

@@ -61,8 +61,7 @@ function codeProblem(e: unknown): "wrong" | "expired" | "tooMany" | null {
 
 export default function Login() {
   const c = useColors();
-  const { t, lang } = useI18n();
-  const L = (lang === "hi" ? hi : en).login; // field labels shared with the web login
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>(() => (keystore.getItem(METHOD_KEY) === "password" ? "password" : "code"));
   const [expired] = useState(sessionWasExpired); // UPPCL rejected the saved session (MISS-047)
   const [forgot, setForgot] = useState<Forgot>(null); // came from "Forgot username/password?": say why it isn't needed here

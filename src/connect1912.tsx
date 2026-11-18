@@ -77,9 +77,13 @@ export function Connect1912Sheet({ visible, onClose, onDone }: { visible: boolea
           <Field value={code} autoFocus keyboardType="number-pad" maxLength={6}
             autoComplete="sms-otp" textContentType="oneTimeCode" importantForAutofill="yes"
             placeholder="••••••" accessibilityLabel={t("c19_code")} style={{ fontSize: 24, letterSpacing: 8, textAlign: "center" }}
-            onChangeText={(v) => { const d = v.replace(/[^0-9]/g, "").slice(0, 6); setCode(d); if (d.length === 6 && !busy) void check(d); }} />
+            onChangeText={(v) => {
+              // Same rule as sign-in (UX-R37): UPPCL's codes went 6 → 5 digits once; accept 4–6, auto-check at 6 or a whole paste/autofill.
+              const d = v.replace(/[^0-9]/g, "").slice(0, 6); const whole = d.length >= 4 && d.length - code.length > 1;
+              setCode(d); if ((d.length === 6 || whole) && !busy) void check(d);
+            }} />
           {!!error && <ErrorNote error={error} compact />}
-          <Button label={busy ? t("c19_checking") : t("c19_verify")} busy={busy} disabled={code.length !== 6} onPress={() => check(code)} />
+          <Button label={busy ? t("c19_checking") : t("c19_verify")} busy={busy} disabled={code.length < 4} onPress={() => check(code)} />
           <View style={{ flexDirection: "row", gap: 8 }}>
             <View style={{ flex: 1 }}>
               <Button kind="soft" label={wait > 0 ? t("c19_resend_in", { s: wait }) : t("c19_resend")} disabled={wait > 0 || busy} onPress={sendCode} />

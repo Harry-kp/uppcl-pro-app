@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Linking, Pressable, StyleSheet, View, Platform, ToastAndroid } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {Pressable, StyleSheet, View, Platform, ToastAndroid } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -20,8 +20,8 @@ import { AreaOutageNote, PlannedCutBanner, ReportSheet } from "../../src/report"
 
 import { ErrorNote } from "../../src/errors";
 import { useI18n } from "../../src/i18n";
-import { font, radius, useColors } from "../../src/theme";
-import { ActionTile, animateNext, Button, Card, Centered, Glow, Insight, Pill, Screen, Skeleton, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
+import {radius, useColors } from "../../src/theme";
+import {ActionTile, animateNext, Button, Card, Glow, Insight, Pill, Screen, Skeleton, SkeletonChartCard, SlowNote, Txt } from "../../src/ui";
 import { Icon, type IconName } from "../../src/icons";
 import { openLink } from "../../src/links";
 
@@ -34,7 +34,6 @@ async function openPay(accountNo: string, copiedMessage: string): Promise<void> 
 
 export default function Home() {
   const { data, error, isLoading, mutate, isValidating } = useDashboard();
-  const { t } = useI18n();
   // UPPCL says the session is gone: let the sign-in gate take over instead of offering a retry that can't work.
   const sessionGone = (error as { kind?: string } | undefined)?.kind === "session";
   useEffect(() => { if (sessionGone) void mutateAll("/health"); }, [sessionGone]);
@@ -78,8 +77,7 @@ export default function Home() {
  */
 function ComplaintStatus() {
   const c = useColors();
-  const { t, span, ago } = useI18n();
-  const { data: me } = useMe();
+  const { t, span, ago, upstream } = useI18n();
   const { data } = useMyComplaints();
   const list = data?.complaints ?? [];
   const open = list.find((x) => x.is_open);
@@ -87,7 +85,7 @@ function ComplaintStatus() {
   const x = open ?? fixed;
   if (!x) return null;
   const ms = openFor(x);
-  const type = x.sub_type || x.type || t("complaint_no", { no: x.complaint_no });
+  const type = x.sub_type || x.type ? upstream(x.sub_type || x.type!) : t("complaint_no", { no: x.complaint_no });
   const line = open
     ? [ms !== null && t("cx_open_for", { t: span(ms) }), (x.je_mobile || x.je_name) && t("hc_engineer")].filter(Boolean).join(" · ")
     : [ms !== null && t("cx_took", { t: span(ms) }), x.closing_date && ago(parseUppclDate(x.closing_date)!)].filter(Boolean).join(" · ");
@@ -127,20 +125,6 @@ function HowLink({ text }: { text: string }) {
       </Pressable>
       {open && <Txt v="caption" color="muted">{text}</Txt>}
     </View>
-  );
-}
-
-/** A figure tile with a small leading icon so it can be found by shape. */
-function Tile({ icon, label, children }: { icon: IconName; label: string; children: ReactNode }) {
-  const c = useColors();
-  return (
-    <Card style={styles.mini}>
-      <View style={styles.tileHead}>
-        <Icon name={icon} size={14} color={c.muted} />
-        <Txt v="caption" color="muted" style={{ flex: 1 }} numberOfLines={1}>{label}</Txt>
-      </View>
-      {children}
-    </Card>
   );
 }
 
@@ -279,8 +263,6 @@ function Prepaid({ data }: { data: DashboardResponse }) {
   const rechargeLabel = byLater
     ? t("recharge_by", { amount: rupees(d.recommendedAmount, { decimals: 0 }), date: fmt(byDate!) })
     : t("recharge_now", { amount: rupees(d.recommendedAmount, { decimals: 0 }) });
-  const latestCost = d.latestCharge;
-  const belowUsual = d.avg30 > 0 && latestCost <= d.avg30;
 
   const insight = d.anomaly && week.latestDate
     ? { text: t("insight_spike", { date: fmt(week.latestDate), pct: d.anomalyPct }), tone: "accent" as const }
@@ -355,7 +337,6 @@ function Prepaid({ data }: { data: DashboardResponse }) {
 // ── Postpaid ─────────────────────────────────────────────────────────────────
 
 function Postpaid({ data }: { data: DashboardResponse }) {
-  const c = useColors();
   const { t, locale, lang } = useI18n();
   const { data: outstanding, error: outstandingError } = useOutstanding();
   const { data: invoiceResp } = useLatestInvoice();
@@ -556,7 +537,6 @@ const styles = StyleSheet.create({
   track: { height: 8, borderRadius: 4, overflow: "hidden" },
   fill: { height: "100%", borderRadius: 4 },
   ticks: { flexDirection: "row", justifyContent: "space-between" },
-  strip: { flexDirection: "row", gap: 12 },
   mini: { flex: 1, gap: 2, borderRadius: radius.tile, padding: 12 },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   how: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 48, alignSelf: "flex-start" },

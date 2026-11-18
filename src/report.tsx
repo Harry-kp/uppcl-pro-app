@@ -12,10 +12,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { mutate, useAreaOutage, useDashboard, useDowntime, useMe, useMyComplaints, usePlannedCuts, useSeenComplaintDetail, useTenantPreferences, useWssConsumer, type DashboardResponse } from "@shared/api";
+import {mutate, useAreaOutage, useDashboard, useDowntime, useMyComplaints, usePlannedCuts, useSeenComplaintDetail, useTenantPreferences, type DashboardResponse } from "@shared/api";
 import { cityOf, myPlannedCuts, type MyCut } from "@shared/plannedCuts";
 import { fileSupplyComplaint, HELPLINE_TEL, HELPLINE_TOLL_FREE, LINK_ACCOUNT_URL, latestPlannedCutPdf, PVVNL_HOME, is1912FilingPaused, is1912LoginOnly, is1912NotLinked, noPowerSmsUrl, openFor, prepareSupplyComplaint, type SupplyDraft } from "@shared/complaints";
 import { platform } from "@shared/platform";
+import { nameCase, parseUppclDate } from "@shared/utils";
 import { Connect1912Sheet } from "./connect1912";
 import { ErrorNote } from "./errors";
 import { useI18n } from "./i18n";
@@ -107,7 +108,6 @@ function useWhatsAppUrl(data: DashboardResponse, problem: Problem, account?: str
 export function ReportSheet({ data, visible, onClose }: { data: DashboardResponse; visible: boolean; onClose: () => void }) {
   const c = useColors();
   const { t, span } = useI18n();
-  const { data: me } = useMe();
   const { data: complaints } = useMyComplaints();
   const { data: downtime } = useDowntime();
   const open = complaints?.complaints.find((x) => x.is_open);
@@ -142,7 +142,7 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
   const running = useMyPlannedCuts().find((x) => x.start <= new Date()); // planned cut on this substation right now
   const holdForPlanned = !!running && !again; // like an open complaint: say so first, reporting is one more tap
   const holdForOpen = !!open && !again;
-  const { locale } = useI18n();
+  const { locale, upstream } = useI18n();
 
   return (
     <Sheet visible={visible} onClose={close} title={filed?.ok ? t("rp_title") : t("rp_title_quick")}>
@@ -155,9 +155,9 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
           <AreaOutageNote />
           {!!open && (
             <Insight tone="warn" icon="supportAgent"
-              text={t("rp_already_open", { type: open.sub_type || open.type || "", t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
+              text={t("rp_already_open", { type: upstream(open.sub_type || open.type || ""), t: openFor(open) !== null ? span(openFor(open)!) : "" })} />
           )}
-          {!!running && <Insight tone="warn" icon="event" text={t("pc_running", { to: running.end.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" }) })} />}
+          {!!running && <Insight tone="warn" icon="event" text={t("pc_running", { to: clock(running.end, locale) })} />}
           {holdForPlanned && !holdForOpen && <Button label={t("pc_ok")} onPress={close} />}
           {holdForPlanned && !holdForOpen && <TextLink label={t("pc_report_anyway")} onPress={() => setAgain(true)} />}
           {/* The open complaint IS the action: its page has the engineers to call, in order. */}
@@ -218,13 +218,17 @@ export function ReportSheet({ data, visible, onClose }: { data: DashboardRespons
 /** UPPCL has logged an outage on the user's line (1912 "Outage Information"): say what and since when, so nobody
  *  wonders whether it's just their house. Shown only when 1912 lists one. */
 export function AreaOutageNote() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { data } = useAreaOutage();
-  const o = data?.[0];
+  const now = new Date();
+  // 1912 keeps listing outages after they end: only a current one helps.
+  const o = data?.find((x) => !(parseUppclDate(x.to)! < now));
   if (!o) return null;
   const where = o.feeder ?? o.substation;
-  const when = o.from && o.to ? t("outage_when", { from: o.from, to: o.to }) : o.from ? t("outage_since", { from: o.from }) : "";
-  return <Insight tone="warn" icon="event" text={[t(where ? "outage_on" : "outage_on_line", { where: where ?? "" }), when, o.info].filter(Boolean).join(" · ")} />;
+  const at = (s: string | null) => { const d = parseUppclDate(s); if (!d) return s ?? "";
+    return d.toDateString() === now.toDateString() ? clock(d, locale) : `${d.toLocaleDateString(locale, { day: "numeric", month: "short" })}, ${clock(d, locale)}`; };
+  const when = o.from && o.to ? t("outage_when", { from: at(o.from), to: at(o.to) }) : o.from ? t("outage_since", { from: at(o.from) }) : "";
+  return <Insight tone="warn" icon="warning" text={[t(where ? "outage_on" : "outage_on_line", { where: where ?? "" }), when, o.info].filter(Boolean).join(" · ")} />;
 }
 
 /** PVVNL's daily "Scheduled Supply Outage Information" PDF: found on its home page when asked (straight from the
@@ -333,17 +337,22 @@ export function useMyPlannedCuts(): (MyCut & { feeders: string[] })[] {
     if (!sub) return [];
     const out: (MyCut & { feeders: string[] })[] = [];
     for (const c of myPlannedCuts(list, { substation: sub, city })) {
-      const same = out.find((o) => +o.start === +c.start && +o.end === +c.end && o.substation === c.substation);
-      if (same) { if (c.feeder) same.feeders.push(c.feeder); } else out.push({ ...c, feeders: c.feeder ? [c.feeder] : [] });
+      const same = out.find((o) => +o.start === +c.start && +o.end === +c.end && o.substation === nameCase(c.substation));
+      const feeder = c.feeder && nameCase(c.feeder);
+      if (same) { if (feeder) same.feeders.push(feeder); }
+      else out.push({ ...c, substation: nameCase(c.substation), area: c.area && nameCase(c.area), feeders: feeder ? [feeder] : [] });
     }
     return out;
   }, [list, sub, city]);
 }
 
 /** "now · until 2 pm" / "today · 10 am – 2 pm" / "tomorrow · 10 am – 2 pm" as one line. */
+/** "10 am", "10:30 am": minutes only when there are some (keeps the banner title on one line). */
+export const clock = (d: Date, locale: string) => d.toLocaleTimeString(locale, d.getMinutes() ? { hour: "numeric", minute: "2-digit" } : { hour: "numeric" });
+
 export function useCutWhen() {
   const { t, locale } = useI18n();
-  const hm = (d: Date) => d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
+  const hm = (d: Date) => clock(d, locale);
   return (c: MyCut, now = new Date()) => {
     if (c.start <= now) return t("pc_now", { to: hm(c.end) });
     const today = c.start.toDateString() === now.toDateString();
@@ -357,8 +366,9 @@ export function PlannedCutBanner() {
   const cuts = useMyPlannedCuts();
   const when = useCutWhen();
   const [open, setOpen] = useState(false);
+  const complaintOpen = useMyComplaints().data?.complaints.some((c) => c.is_open); // one Home banner: the open complaint wins
   const x = cuts[0];
-  if (!x) return null;
+  if (!x || complaintOpen) return null;
   const sub = [x.substation, x.reason].filter(Boolean).join(" · ");
   return (
     <>

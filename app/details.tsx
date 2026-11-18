@@ -14,7 +14,7 @@ import { kwh, mean, parseUppclDate, recordSummary, tariffKey, toNum } from "@sha
 import { Bars } from "../src/Bars";
 import { useI18n } from "../src/i18n";
 import { useColors } from "../src/theme";
-import { BackHeader, Card, Pill, Screen, Section, Txt, type Tone } from "../src/ui";
+import { BackHeader, Card, InfoRow, Pill, Screen, Section, Txt, type Tone } from "../src/ui";
 import { Icon } from "../src/icons";
 import { openLink } from "../src/links";
 import { TextLink } from "../src/report";
@@ -70,7 +70,7 @@ export default function MeterDetails() {
       <Section title={t("meter_section")}>
         {/* A grid of short facts scans faster than a five-row list; status reads as a chip. */}
         <Card style={{ padding: 0, gap: 0 }}>
-          {dash && <Row first label={t("meter_no")} value={String(dash.site.meterInstallationNumber || dash.site.deviceId)} />}
+          {dash && <InfoRow first label={t("meter_no")} value={String(dash.site.meterInstallationNumber || dash.site.deviceId)} />}
           <View style={[styles.grid, { borderTopColor: c.line }]}>
             {!!wm?.purposeOfSupply && <Cell label={t("tariff")} value={(() => { const k = tariffKey(wm.purposeOfSupply); return k ? `${t(k.key)} (${k.code})` : wm.purposeOfSupply; })()} /* "Domestic (LMV-1)", not "LMV1" (UX-R20) */ />}
             {!!wm?.meterStatus && (
@@ -184,18 +184,7 @@ function Cell({ label, value, sub, children }: { label: string; value?: string; 
   );
 }
 
-function Row({ label, value, first }: { label: string; value: string; first?: boolean }) {
-  const c = useColors();
-  return (
-    <View style={[styles.detail, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }]}>
-      <Txt v="caption" color="muted">{label}</Txt>
-      <Txt v="body" weight="semibold">{value}</Txt>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  detail: { paddingHorizontal: 16, paddingVertical: 10, minHeight: 56, justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, paddingVertical: 4 },
   cell: { width: "50%", paddingHorizontal: 8, paddingVertical: 10, gap: 3 },
   metric: { flexDirection: "row", alignItems: "center", gap: 12 },
