@@ -641,3 +641,11 @@ test("UPPCL closing notes read as a sentence; acronyms and plain sentences untou
   expect(tidyRemark("DT Damaged. Replaced By New DT")).toBe("DT damaged. Replaced by new DT");
   expect(tidyRemark("supply restored by lineman")).toBe("supply restored by lineman");
 });
+
+import { nameCase } from "../shared/utils";
+test("nameCase: capitals from UPPCL lists read as names, codes stay", () => {
+  expect(nameCase("TEST NAGAR")).toBe("Test Nagar");
+  expect(nameCase("33/11 KV MEERUT-1 SS")).toBe("33/11 KV Meerut-1 SS");
+  expect(nameCase("Pallavpuram Ph-2")).toBe("Pallavpuram Ph-2");
+  expect(nameCase("FEEDER NO-2")).toBe("Feeder No-2");
+});

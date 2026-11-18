@@ -147,7 +147,7 @@ export default function Complaints() {
       <Card style={{ padding: 0, gap: 0 }}>
         {/* PVVNL posts the day's planned cuts as a PDF (the only discom that does). */}
         {String(dash?.site.tenantId ?? "").toUpperCase() === "PVVNL" && (
-          <Contact first icon="event" label={t("planned_title")}
+          <Contact first lines={2} icon="event" label={t("planned_title")}
             value={planBusy ? t("planned_opening") : myCuts[0] ? t("pc_on_yours", { when: cutWhen(myCuts[0]) }) : t("planned_value")}
             onPress={() => { if (myCuts[0]) return setCutsOpen(true); if (planBusy) return; setPlanBusy(true); void openPlannedCuts().finally(() => setPlanBusy(false)); }} />
         )}

@@ -146,3 +146,9 @@ export function tidyRemark(s: string): string {
   if (words.filter((w) => /^[A-Z][a-z]/.test(w)).length < words.length * 0.6) return t; // already a sentence
   return words.map((w, i) => (i === 0 || /^[A-Z0-9/.-]+$/.test(w) || /[:.]$/.test(words[i - 1]) ? w : w.replace(/(^|\/)([A-Z])(?=[a-z])/g, (_, p: string, c: string) => p + c.toLowerCase()))).join(" "); // "Fault/Tripping" too
 }
+
+/** UPPCL lists write names in capitals ("TEST NAGAR PH-2"): "Test Nagar PH-2". Codes stay: 2 letters without a vowel (KV, SS, PH). */
+export function nameCase(s: string): string {
+  if (/[a-z]/.test(s)) return s; // already cased by a person
+  return s.replace(/[A-Z][A-Z']+/g, (w) => (w.length <= 2 && !/[AEIOU]/.test(w) ? w : w[0] + w.slice(1).toLowerCase()));
+}

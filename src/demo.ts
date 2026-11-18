@@ -50,6 +50,7 @@ const DAY = 86400_000;
 const now = () => Date.now();
 const iso = (t: number) => { const d = new Date(t); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T00:00:00`; };
 const p2 = (n: number) => String(n).padStart(2, "0");
+const hm = (t: number) => { const d = new Date(t); return `${p2(d.getHours())}:${p2(d.getMinutes())}`; };
 const dmy = (t: number) => { const d = new Date(t); return `${p2(d.getDate())}-${p2(d.getMonth() + 1)}-${d.getFullYear()}`; };
 const env = <T>(data: T) => ({ code: 200, message: "OK", data });
 
@@ -194,7 +195,7 @@ export function mockFor(key: string, pay: { outcome: PayOutcome }): unknown {
       reason: "Pole replacement work", area: "Test Nagar, Sample Colony" },
     { substation: "OTHER TOWN", feeder: "FEEDER NO-1", place: "MEERUT-1 EUDC-1 MEERUT", date: dmy(now() + DAY), from: "11:00", to: "13:00", reason: null, area: null }] };
   if (path === "/complaints/outage") return [{ id: "BD-SAMPLE-1", feeder: "Test Nagar 11 kV", substation: "Test Nagar", kind: "Breakdown",
-    info: "Feeder tripped at the substation. Line crew on site.", from: "17-11-2026 19:30", to: "17-11-2026 22:30" }];
+    info: "Feeder tripped at the substation. Line crew on site.", from: `${dmy(now() - 3_600_000)} ${hm(now() - 3_600_000)}`, to: `${dmy(now() + 2 * 3_600_000)} ${hm(now() + 2 * 3_600_000)}` }];
   // One day in 15-minute readings, so "hour by hour" shows in sample data too: a 6 am geyser spike, a busy
   // 8–11 am, evening TV/lights. The tallest single hour sits outside the busiest 3 hours on purpose (UX-R05).
   if (path === "/day") return env(dayReadings(q.get("date") ?? ""));
